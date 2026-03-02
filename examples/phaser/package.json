@@ -1,0 +1,16 @@
+{
+  "name": "alife-phaser-example",
+  "private": true,
+  "description": "Phaser 3 browser demo for @alife-sdk — online/offline NPC simulation",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "phaser": "^3.60.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^6.0.0"
+  }
+}

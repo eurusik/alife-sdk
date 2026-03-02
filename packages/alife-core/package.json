@@ -1,0 +1,119 @@
+{
+  "name": "@alife-sdk/core",
+  "version": "0.1.0",
+  "description": "Framework-agnostic A-Life simulation and AI decision-making system",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./math": {
+      "types": "./dist/core/math/index.d.ts",
+      "import": "./dist/core/math/index.js"
+    },
+    "./events": {
+      "types": "./dist/events/index.d.ts",
+      "import": "./dist/events/index.js"
+    },
+    "./registry": {
+      "types": "./dist/registry/index.d.ts",
+      "import": "./dist/registry/index.js"
+    },
+    "./entity": {
+      "types": "./dist/entity/index.d.ts",
+      "import": "./dist/entity/index.js"
+    },
+    "./faction": {
+      "types": "./dist/faction/index.d.ts",
+      "import": "./dist/faction/index.js"
+    },
+    "./combat": {
+      "types": "./dist/combat/index.d.ts",
+      "import": "./dist/combat/index.js"
+    },
+    "./terrain": {
+      "types": "./dist/terrain/index.d.ts",
+      "import": "./dist/terrain/index.js"
+    },
+    "./movement": {
+      "types": "./dist/movement/index.d.ts",
+      "import": "./dist/movement/index.js"
+    },
+    "./spawn": {
+      "types": "./dist/spawn/index.d.ts",
+      "import": "./dist/spawn/index.js"
+    },
+    "./ai": {
+      "types": "./dist/ai/index.d.ts",
+      "import": "./dist/ai/index.js"
+    },
+    "./logger": {
+      "types": "./dist/logger/index.d.ts",
+      "import": "./dist/logger/index.js"
+    },
+    "./ports": {
+      "types": "./dist/ports/index.d.ts",
+      "import": "./dist/ports/index.js"
+    },
+    "./plugins": {
+      "types": "./dist/plugins/index.d.ts",
+      "import": "./dist/plugins/index.js"
+    },
+    "./schema": {
+      "types": "./dist/schema/index.d.ts",
+      "import": "./dist/schema/index.js"
+    },
+    "./config": {
+      "types": "./dist/config/index.d.ts",
+      "import": "./dist/config/index.js"
+    },
+    "./navigation": {
+      "types": "./dist/navigation/index.d.ts",
+      "import": "./dist/navigation/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "alife",
+    "game-ai",
+    "simulation",
+    "npc",
+    "behavior",
+    "state-machine",
+    "goap"
+  ],
+  "license": "MIT",
+  "author": "Eugene Rusakov",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eurusik/alife-sdk.git",
+    "directory": "packages/alife-core"
+  },
+  "homepage": "https://github.com/eurusik/alife-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/eurusik/alife-sdk/issues"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}

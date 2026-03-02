@@ -1,0 +1,102 @@
+{
+  "name": "@alife-sdk/simulation",
+  "version": "0.1.0",
+  "description": "Offline tick-based A-Life world simulation",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js"
+    },
+    "./ports": {
+      "types": "./dist/ports/index.d.ts",
+      "import": "./dist/ports/index.js"
+    },
+    "./terrain": {
+      "types": "./dist/terrain/index.d.ts",
+      "import": "./dist/terrain/index.js"
+    },
+    "./npc": {
+      "types": "./dist/npc/index.d.ts",
+      "import": "./dist/npc/index.js"
+    },
+    "./brain": {
+      "types": "./dist/brain/index.d.ts",
+      "import": "./dist/brain/index.js"
+    },
+    "./combat": {
+      "types": "./dist/combat/index.d.ts",
+      "import": "./dist/combat/index.js"
+    },
+    "./surge": {
+      "types": "./dist/surge/index.d.ts",
+      "import": "./dist/surge/index.js"
+    },
+    "./squad": {
+      "types": "./dist/squad/index.d.ts",
+      "import": "./dist/squad/index.js"
+    },
+    "./movement": {
+      "types": "./dist/movement/index.d.ts",
+      "import": "./dist/movement/index.js"
+    },
+    "./plugin": {
+      "types": "./dist/plugin/index.d.ts",
+      "import": "./dist/plugin/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "alife",
+    "game-ai",
+    "simulation",
+    "npc",
+    "behavior",
+    "state-machine",
+    "goap"
+  ],
+  "license": "MIT",
+  "author": "Eugene Rusakov",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eurusik/alife-sdk.git",
+    "directory": "packages/alife-simulation"
+  },
+  "homepage": "https://github.com/eurusik/alife-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/eurusik/alife-sdk/issues"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@alife-sdk/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@alife-sdk/economy": "workspace:*",
+    "@alife-sdk/hazards": "workspace:*",
+    "@alife-sdk/persistence": "workspace:*",
+    "@alife-sdk/social": "workspace:*",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}

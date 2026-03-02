@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "paths": {
+      "@alife-sdk/core":        ["../../packages/alife-core/dist/index.js"],
+      "@alife-sdk/core/*":      ["../../packages/alife-core/dist/*/index.js"],
+      "@alife-sdk/simulation":  ["../../packages/alife-simulation/dist/index.js"],
+      "@alife-sdk/phaser":      ["../../packages/alife-phaser/dist/index.js"]
+    }
+  },
+  "include": ["src"]
+}

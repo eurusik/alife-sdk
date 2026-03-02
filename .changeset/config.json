@@ -1,0 +1,22 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.0.0/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "fixed": [],
+  "linked": [
+    [
+      "@alife-sdk/core",
+      "@alife-sdk/simulation",
+      "@alife-sdk/ai",
+      "@alife-sdk/economy",
+      "@alife-sdk/hazards",
+      "@alife-sdk/persistence",
+      "@alife-sdk/phaser",
+      "@alife-sdk/social"
+    ]
+  ],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": []
+}

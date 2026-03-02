@@ -1,0 +1,80 @@
+{
+  "name": "@alife-sdk/hazards",
+  "version": "0.1.0",
+  "description": "Hazard zones, anomalies and artefact spawning for A-Life SDK",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./zone": {
+      "types": "./dist/zone/index.d.ts",
+      "import": "./dist/zone/index.js"
+    },
+    "./artefact": {
+      "types": "./dist/artefact/index.d.ts",
+      "import": "./dist/artefact/index.js"
+    },
+    "./manager": {
+      "types": "./dist/manager/index.d.ts",
+      "import": "./dist/manager/index.js"
+    },
+    "./events": {
+      "types": "./dist/events/index.d.ts",
+      "import": "./dist/events/index.js"
+    },
+    "./ports": {
+      "types": "./dist/ports/index.d.ts",
+      "import": "./dist/ports/index.js"
+    },
+    "./plugin": {
+      "types": "./dist/plugin/index.d.ts",
+      "import": "./dist/plugin/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "alife",
+    "hazards",
+    "anomaly",
+    "artefact",
+    "zone"
+  ],
+  "license": "MIT",
+  "author": "Eugene Rusakov",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eurusik/alife-sdk.git",
+    "directory": "packages/alife-hazards"
+  },
+  "homepage": "https://github.com/eurusik/alife-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/eurusik/alife-sdk/issues"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@alife-sdk/core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}

@@ -1,0 +1,58 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Environment & secrets
+.env
+.env.*
+*.local
+
+# OS
+.DS_Store
+
+# Logs
+debug-logs/
+*.log
+
+# xray-16 reference source (large)
+xray-16-dev/
+
+# xray-16 reference data (config/scripts)
+config/
+scripts/
+
+# AI tool directories
+.agent/
+.agents/
+.codebuddy/
+.commandcode/
+.continue/
+.crush/
+.factory/
+.goose/
+.junie/
+.kilocode/
+.kiro/
+.kode/
+.mcpjam/
+.mux/
+.neovate/
+.openhands/
+.pi/
+.pochi/
+.qoder/
+.qwen/
+.roo/
+.trae/
+.windsurf/
+.zencoder/
+
+# Claude Code (project-specific memory/plans)
+.claude/
+
+# Skills (generated)
+skills/
+skills-lock.json

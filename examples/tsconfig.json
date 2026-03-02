@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "paths": {
+      "@alife-sdk/core":              ["../packages/alife-core/dist/index.js"],
+      "@alife-sdk/core/*":            ["../packages/alife-core/dist/*/index.js"],
+      "@alife-sdk/simulation":        ["../packages/alife-simulation/dist/index.js"],
+      "@alife-sdk/simulation/*":      ["../packages/alife-simulation/dist/*/index.js"],
+      "@alife-sdk/ai":                ["../packages/alife-ai/dist/index.js"],
+      "@alife-sdk/ai/*":              ["../packages/alife-ai/dist/*/index.js"],
+      "@alife-sdk/hazards":           ["../packages/alife-hazards/dist/index.js"],
+      "@alife-sdk/hazards/*":         ["../packages/alife-hazards/dist/*/index.js"],
+      "@alife-sdk/social":            ["../packages/alife-social/dist/index.js"],
+      "@alife-sdk/social/*":          ["../packages/alife-social/dist/*/index.js"],
+      "@alife-sdk/persistence":       ["../packages/alife-persistence/dist/index.js"],
+      "@alife-sdk/persistence/*":     ["../packages/alife-persistence/dist/*/index.js"],
+      "@alife-sdk/economy":           ["../packages/alife-economy/dist/index.js"],
+      "@alife-sdk/economy/*":         ["../packages/alife-economy/dist/*/index.js"],
+      "@alife-sdk/phaser":            ["../packages/alife-phaser/dist/index.js"],
+      "@alife-sdk/phaser/*":          ["../packages/alife-phaser/dist/*/index.js"]
+    }
+  },
+  "include": ["."]
+}

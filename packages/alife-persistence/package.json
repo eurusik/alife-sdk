@@ -1,0 +1,69 @@
+{
+  "name": "@alife-sdk/persistence",
+  "version": "0.1.0",
+  "description": "Framework-agnostic save/load pipeline for A-Life kernel \u2014 pluggable storage backends",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./ports": {
+      "types": "./dist/ports/index.d.ts",
+      "import": "./dist/ports/index.js"
+    },
+    "./providers": {
+      "types": "./dist/providers/index.d.ts",
+      "import": "./dist/providers/index.js"
+    },
+    "./plugin": {
+      "types": "./dist/plugin/index.d.ts",
+      "import": "./dist/plugin/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "alife",
+    "game-ai",
+    "persistence",
+    "save",
+    "load",
+    "storage"
+  ],
+  "license": "MIT",
+  "author": "Eugene Rusakov",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eurusik/alife-sdk.git",
+    "directory": "packages/alife-persistence"
+  },
+  "homepage": "https://github.com/eurusik/alife-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/eurusik/alife-sdk/issues"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@alife-sdk/core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "name": "alife-sdk",
+  "version": "0.1.0",
+  "description": "Framework-agnostic A-Life simulation and AI SDK for game developers",
+  "type": "module",
+  "private": true,
+  "author": "Eugene Rusakov",
+  "license": "MIT",
+  "homepage": "https://github.com/eurusik/alife-sdk#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eurusik/alife-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/eurusik/alife-sdk/issues"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "build:sdk": "pnpm --filter @alife-sdk/core build && pnpm --filter @alife-sdk/simulation build && pnpm --filter @alife-sdk/ai build && pnpm --filter @alife-sdk/economy build && pnpm --filter @alife-sdk/hazards build && pnpm --filter @alife-sdk/persistence build && pnpm --filter @alife-sdk/social build && pnpm --filter @alife-sdk/phaser build",
+    "test:sdk": "pnpm -r --filter './packages/**' test --run",
+    "lint": "eslint 'packages/*/src/**/*.ts'",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "pnpm build:sdk && changeset publish"
+  },
+  "keywords": [
+    "alife",
+    "game-ai",
+    "simulation",
+    "npc",
+    "behavior",
+    "state-machine",
+    "goap",
+    "phaser"
+  ],
+  "devDependencies": {
+    "@changesets/cli": "^2.29.4",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.0.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.1"
+  }
+}

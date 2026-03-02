@@ -1,0 +1,83 @@
+{
+  "name": "@alife-sdk/phaser",
+  "version": "0.1.0",
+  "description": "Phaser 3 adapter for @alife-sdk \u2014 entity adapters, online/offline manager, NPC AI bridge",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js"
+    },
+    "./adapters": {
+      "types": "./dist/adapters/index.d.ts",
+      "import": "./dist/adapters/index.js"
+    },
+    "./online": {
+      "types": "./dist/online/index.d.ts",
+      "import": "./dist/online/index.js"
+    },
+    "./scene": {
+      "types": "./dist/scene/index.d.ts",
+      "import": "./dist/scene/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "alife",
+    "phaser",
+    "game-ai",
+    "simulation",
+    "npc",
+    "adapter"
+  ],
+  "license": "MIT",
+  "author": "Eugene Rusakov",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eurusik/alife-sdk.git",
+    "directory": "packages/alife-phaser"
+  },
+  "homepage": "https://github.com/eurusik/alife-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/eurusik/alife-sdk/issues"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "phaser": "^3.60.0"
+  },
+  "dependencies": {
+    "@alife-sdk/core": "workspace:*",
+    "@alife-sdk/simulation": "workspace:*",
+    "@alife-sdk/ai": "workspace:*",
+    "@alife-sdk/social": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  },
+  "peerDependenciesMeta": {
+    "phaser": {
+      "optional": true
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/alife-core" },
+    { "path": "./packages/alife-simulation" },
+    { "path": "./packages/alife-ai" },
+    { "path": "./packages/alife-economy" },
+    { "path": "./packages/alife-hazards" },
+    { "path": "./packages/alife-persistence" },
+    { "path": "./packages/alife-social" },
+    { "path": "./packages/alife-phaser" }
+  ]
+}

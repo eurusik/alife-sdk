@@ -1,0 +1,123 @@
+{
+  "name": "@alife-sdk/ai",
+  "version": "0.1.0",
+  "description": "Online frame-based NPC behavior system",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js"
+    },
+    "./config": {
+      "types": "./dist/config/index.d.ts",
+      "import": "./dist/config/index.js"
+    },
+    "./cover": {
+      "types": "./dist/cover/index.d.ts",
+      "import": "./dist/cover/index.js"
+    },
+    "./combat": {
+      "types": "./dist/combat/index.d.ts",
+      "import": "./dist/combat/index.js"
+    },
+    "./navigation": {
+      "types": "./dist/navigation/index.d.ts",
+      "import": "./dist/navigation/index.js"
+    },
+    "./squad": {
+      "types": "./dist/squad/index.d.ts",
+      "import": "./dist/squad/index.js"
+    },
+    "./animation": {
+      "types": "./dist/animation/index.d.ts",
+      "import": "./dist/animation/index.js"
+    },
+    "./sound": {
+      "types": "./dist/sound/index.d.ts",
+      "import": "./dist/sound/index.js"
+    },
+    "./perception": {
+      "types": "./dist/perception/index.d.ts",
+      "import": "./dist/perception/index.js"
+    },
+    "./goap": {
+      "types": "./dist/goap/index.d.ts",
+      "import": "./dist/goap/index.js"
+    },
+    "./ports": {
+      "types": "./dist/ports/index.d.ts",
+      "import": "./dist/ports/index.js"
+    },
+    "./plugin": {
+      "types": "./dist/plugin/index.d.ts",
+      "import": "./dist/plugin/index.js"
+    },
+    "./conditions": {
+      "types": "./dist/conditions/index.d.ts",
+      "import": "./dist/conditions/index.js"
+    },
+    "./suspicion": {
+      "types": "./dist/suspicion/index.d.ts",
+      "import": "./dist/suspicion/index.js"
+    },
+    "./states": {
+      "types": "./dist/states/index.d.ts",
+      "import": "./dist/states/index.js"
+    },
+    "./states/eat-corpse": {
+      "types": "./dist/states/eat-corpse/index.d.ts",
+      "import": "./dist/states/eat-corpse/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "alife",
+    "game-ai",
+    "simulation",
+    "npc",
+    "behavior",
+    "state-machine",
+    "goap"
+  ],
+  "license": "MIT",
+  "author": "Eugene Rusakov",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eurusik/alife-sdk.git",
+    "directory": "packages/alife-ai"
+  },
+  "homepage": "https://github.com/eurusik/alife-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/eurusik/alife-sdk/issues"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@alife-sdk/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@alife-sdk/hazards": "workspace:*",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}
