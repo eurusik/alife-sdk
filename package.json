@@ -20,7 +20,7 @@
   },
   "scripts": {
     "build:sdk": "pnpm --filter @alife-sdk/core build && pnpm --filter @alife-sdk/simulation build && pnpm --filter @alife-sdk/ai build && pnpm --filter @alife-sdk/economy build && pnpm --filter @alife-sdk/hazards build && pnpm --filter @alife-sdk/persistence build && pnpm --filter @alife-sdk/social build && pnpm --filter @alife-sdk/phaser build",
-    "test:sdk": "pnpm -r --filter './packages/**' test --run",
+    "test:sdk": "pnpm -r --filter './packages/**' test -- --run",
     "lint": "eslint 'packages/*/src/**/*.ts'",
     "changeset": "changeset",
     "version-packages": "changeset version",
