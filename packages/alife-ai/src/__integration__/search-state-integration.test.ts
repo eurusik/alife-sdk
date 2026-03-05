@@ -302,7 +302,7 @@ describe('SearchState — integration via OnlineAIDriver', () => {
       host.perception.sync([], [], []);
 
       const handlers = buildDefaultHandlerMap(cfg);
-      const _driver = new OnlineAIDriver(host, handlers, ONLINE_STATE.SEARCH);
+      const driver = new OnlineAIDriver(host, handlers, ONLINE_STATE.SEARCH);
 
       tick(host, driver, 16);
 
@@ -323,7 +323,7 @@ describe('SearchState — integration via OnlineAIDriver', () => {
       host.perception.sync([], [], []);
 
       const handlers = buildDefaultHandlerMap(cfg);
-      const _driver = new OnlineAIDriver(host, handlers, ONLINE_STATE.SEARCH);
+      const driver = new OnlineAIDriver(host, handlers, ONLINE_STATE.SEARCH);
 
       // Tick but not past searchDuration
       tick(host, driver, SHORT_SEARCH_MS - 100);

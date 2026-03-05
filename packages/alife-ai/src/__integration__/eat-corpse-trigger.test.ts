@@ -198,7 +198,7 @@ describe('EatCorpseState trigger conditions and transitions (integration)', () =
       const corpseSource = makeCorpseAtPos('corpse_1', 100, 100, healAmount);
       const shortEatMs = 200;
       const handlers = buildHandlerMapWithEatCorpse(corpseSource, shortEatMs, 250);
-      const _driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
+      const driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
 
       // No enemies
       host.perception.sync([], [], []);
@@ -222,7 +222,7 @@ describe('EatCorpseState trigger conditions and transitions (integration)', () =
 
       const corpseSource = makeCorpseAtPos('corpse_2', 100, 100, 20);
       const handlers = buildHandlerMapWithEatCorpse(corpseSource, 100, 250);
-      const _driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
+      const driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
 
       host.perception.sync([], [], []);
       tick(host, driver, 20);   // arrive / start eating
@@ -243,7 +243,7 @@ describe('EatCorpseState trigger conditions and transitions (integration)', () =
 
       const corpseSource = makeCorpseAtPos('corpse_1', 100, 100, 20);
       const handlers = buildHandlerMapWithEatCorpse(corpseSource, 5_000, 250);
-      const _driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
+      const driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
 
       // No enemies initially
       host.perception.sync([], [], []);
@@ -268,7 +268,7 @@ describe('EatCorpseState trigger conditions and transitions (integration)', () =
 
       const corpseSource = makeCorpseAtPos('corpse_1', 100, 100, 20);
       const handlers = buildHandlerMapWithEatCorpse(corpseSource, 5_000, 250);
-      const _driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
+      const driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
 
       host.perception.sync([], [], []);
       tick(host, driver, 50);
@@ -293,7 +293,7 @@ describe('EatCorpseState trigger conditions and transitions (integration)', () =
 
       const corpseSource = makeCorpseAtPos('corpse_1', 100, 100, 20);
       const handlers = buildHandlerMapWithEatCorpse(corpseSource, 5_000, 250);
-      const _driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
+      const driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
 
       host.perception.sync([], [], []);
       tick(host, driver, 50);
@@ -349,7 +349,7 @@ describe('EatCorpseState trigger conditions and transitions (integration)', () =
       const corpseSource = makeCorpseAtPos('corpse_x', 100, 100, 10);
       const eatDurationMs = 300;
       const handlers = buildHandlerMapWithEatCorpse(corpseSource, eatDurationMs, 250);
-      const _driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
+      const driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
 
       host.perception.sync([], [], []);
       tick(host, driver, 16);    // arrive + start eating phase
@@ -365,7 +365,7 @@ describe('EatCorpseState trigger conditions and transitions (integration)', () =
       const corpseSource = makeCorpseAtPos('corpse_y', 100, 100, 10);
       const eatDurationMs = 100;
       const handlers = buildHandlerMapWithEatCorpse(corpseSource, eatDurationMs, 250);
-      const _driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
+      const driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
 
       host.perception.sync([], [], []);
       tick(host, driver, 16);
@@ -386,7 +386,7 @@ describe('EatCorpseState trigger conditions and transitions (integration)', () =
 
       const corpseSource = makeCorpseAtPos('corpse_1', 100, 100, 20);
       const handlers = buildHandlerMapWithEatCorpse(corpseSource, 5_000, 250);
-      const _driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
+      const driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
 
       host.perception.sync([], [], []);
       tick(host, driver, 16);
@@ -406,7 +406,7 @@ describe('EatCorpseState trigger conditions and transitions (integration)', () =
         { id: 'far_corpse', x: 200, y: 100, healAmount: 20 },
       ]);
       const handlers = buildHandlerMapWithEatCorpse(corpseSource, 5_000, 250);
-      const _driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
+      const driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
 
       // Just entered — not yet arrived
       host.perception.sync([], [], []);
@@ -450,7 +450,7 @@ describe('EatCorpseState trigger conditions and transitions (integration)', () =
 
       const emptySource = new EmptyCorpseSource();
       const handlers = buildHandlerMapWithEatCorpse(emptySource, 4_000, 250);
-      const _driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
+      const driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
 
       // enter() should immediately transition to eatCorpseOnNoCorpse (IDLE)
       expect(driver.currentStateId).toBe(ONLINE_STATE.IDLE);
@@ -481,7 +481,7 @@ describe('EatCorpseState trigger conditions and transitions (integration)', () =
       const corpseSource = makeCorpseAtPos('corpse_m', 100, 100, 0); // 0 heal, just morale
       const eatDurationMs = 100;
       const handlers = buildHandlerMapWithEatCorpse(corpseSource, eatDurationMs, 250);
-      const _driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
+      const driver = new OnlineAIDriver(host, handlers, EAT_CORPSE_STATE_ID);
 
       host.perception.sync([], [], []);
       tick(host, driver, 16);   // arrive / start eating

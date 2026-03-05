@@ -216,7 +216,7 @@ describe('Monster Ability Cycle (integration)', () => {
       const enemy = { id: 'prey_1', x: host.x + 200, y: host.y, factionId: 'human' };
       host.perception.sync([enemy], [], []);
 
-      const _driver = new OnlineAIDriver(host, buildChornobylMonsterHandlerMap(), ONLINE_STATE.STALK);
+      const driver = new OnlineAIDriver(host, buildChornobylMonsterHandlerMap(), ONLINE_STATE.STALK);
       tick(host, driver, 16);
 
       // Should be moving toward enemy (positive x velocity since enemy is to the right).
@@ -237,7 +237,7 @@ describe('Monster Ability Cycle (integration)', () => {
       const enemy = { id: 'prey_1', x: enemyX, y: host.y, factionId: 'human' };
       host.perception.sync([enemy], [], []);
 
-      const _driver = new OnlineAIDriver(host, buildChornobylMonsterHandlerMap(), ONLINE_STATE.STALK);
+      const driver = new OnlineAIDriver(host, buildChornobylMonsterHandlerMap(), ONLINE_STATE.STALK);
 
       // First tick: dist < stalkUnclockDistance -> sets approaching=true.
       tick(host, driver, 16);
@@ -256,7 +256,7 @@ describe('Monster Ability Cycle (integration)', () => {
       const enemy = { id: 'prey_1', x: enemyX, y: host.y, factionId: 'human' };
       host.perception.sync([enemy], [], []);
 
-      const _driver = new OnlineAIDriver(host, buildChornobylMonsterHandlerMap(), ONLINE_STATE.STALK);
+      const driver = new OnlineAIDriver(host, buildChornobylMonsterHandlerMap(), ONLINE_STATE.STALK);
 
       tick(host, driver, 16); // approaching=true
       tick(host, driver, 16); // uncloak + transition to COMBAT
