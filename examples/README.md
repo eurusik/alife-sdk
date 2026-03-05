@@ -48,10 +48,11 @@ tsx --tsconfig examples/tsconfig.json examples/01-hello-npc.ts
 - Running a simulation loop for 5 ticks (each tick = 5 seconds of game time)
 - Listening to events: `TICK`, `NPC_MOVED`, `FACTION_CONFLICT`, `TASK_ASSIGNED`
 
-The key thing to understand: the kernel needs three required ports (`EntityAdapter`,
-`PlayerPosition`, `EntityFactory`) to pass validation at `init()`. In a real game engine
-these are non-trivial adapters. In a Node.js example they are tiny stubs that return safe
-defaults so all simulation logic still runs correctly.
+The key thing to understand: in a real game engine you must provide three ports —
+`EntityAdapter`, `PlayerPosition`, `EntityFactory` — before calling `init()`.
+This example wires them as tiny stubs so all simulation logic still runs correctly.
+If you just want to skip this wiring entirely, use `createInMemoryKernel()` from
+`@alife-sdk/simulation` — it provides all no-op adapters automatically.
 
 **Run:**
 
