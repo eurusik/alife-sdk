@@ -21,8 +21,10 @@ debug-logs/
 xray-16-dev/
 
 # xray-16 reference data (config/scripts)
-config/
-scripts/
+/config/
+/scripts/
+!packages/**/config/
+!packages/**/scripts/
 
 # AI tool directories
 .agent/
