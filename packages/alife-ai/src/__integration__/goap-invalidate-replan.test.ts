@@ -128,7 +128,7 @@ class SuccessAction extends GOAPAction {
 }
 
 /** Action that returns FAILURE immediately. */
-class FailAction extends GOAPAction {
+class _FailAction extends GOAPAction {
   readonly id: string;
   readonly cost = 1;
   executeCount = 0;

@@ -119,7 +119,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       host.state.lastKnownEnemyX = 300;
       host.state.lastKnownEnemyY = 100;
 
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.COMBAT);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.COMBAT);
       tick(host, driver, 16);
 
       expect(driver.currentStateId).toBe(ONLINE_STATE.WOUNDED);
@@ -132,7 +132,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
 
       host.perception.sync([makeEnemy()], [], []);
 
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.COMBAT);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.COMBAT);
       tick(host, driver, 16);
 
       // 20 / 100 = 0.2, which is NOT < 0.2 → should stay in COMBAT.
@@ -148,7 +148,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       host.state.lastKnownEnemyX = 300;
       host.state.lastKnownEnemyY = 100;
 
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.COMBAT);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.COMBAT);
       tick(host, driver, 16);
 
       expect(driver.currentStateId).toBe(ONLINE_STATE.WOUNDED);
@@ -167,7 +167,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       host.state.lastKnownEnemyX = 300;
       host.state.lastKnownEnemyY = 100;
 
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
       tick(host, driver, 16);
 
       expect(host.velocities.length).toBeGreaterThan(0);
@@ -185,7 +185,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       host.state.lastKnownEnemyX = 100;
       host.state.lastKnownEnemyY = 500;
 
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
       tick(host, driver, 16);
 
       const lastVel = host.velocities[host.velocities.length - 1];
@@ -201,7 +201,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       host.state.lastKnownEnemyX = 300;
       host.state.lastKnownEnemyY = 100;
 
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
       tick(host, driver, 16);
 
       const lastVel = host.velocities[host.velocities.length - 1];
@@ -223,7 +223,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       host.state.lastKnownEnemyX = 300;
       host.state.lastKnownEnemyY = 100;
 
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
       tick(host, driver, 16);
 
       // medkitHealRatio = 0.5 → heal = 50 HP; 15 + 50 = 65% > 20% → COMBAT.
@@ -240,7 +240,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       host.state.lastKnownEnemyX = 300;
       host.state.lastKnownEnemyY = 100;
 
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
       tick(host, driver, 16);
 
       // One medkit used, one remaining. Healed from 1 to 501 → COMBAT.
@@ -257,7 +257,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       host.state.lastKnownEnemyX = 200;
       host.state.lastKnownEnemyY = 100;
 
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(customCfg), ONLINE_STATE.WOUNDED);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(customCfg), ONLINE_STATE.WOUNDED);
       tick(host, driver, 16);
 
       // heal = 200 * 0.05 = 10; 5 + 10 = 15 / 200 = 7.5% < 20% → still WOUNDED.
@@ -278,7 +278,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       host.state.lastKnownEnemyX = 200;
       host.state.lastKnownEnemyY = 100;
 
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
       tick(host, driver, 16);
 
       expect(driver.currentStateId).toBe(ONLINE_STATE.FLEE);
@@ -291,7 +291,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       host.state.lastKnownEnemyX = 200;
       host.state.lastKnownEnemyY = 100;
 
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
       tick(host, driver, cfg.woundedMaxDurationMs + 100);
 
       expect(driver.currentStateId).toBe(ONLINE_STATE.FLEE);
@@ -304,7 +304,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       host.state.lastKnownEnemyX = 200;
       host.state.lastKnownEnemyY = 100;
 
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
       tick(host, driver, cfg.woundedMaxDurationMs / 2);
 
       expect(driver.currentStateId).toBe(ONLINE_STATE.WOUNDED);
@@ -327,7 +327,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
         },
       };
 
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.RETREAT);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.RETREAT);
 
       // After enter() the cover point must be stored.
       expect(host.state.coverPointX).toBe(20);
@@ -347,7 +347,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
         findCover() { return { x: 600, y: 100 }; },
       };
 
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.RETREAT);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.RETREAT);
       const velocitiesBefore = host.velocities.length;
       tick(host, driver, 16);
 
@@ -374,7 +374,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       // No enemies visible → after halt() the state transitions to SEARCH.
       host.perception.sync([], [], []);
 
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.RETREAT);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.RETREAT);
       tick(host, driver, cfg.retreatFireIntervalMs + 100);
 
       // Without visible enemies at the (immediate) cover, transitions to SEARCH.
@@ -402,7 +402,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       // Perception: enemy is still visible so it won't go to SEARCH.
       host.perception.sync([makeEnemy('e1', 400, 100)], [], []);
 
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.RETREAT);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.RETREAT);
       tick(host, driver, cfg.retreatFireIntervalMs + 100);
 
       expect(driver.currentStateId).toBe(ONLINE_STATE.COMBAT);
@@ -429,7 +429,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       // No visible enemies.
       host.perception.sync([], [], []);
 
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.RETREAT);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.RETREAT);
       tick(host, driver, cfg.retreatFireIntervalMs + 100);
 
       expect(driver.currentStateId).toBe(ONLINE_STATE.SEARCH);
@@ -450,7 +450,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
         findCover() { return { x: 50, y: 50 }; },
       };
 
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.RETREAT);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.RETREAT);
       tick(host, driver, 16);
 
       expect(driver.currentStateId).toBe(ONLINE_STATE.FLEE);
@@ -504,7 +504,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       // Advance time before entering WOUNDED.
       host.advanceMs(5000);
 
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
 
       // enter() should have set woundedStartMs to now() which is 5000.
       expect(host.state.woundedStartMs).toBe(5000);
@@ -526,7 +526,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       // Enemy visible so we don't transition to SEARCH.
       host.perception.sync([makeEnemy('e1', 400, 100)], [], []);
 
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.RETREAT);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.RETREAT);
       // Advance past retreatFireIntervalMs to trigger suppressive fire.
       tick(host, driver, cfg.retreatFireIntervalMs + 100);
 
@@ -562,7 +562,7 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       host.state.lastKnownEnemyY = 100;
 
       // With medkitHealRatio=0.5 → heal = 50; 10+50 = 60% > 20% → COMBAT.
-      const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
+      const _driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
       tick(host, driver, 16);
 
       expect(driver.currentStateId).toBe(ONLINE_STATE.COMBAT);

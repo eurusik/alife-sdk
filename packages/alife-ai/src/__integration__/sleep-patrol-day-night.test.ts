@@ -14,7 +14,7 @@
  * All objects are REAL — zero mocks, zero vi.fn().
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { OnlineAIDriver } from '../states/OnlineAIDriver';
 import type { IOnlineDriverHost } from '../states/OnlineAIDriver';
 import { createDefaultNPCOnlineState } from '../states/NPCOnlineState';

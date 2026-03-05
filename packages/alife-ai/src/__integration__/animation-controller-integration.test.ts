@@ -19,10 +19,8 @@ import {
   getAnimationKey,
   AnimLayer,
   CompassIndex,
-  DEFAULT_STATE_ANIM_MAP,
-  DEFAULT_WEAPON_SUFFIXES,
 } from '../animation/AnimationSelector';
-import type { IAnimationRequest, IAnimDescriptor } from '../animation/AnimationSelector';
+import type { IAnimationRequest } from '../animation/AnimationSelector';
 import { WeaponCategory } from '../types/IWeaponTypes';
 
 // ---------------------------------------------------------------------------

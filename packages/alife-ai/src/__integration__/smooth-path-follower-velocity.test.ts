@@ -70,7 +70,7 @@ function sharpTurnPath(): Vec2[] {
  * Gentle curve path: gradual arc so curvature stays below MEDIUM threshold.
  * Spread across large distances so kappa = theta / arcLen is small.
  */
-function gentleCurvePath(): Vec2[] {
+function _gentleCurvePath(): Vec2[] {
   // Points spread 500px apart, small angular deviation (~10°)
   return [
     { x: 0,    y: 0 },
@@ -103,7 +103,7 @@ describe('SmoothPathFollower — velocity profiles', () => {
   it('straight path → velocity multiplier converges toward velocityCurveFast (1.0)', () => {
     const config = makeNavConfig({ velocityTransitionRate: 1.0 }); // instant transition
     const points = straightPath(5, 200);
-    const follower = new SmoothPathFollower(points, config);
+    const _follower = new SmoothPathFollower(points, config);
 
     // On a straight path all interior points should have kappa ≈ 0 → FAST profile.
     // With transitionRate=1.0 the multiplier snaps instantly to target.
@@ -120,7 +120,7 @@ describe('SmoothPathFollower — velocity profiles', () => {
     // (triplet p0->p1->p2 has theta=PI/2, arcLen=25, kappa≈0.063 > HIGH_THRESHOLD 0.04).
     const config = makeNavConfig({ velocityTransitionRate: 1.0, arrivalThreshold: 1 });
     const points = sharpTurnPath();
-    const follower = new SmoothPathFollower(points, config);
+    const _follower = new SmoothPathFollower(points, config);
 
     // Advance cursor to index 1 — the turn vertex in the profile
     advanceToIndex(follower, points, 1);
@@ -150,7 +150,7 @@ describe('SmoothPathFollower — velocity profiles', () => {
       { x: 50 + 50 * Math.cos(Math.PI / 3), y: 50 * Math.sin(Math.PI / 3) }, // 60° turn
       { x: 150, y: 100 },
     ];
-    const follower = new SmoothPathFollower(points, config);
+    const _follower = new SmoothPathFollower(points, config);
 
     // Profile at index 1 is computed using triplet (p0, p1, p2) — the 60° turn.
     // Advance cursor to index 1 so getCurrentVelocityMultiplier reads profile[1].
@@ -167,7 +167,7 @@ describe('SmoothPathFollower — velocity profiles', () => {
   it('updatePosition() at target position advances cursor to next point', () => {
     const config = makeNavConfig({ arrivalThreshold: 8 });
     const points = straightPath(3, 100);
-    const follower = new SmoothPathFollower(points, config);
+    const _follower = new SmoothPathFollower(points, config);
 
     expect(follower.getCurrentTarget()).toEqual(points[0]);
 
@@ -183,7 +183,7 @@ describe('SmoothPathFollower — velocity profiles', () => {
   it('updatePosition() does NOT advance when NPC is far from target', () => {
     const config = makeNavConfig({ arrivalThreshold: 8 });
     const points = straightPath(3, 100);
-    const follower = new SmoothPathFollower(points, config);
+    const _follower = new SmoothPathFollower(points, config);
 
     // NPC is at origin, first waypoint is at (0, 0) — actually the same,
     // so use a point far away
@@ -199,7 +199,7 @@ describe('SmoothPathFollower — velocity profiles', () => {
   it('isComplete() returns true after arriving at the last waypoint', () => {
     const config = makeNavConfig({ arrivalThreshold: 8 });
     const points = straightPath(2, 100); // [0,0] and [100,0]
-    const follower = new SmoothPathFollower(points, config);
+    const _follower = new SmoothPathFollower(points, config);
 
     expect(follower.isComplete()).toBe(false);
 
@@ -218,7 +218,7 @@ describe('SmoothPathFollower — velocity profiles', () => {
   it('2-point path: follower completes after visiting both waypoints', () => {
     const config = makeNavConfig({ arrivalThreshold: 1 });
     const points: Vec2[] = [{ x: 0, y: 0 }, { x: 50, y: 0 }];
-    const follower = new SmoothPathFollower(points, config);
+    const _follower = new SmoothPathFollower(points, config);
 
     expect(follower.getPointCount()).toBe(2);
     expect(follower.isComplete()).toBe(false);
@@ -242,7 +242,7 @@ describe('SmoothPathFollower — velocity profiles', () => {
       { x: 200, y: 0 },
       { x: 300, y: 0 },
     ];
-    const follower = new SmoothPathFollower(points, config);
+    const _follower = new SmoothPathFollower(points, config);
 
     const visited: Vec2[] = [];
     for (const pt of points) {
@@ -265,7 +265,7 @@ describe('SmoothPathFollower — velocity profiles', () => {
   it('reset() returns cursor to index 0 after partial traversal', () => {
     const config = makeNavConfig({ arrivalThreshold: 1 });
     const points = straightPath(5, 100);
-    const follower = new SmoothPathFollower(points, config);
+    const _follower = new SmoothPathFollower(points, config);
 
     // Advance two waypoints
     follower.updatePosition(points[0].x, points[0].y);
@@ -286,7 +286,7 @@ describe('SmoothPathFollower — velocity profiles', () => {
   it('reset() after full completion allows re-traversal', () => {
     const config = makeNavConfig({ arrivalThreshold: 1 });
     const points: Vec2[] = [{ x: 0, y: 0 }, { x: 50, y: 0 }];
-    const follower = new SmoothPathFollower(points, config);
+    const _follower = new SmoothPathFollower(points, config);
 
     // Complete the path
     follower.updatePosition(points[0].x, points[0].y);
@@ -309,7 +309,7 @@ describe('SmoothPathFollower — velocity profiles', () => {
   it('getProgress() is 0.0 at start, increases per waypoint, reaches 1.0 at end', () => {
     const config = makeNavConfig({ arrivalThreshold: 1 });
     const points = straightPath(4, 100);
-    const follower = new SmoothPathFollower(points, config);
+    const _follower = new SmoothPathFollower(points, config);
 
     expect(follower.getProgress()).toBeCloseTo(0, 5);
 
@@ -333,7 +333,7 @@ describe('SmoothPathFollower — velocity profiles', () => {
   it('getCurrentTarget() returns null when isComplete() is true', () => {
     const config = makeNavConfig({ arrivalThreshold: 1 });
     const points: Vec2[] = [{ x: 0, y: 0 }];
-    const follower = new SmoothPathFollower(points, config);
+    const _follower = new SmoothPathFollower(points, config);
 
     follower.updatePosition(0, 0);
     expect(follower.isComplete()).toBe(true);
@@ -346,7 +346,7 @@ describe('SmoothPathFollower — velocity profiles', () => {
   it('getCurrentVelocityMultiplier() returns 1.0 when path is complete', () => {
     const config = makeNavConfig({ arrivalThreshold: 1 });
     const points: Vec2[] = [{ x: 0, y: 0 }];
-    const follower = new SmoothPathFollower(points, config);
+    const _follower = new SmoothPathFollower(points, config);
 
     follower.updatePosition(0, 0);
     expect(follower.isComplete()).toBe(true);
@@ -369,7 +369,7 @@ describe('SmoothPathFollower — velocity profiles', () => {
     // Initial multiplier is also FAST (1.0 per constructor).
     // So multiplier stays at 1.0 throughout.
     const straightPts = straightPath(5, 200);
-    const follower = new SmoothPathFollower(straightPts, config);
+    const _follower = new SmoothPathFollower(straightPts, config);
 
     const vm1 = follower.getCurrentVelocityMultiplier();
     expect(vm1).toBeCloseTo(1.0, 2);
@@ -390,7 +390,7 @@ describe('SmoothPathFollower — velocity profiles', () => {
       arrivalThreshold: 1,
     });
     const points = sharpTurnPath();
-    const follower = new SmoothPathFollower(points, config);
+    const _follower = new SmoothPathFollower(points, config);
 
     // Advance to index 1 — the 90° turn vertex (kappa > HIGH_THRESHOLD → SLOW profile)
     advanceToIndex(follower, points, 1);

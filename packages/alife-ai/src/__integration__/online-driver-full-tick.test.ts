@@ -13,7 +13,7 @@
  * State transitions are tracked in arrays/counters on the host.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { OnlineAIDriver } from '../states/OnlineAIDriver';
 import type { IOnlineDriverHost } from '../states/OnlineAIDriver';
 import type { IOnlineStateHandler } from '../states/IOnlineStateHandler';
@@ -117,7 +117,7 @@ function makeEnemy(id = 'e1', x = 150, y = 100, factionId = 'bandit') {
 // SpyStateHandler — records calls without vi.fn()
 // ---------------------------------------------------------------------------
 
-class SpyStateHandler implements IOnlineStateHandler {
+class _SpyStateHandler implements IOnlineStateHandler {
   enterCount = 0;
   updateCount = 0;
   exitCount = 0;

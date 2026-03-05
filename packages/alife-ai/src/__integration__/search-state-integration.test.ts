@@ -148,7 +148,7 @@ describe('SearchState — integration via OnlineAIDriver', () => {
 
       const cfg = createDefaultStateConfig({ searchDuration: SHORT_SEARCH_MS });
       const handlers = buildDefaultHandlerMap(cfg);
-      const driver = new OnlineAIDriver(host, handlers, ONLINE_STATE.SEARCH);
+      const _driver = new OnlineAIDriver(host, handlers, ONLINE_STATE.SEARCH);
 
       // searchStartMs is set by SearchState.enter() — which fired in constructor
       expect(host.state.searchStartMs).toBe(0); // now() was 0 when driver constructed
@@ -302,7 +302,7 @@ describe('SearchState — integration via OnlineAIDriver', () => {
       host.perception.sync([], [], []);
 
       const handlers = buildDefaultHandlerMap(cfg);
-      const driver = new OnlineAIDriver(host, handlers, ONLINE_STATE.SEARCH);
+      const _driver = new OnlineAIDriver(host, handlers, ONLINE_STATE.SEARCH);
 
       tick(host, driver, 16);
 
@@ -323,7 +323,7 @@ describe('SearchState — integration via OnlineAIDriver', () => {
       host.perception.sync([], [], []);
 
       const handlers = buildDefaultHandlerMap(cfg);
-      const driver = new OnlineAIDriver(host, handlers, ONLINE_STATE.SEARCH);
+      const _driver = new OnlineAIDriver(host, handlers, ONLINE_STATE.SEARCH);
 
       // Tick but not past searchDuration
       tick(host, driver, SHORT_SEARCH_MS - 100);
@@ -400,7 +400,7 @@ describe('SearchState — integration via OnlineAIDriver', () => {
 
       const cfg2 = createDefaultStateConfig({ searchDuration: SHORT_SEARCH_MS });
       const handlers2 = buildDefaultHandlerMap(cfg2);
-      const driver2 = new OnlineAIDriver(host, handlers2, ONLINE_STATE.SEARCH);
+      const _driver2 = new OnlineAIDriver(host, handlers2, ONLINE_STATE.SEARCH);
 
       // searchStartMs should be set to host.now() at time of entering SEARCH
       expect(host.state.searchStartMs).toBeGreaterThanOrEqual(firstSearchStartMs);

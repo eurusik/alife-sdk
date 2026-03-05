@@ -8,7 +8,7 @@
  * The TestNPCHost class provides a deterministic timer and captures outputs.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { OnlineAIDriver } from '../states/OnlineAIDriver';
 import type { IOnlineDriverHost } from '../states/OnlineAIDriver';
 import { createDefaultNPCOnlineState } from '../states/NPCOnlineState';
