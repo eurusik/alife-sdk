@@ -20,7 +20,9 @@ npm install @alife-sdk/economy
 - **Quests** — lifecycle FSM with objective tracking, prerequisites, typed events, and terrain effects
 
 The package is engine-agnostic — it never touches the renderer, UI, or event bus.
-All integration with your game goes through optional **ports** you register into the kernel.
+All integration goes through optional **ports** — typed adapters that are optional registration keys
+decoupling the economy plugin from your game's terrain, simulation, and item systems.
+Register them via `kernel.portRegistry.provide()` before `kernel.init()`.
 
 ---
 
@@ -173,6 +175,8 @@ Key features:
 - **Terrain effects** — declarative `lock/unlock` actions on `on_start`, `on_complete`, `on_fail`
 - **Open objective types** — any string valid; engine drives all via `completeObjective()` / `updateObjectiveProgress()`
 
+`startQuest()` returns `false` if prerequisites are unmet or the quest is already active (not in `AVAILABLE` status).
+
 ```ts
 engine.on('quest:completed', ({ questId }) => giveReward(questId));
 engine.on('objective:progress', ({ current, total }) => ui.setProgress(current / total));
@@ -217,6 +221,9 @@ save / load:
   ↓
 kernel.destroy()       ← clears inventory + traders, releases kernel ref
 ```
+
+> **Important**: Call `quests.registerQuest()` for ALL quest definitions BEFORE calling `econ.restore()`.
+> The plugin merges saved progress into registered definitions — quests not registered before restore are silently skipped.
 
 ---
 

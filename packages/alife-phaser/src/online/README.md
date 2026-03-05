@@ -138,6 +138,8 @@ const ctx = new PhaserNPCContext(
   },
 );
 
+// Note: OnlineAIDriver is imported from `@alife-sdk/ai`, not this package.
+// import { OnlineAIDriver } from '@alife-sdk/ai';
 const driver = new OnlineAIDriver(ctx, buildDefaultHandlerMap(), 'IDLE');
 
 // 3. Each frame:

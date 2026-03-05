@@ -81,7 +81,8 @@ kernel.use(econ)   ← econ.install() — stores kernel reference
 kernel.init()      ← econ.init() — validates config, wires optional ports:
                        EconomyPorts.TerrainLock → QuestEngine.setTerrainAdapter()
   ↓
-kernel.update()    ← EconomyPlugin has no per-frame update (stateless tick)
+kernel.update()    ← EconomyPlugin has no per-frame update. If using OfflineTradeScheduler,
+                       wire `scheduler.update(deltaMs, currentGameTimeMs)` into your update loop separately.
   ↓
 kernel.destroy()   ← econ.destroy() — clears inventory + traders, releases kernel ref
 ```

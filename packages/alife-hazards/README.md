@@ -67,6 +67,8 @@ function update(deltaMs: number) {
 hazards.manager.notifyArtefactCollected(zoneId, instanceId, artefactId, player.id);
 ```
 
+> **Why manual tick?** `HazardsPlugin.update()` is a no-op because only your host code knows how to fetch the live entity list. Call `manager.tick()` each frame right after `kernel.update()`.
+
 ---
 
 ## Sub-path imports
@@ -126,6 +128,7 @@ interface IHazardEntity {
   readonly id: string;                         // unique entity identifier
   readonly position: Vec2;                     // current world-space position { x, y }
   readonly immunity?: ReadonlyMap<string, number>; // optional per-type resistance (see Immunity system below)
+  isAlive?(): boolean;                         // optional — entities returning false are skipped during damage ticks
 }
 ```
 
@@ -144,11 +147,35 @@ independent timers:
 - **Artefact timer** — fires every `artefactSpawnCycleMs` (default 60 s), runs
   a lottery (`artefactChance`) to attempt a spawn if `maxArtefacts` not reached.
 
+Additional config options:
+
+- `entityFilter?: (entity: IHazardEntity) => boolean` — per-zone entity predicate; only entities for which this returns `true` receive damage. If omitted, all entities inside the zone are affected.
+- `expiresAtMs?: number` — auto-expiration timestamp in accumulated elapsed ms. When the manager's internal elapsed time reaches this value, the zone is removed and `hazard:zone_expired` is emitted. If omitted, the zone lives indefinitely.
+
 Zone type is an **open enum** — use built-ins or add your own:
 
 ```ts
 type HazardZoneType = 'fire' | 'radiation' | 'chemical' | 'psi' | (string & {});
 ```
+
+### Spatial queries
+
+`HazardManager` provides two O(k) spatial query methods backed by an internal `SpatialGrid`:
+
+```ts
+// Returns the first zone whose circle contains the point, or null if none.
+const zone = manager.getZoneAtPoint(npc.x, npc.y);
+if (zone) console.log(`NPC is inside zone: ${zone.config.id}`);
+
+// Returns all zones whose circles overlap a search radius around the point.
+// Useful for NPC terrain scoring — find nearby hazards before moving.
+const nearby = manager.getZonesInRadius(npc.x, npc.y, 150);
+for (const z of nearby) {
+  ai.avoidPoint(z.config.x, z.config.y, z.config.radius);
+}
+```
+
+---
 
 ### Immunity system
 
@@ -156,9 +183,9 @@ Each entity can carry per-type resistance factors `[0–1]`:
 
 ```ts
 const immunity = new Map([
-  // Resistance fraction [0–1]: 0.5 means 50% damage reduction (entity receives half damage).
+  // Resistance fraction [0–1]: damage = rawDamage × (1 - resistance)
   // 1.0 = full immunity — no damage dealt and no hazard:damage event fired.
-  ['radiation', 0.5],   // receives 50% of normal radiation damage (resistance fraction, not a multiplier)
+  ['radiation', 0.5],   // 50% resistance → entity takes rawDamage × 0.5
   ['fire',      1.0],   // fully immune to fire — no damage, no event
 ]);
 ```
@@ -184,6 +211,7 @@ are processed each tick:
 | `hazard:damage` | Entity inside zone when damage tick fires |
 | `hazard:artefact_spawned` | Artefact spawned successfully |
 | `hazard:artefact_collected` | `notifyArtefactCollected()` called |
+| `hazard:zone_expired` | Zone auto-removes when elapsed time reaches `expiresAtMs` |
 
 ---
 
@@ -201,10 +229,35 @@ kernel.init()                — init(): freezes artefact registry
 game loop:
   hazards.manager.tick(deltaMs, entities)
 
+dynamic zone removal:
+  hazards.manager.removeZone(id)   // removes zone immediately; does NOT emit hazard:zone_expired
+
 player collects artefact:
   hazards.manager.notifyArtefactCollected(…)
 
 kernel.destroy()             — cleans up manager + event bus
+```
+
+---
+
+## Save/Load
+
+`HazardManager` (and `HazardsPlugin`) expose `serialize()` / `restore()` for save-game integration.
+
+**What is serialized:** timer state (damage timer, artefact timer) and artefact counts for each zone, plus the manager's accumulated `elapsedMs`.
+
+**What is NOT serialized:** zone configs. You must re-add all zones via `addZone()` (or the `zones` constructor option) before calling `restore()`.
+
+```ts
+// On save
+const snapshot = hazards.serialize();
+saveFile.write('hazards', snapshot);
+
+// On load — zones must be re-registered first
+const kernel2 = new ALifeKernel({ /* … */ });
+kernel2.use(hazards2);   // install() re-creates manager and re-adds config zones
+kernel2.init();
+hazards2.restore(saveFile.read('hazards'));
 ```
 
 ---

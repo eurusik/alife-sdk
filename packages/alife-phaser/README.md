@@ -59,6 +59,8 @@ export class GameScene extends Phaser.Scene {
     const playerPos = new PhaserPlayerPosition(player);
     // Factory: SDK calls these when it needs to spawn or despawn an entity.
     const factory = new PhaserEntityFactory({
+      // req: INPCSpawnRequest from @alife-sdk/core
+      // req: { npcTypeId, factionId, x, y, rank, squadId?, metadata? }
       createNPC: (req) => {
         const sprite = this.physics.add.sprite(req.x, req.y, 'npc'); // spawn sprite
         const id = `npc_${req.npcTypeId}`;
@@ -66,6 +68,8 @@ export class GameScene extends Phaser.Scene {
         bridge.register(id, { currentHp: 100, maxHp: 100 });
         return id;
       },
+      // req: IMonsterSpawnRequest from @alife-sdk/core
+      // req: { monsterTypeId, x, y, lairTerrainId?, packIndex?, metadata? }
       createMonster: (req) => {
         const sprite = this.physics.add.sprite(req.x, req.y, 'monster');
         const id = `monster_${req.monsterTypeId}`;
@@ -124,6 +128,17 @@ export class GameScene extends Phaser.Scene {
 > **`preset: 'simulation'`** includes the SimulationPlugin (NPC records, HP, offline brains)
 > but omits AI and Social plugins. Switch to `preset: 'full'` when you need the full
 > behaviour tree and faction relationship system.
+>
+> **Preset plugin summary:**
+>
+> | Preset | Plugins included |
+> |--------|-----------------|
+> | `minimal` | FactionsPlugin, SpawnPlugin |
+> | `simulation` | + SimulationPlugin (default) |
+> | `full` | + AIPlugin, SocialPlugin |
+>
+> `simulationBridge` is optional but **required** for HP tracking when using the
+> `simulation` or `full` presets. Omit it only with the `minimal` preset.
 
 ---
 
@@ -426,10 +441,13 @@ minimal duck-typed interface (`IArcadeSprite`, `IArcadeBody`, `IArcadeAnims`). T
 | `PhaserEntityFactory` | Delegates `createNPC`, `createMonster`, and `destroyEntity` to your callbacks — you write the sprite-creation code. |
 | `PhaserSimulationBridge` | Tracks NPC HP records; the simulation calls `applyDamage` and `adjustMorale` through it. |
 | `PhaserPlayerPosition` | Reads `x`/`y` from any object (sprite, registry entry, plain object) and returns it as `Vec2`. |
+| `PhaserNPCSocialProvider` | Supplies online NPC data and faction relationship queries to the social plugin via user-provided callbacks. |
+| `PhaserSocialPresenter` | Delegates social presentation events (speech bubbles, etc.) to a user-provided `showBubble` callback. |
 
-**Swapping adapters.** All four are plain classes implementing SDK interfaces (`IEntityAdapter`,
-`IEntityFactory`, `ISimulationBridge`, `IPlayerPositionProvider`). Replace any of them with a
-custom class that implements the same interface — the kernel does not care about the concrete type.
+**Swapping adapters.** All six are plain classes implementing SDK interfaces (`IEntityAdapter`,
+`IEntityFactory`, `ISimulationBridge`, `IPlayerPositionProvider`, `INPCSocialProvider`,
+`ISocialPresenter`). Replace any of them with a custom class that implements the same interface —
+the kernel does not care about the concrete type.
 
 ---
 
@@ -452,6 +470,14 @@ decides when to run the check and how to apply the results.
 your NPC entity class (15 methods), then pass a `PhaserNPCContext` to
 `OnlineAIDriver`. The driver intercepts `transition()` and manages the FSM;
 the host handles all sprite-level operations.
+
+**PhaserNPCContext is the online AI bridge — one instance per active NPC.**
+It implements `INPCContext` by delegating every call (position, velocity,
+events, subsystems) to your `IPhaserNPCHost` implementation. Wrap it with
+`OnlineAIDriver` (imported from `@alife-sdk/ai`) to get a fully managed FSM
+that calls `enter` / `update` / `exit` on your state handlers each frame.
+See [`online/README.md`](src/online/README.md) for the full usage guide
+including `IPhaserNPCHost`, subsystem wiring, and a complete example.
 
 ---
 

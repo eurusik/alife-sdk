@@ -18,13 +18,14 @@ serialisation.
 ```ts
 import { ALifeKernel }                                         from '@alife-sdk/core';
 import { PersistencePlugin, createDefaultPersistenceConfig }   from '@alife-sdk/persistence/plugin';
+import type { IStorageBackend }                                from '@alife-sdk/persistence/ports';
 
 // 1. Implement IStorageBackend once for your platform
-class LocalStorageBackend {
-  save(key, data)   { localStorage.setItem(key, data); }
-  load(key)         { return localStorage.getItem(key); }
-  has(key)          { return localStorage.getItem(key) !== null; }
-  remove(key)       { localStorage.removeItem(key); }
+class LocalStorageBackend implements IStorageBackend {
+  save(key: string, data: string): void { localStorage.setItem(key, data); }
+  load(key: string): string | null      { return localStorage.getItem(key); }
+  has(key: string):  boolean            { return localStorage.getItem(key) !== null; }
+  remove(key: string): void             { localStorage.removeItem(key); }
 }
 
 // 2. Create the plugin
@@ -128,6 +129,11 @@ if (result.ok) {
 |--------------------|------|
 | `not_found` | No save exists at this key |
 | `parse_failed` | Stored data is corrupted / not valid JSON |
+| `restore_failed` | `kernel.restoreState()` threw (incompatible save version, corrupted state) |
+
+> **Version field requirement:** save data must be a JSON object with a `version: number` field.
+> This is enforced by `kernel.serialize()` — if the field is absent or not a number, `load()`
+> returns `{ ok: false, reason: 'parse_failed' }` before attempting to restore.
 
 ### Multiple save slots
 

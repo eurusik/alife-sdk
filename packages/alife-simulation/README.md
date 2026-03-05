@@ -14,6 +14,11 @@ npm install @alife-sdk/simulation
 
 ### `createInMemoryKernel` — no adapters needed
 
+> **Note:** `createInMemoryKernel` uses no-op adapters — entities always stay
+> alive (`isAlive` returns `true`), damage is ignored (`applyDamage` returns
+> `false`, effective damage is `0`). Suitable for testing and CLI tools.
+> For production use, wire a real `ISimulationBridge` (see Full wiring below).
+
 ```ts
 import { createInMemoryKernel } from '@alife-sdk/simulation';
 import { FactionBuilder, SmartTerrain } from '@alife-sdk/core';
@@ -117,6 +122,10 @@ function gameLoop(deltaMs: number) {
 │  │ Terrain  │ Brains   │ Movement │ Combat   │ Morale   │  │
 │  │ states   │ round-   │simulator │ resolver │ restore  │  │
 │  │ decay    │ robin    │ update   │(offline) │ + decay  │  │
+│  │          │          │          │SKIPPED   │          │  │
+│  │          │          │          │during    │          │  │
+│  │          │          │          │ACTIVE    │          │  │
+│  │          │          │          │surge     │          │  │
 │  └──────────┴──────────┴──────────┴──────────┴──────────┘  │
 │                                                            │
 │  Every frame (smooth):                                     │
@@ -152,6 +161,26 @@ sim.setNPCOnline(npcId, true);   // host engine drives this NPC now
 sim.setNPCOnline(npcId, false);  // SDK tick pipeline resumes
 ```
 
+**Concrete sync workflow:**
+
+```ts
+// NPC enters render range — sync offline brain state to live entity, then
+// hand control to the host engine.
+const brain = sim.getNPCBrain(npcId);
+if (brain) {
+  myEntity.morale = brain.morale; // read authoritative morale from the brain
+}
+sim.setNPCOnline(npcId, true);    // SDK stops ticking this NPC
+
+// NPC leaves render range — sync live position back to the record, then
+// return control to the SDK.
+const record = sim.getNPCRecord(npcId);
+if (record) {
+  record.lastPosition = myEntity.position; // write current world position
+}
+sim.setNPCOnline(npcId, false);   // SDK tick pipeline resumes
+```
+
 ### Brain hierarchy
 
 ```
@@ -162,6 +191,8 @@ NPCBrain           — 11-step update, terrain selection, morale, movement dispa
 
 Override `selectBestTerrain()`, `buildJobContext()`, or `buildTerrainQuery()`
 to customise selection logic without modifying the brain update loop.
+
+See [brain/README.md](src/brain/README.md) for detailed brain extension examples.
 
 ### Terrain threat FSM
 
@@ -205,14 +236,28 @@ const state = sim.serialize();
 // Load
 sim.restore(state);
 
-// After restore, re-register all NPCs to rebuild brain instances
+// After restore, rebuild brain instances. Two options:
+
+// Option 1: registerNPC() — full re-registration.
+// Rebuilds the brain AND re-runs squad assignment, relation tracking, and
+// story registry wiring. Use this when the NPC record may have changed
+// (e.g. faction swap, rank change) or when you are loading a fresh scene.
 for (const record of sim.getAllNPCRecords().values()) {
-  sim.registerNPC({ entityId: record.entityId, ... });
+  sim.registerNPC({ entityId: record.entityId, factionId: record.factionId, ... });
+}
+
+// Option 2: rebuildBrain(npcId) — faster, brain-only rebuild.
+// Recreates the brain instance from the existing NPC record without touching
+// squads, relations, or the story registry. Preserves the restored state
+// exactly as serialized. Preferred after a save/load round-trip.
+for (const record of sim.getAllNPCRecords().values()) {
+  sim.rebuildBrain(record.entityId);
 }
 ```
 
 Brains cannot be serialised (they hold terrain references and a movement
-dispatcher). The restore contract requires the caller to re-register all NPCs.
+dispatcher). The restore contract requires the caller to rebuild brain instances
+via one of the two options above.
 
 ---
 

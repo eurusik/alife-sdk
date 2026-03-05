@@ -29,7 +29,15 @@ import type { IPersistencePluginConfig, SaveResult, LoadResult } from '@alife-sd
 ```ts
 import { ALifeKernel }                                           from '@alife-sdk/core';
 import { PersistencePlugin, createDefaultPersistenceConfig }     from '@alife-sdk/persistence/plugin';
-import { LocalStorageBackend }                                   from '@alife-sdk/persistence/providers';
+import type { IStorageBackend }                                  from '@alife-sdk/persistence/ports';
+
+// Implement IStorageBackend for your platform (LocalStorageBackend is not shipped by the SDK)
+class LocalStorageBackend implements IStorageBackend {
+  save(key: string, data: string): void { localStorage.setItem(key, data); }
+  load(key: string): string | null      { return localStorage.getItem(key); }
+  has(key: string):  boolean            { return localStorage.getItem(key) !== null; }
+  remove(key: string): void             { localStorage.removeItem(key); }
+}
 
 // 1. Create the plugin (supply your backend)
 const persistence = new PersistencePlugin(
@@ -123,13 +131,18 @@ backend.load(key)  →  JSON.parse()  →  kernel.restoreState(state)
 ```ts
 type LoadResult =
   | { ok: true }
-  | { ok: false; reason: 'not_found' | 'parse_failed'; message: string }
+  | { ok: false; reason: 'not_found' | 'parse_failed' | 'restore_failed'; message: string }
 ```
 
 | `reason` | When |
 |----------|------|
 | `not_found` | `backend.load()` returned `null` — no save exists at this key |
-| `parse_failed` | Stored data is not valid JSON (corrupted save) |
+| `parse_failed` | Stored data is not valid JSON, or is missing a `version: number` field |
+| `restore_failed` | `kernel.restoreState()` threw (incompatible save version, corrupted state) |
+
+> **Version field requirement:** save data must be a JSON object with a `version: number` field.
+> This is enforced automatically by `kernel.serialize()`. If the field is absent or not a
+> number, `load()` returns `{ ok: false, reason: 'parse_failed' }` before attempting to restore.
 
 ### `hasSave(): boolean`
 

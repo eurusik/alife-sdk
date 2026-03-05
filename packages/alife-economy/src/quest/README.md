@@ -124,6 +124,10 @@ Full event payload types are available as `QuestEventMap`:
 import type { QuestEventMap } from '@alife-sdk/economy/quest';
 ```
 
+> **Kernel event forwarding**: When using `QuestEngine` through `EconomyPlugin`, quest events are
+> also forwarded to the kernel's event bus. External systems can subscribe via
+> `kernel.events.on('quest:completed', handler)` without a direct reference to the engine.
+
 Typical use cases:
 
 | Event | Use for |

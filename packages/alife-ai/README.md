@@ -18,6 +18,7 @@ view and must behave in real-time.
 
 - **State machine driver** — `OnlineAIDriver` + `StateHandlerMap` runs a per-NPC FSM
   over 18 built-in states (idle, patrol, combat, flee, wounded, monster abilities, …)
+- **Optional state handlers** — opt-in handlers for investigation, helping wounded allies, and combat transitions (`InvestigateState`, `HelpWoundedState`, `KillWoundedState`, `CombatTransitionHandler`)
 - **Cover system** — 6 evaluators, loophole peek/fire cycles, TTL-based cover locking
 - **Perception** — FOV queries, hearing radius, intel freshness filters
 - **GOAP** — elite NPC goal-oriented planning over a 16-property world state bitmask
@@ -78,10 +79,12 @@ function update(deltaMs: number): void {
 }
 
 // 6. Read current state
-const state = driver.currentState; // e.g. 'COMBAT'
+const state = driver.currentStateId; // e.g. 'COMBAT'
 
-// 7. Force a state transition (e.g. on NPC death)
-driver.transitionTo(ONLINE_STATE.DEAD);
+// 7. Force a state transition from within a state handler (e.g. on NPC death)
+// Transitions happen via ctx.transition(), called from inside a state handler:
+//   ctx.transition(ONLINE_STATE.DEAD);
+// To force a transition externally, call driver.update() after mutating ctx.state.
 ```
 
 ---
@@ -96,15 +99,15 @@ Each module has its own import path for optimal tree-shaking:
 | `@alife-sdk/ai/plugin` | `AIPlugin`, `IAIPluginConfig` | [plugin/](src/plugin/) |
 | `@alife-sdk/ai/states` | `OnlineAIDriver`, `StateHandlerMap`, `ONLINE_STATE`, all handlers, builder functions | [states/](src/states/) |
 | `@alife-sdk/ai/cover` | `CoverRegistry`, `CoverLockRegistry`, 6 evaluators, `LoopholeGenerator` | [cover/](src/cover/) |
-| `@alife-sdk/ai/perception` | `NPCSensors`, `isInFOV`, `filterVisibleEntities`, `filterFreshIntel` | [perception/](src/perception/) |
+| `@alife-sdk/ai/perception` | `NPCSensors`, `isInFOV`, `filterVisibleEntities`, `filterHearingEntities`, `filterHostileEntities`, `filterFriendlyEntities`, `filterFreshIntel`, `distanceSq`, `findClosest`, `scanForEnemies` | [perception/](src/perception/) |
 | `@alife-sdk/ai/goap` | `GOAPController`, `buildWorldState`, `selectGoal`, `EvadeHazardAction` | [goap/](src/goap/) |
 | `@alife-sdk/ai/navigation` | `smoothPath`, `smoothPathWithTurning`, `SmoothPathFollower`, `RestrictedZoneManager`, `SteeringBehaviors` | [navigation/](src/navigation/) |
 | `@alife-sdk/ai/squad` | `evaluateSituation`, `SquadCommand`, `SquadSharedTargetTable` | [squad/](src/squad/) |
-| `@alife-sdk/ai/animation` | `getAnimationKey`, `AnimationController`, `DirectionCache` | [animation/](src/animation/) |
+| `@alife-sdk/ai/animation` | `getDirection`, `getAnimationKey`, `getAnimationRequest`, `AnimationController`, `DirectionCache`, `CompassIndex`, `AnimLayer`, `DEFAULT_STATE_ANIM_MAP`, `DEFAULT_WEAPON_SUFFIXES` | [animation/](src/animation/) |
 | `@alife-sdk/ai/sound` | `VocalizationType`, `VocalizationTracker` | [sound/](src/sound/) |
 | `@alife-sdk/ai/suspicion` | `SuspicionAccumulator`, `SuspicionStimuli` | [suspicion/](src/suspicion/) |
 | `@alife-sdk/ai/conditions` | `ConditionBank`, `ConditionChannels` | [conditions/](src/conditions/) |
-| `@alife-sdk/ai/combat` | Combat helpers for online NPC state handlers | [combat/](src/combat/) |
+| `@alife-sdk/ai/combat` | `selectBestWeapon`, `shouldThrowGrenade`, `shouldUseMedkit`, `LoadoutBuilder`, `createLoadout`, `FactionWeaponPreference`, `evaluateTransitions`, `DEFAULT_COMBAT_RULES`, `WoundedRule`, `NoAmmoRule`, `EvadeDangerRule`, `MoraleRule`, `GrenadeOpportunityRule`, `MonsterAbility`, `selectMonsterAbility` | [combat/](src/combat/) |
 | `@alife-sdk/ai/types` | Shared interfaces (`INPCContext`, `INPCOnlineState`, …) | [types/](src/types/) |
 | `@alife-sdk/ai/config` | `IStateConfig`, default config helpers | [config/](src/config/) |
 | `@alife-sdk/ai/ports` | AI-specific port interfaces | [ports/](src/ports/) |
@@ -168,8 +171,9 @@ per frame: `enter → update (every frame) → exit`.
 const driver = new OnlineAIDriver(ctx, handlers, ONLINE_STATE.IDLE);
 
 driver.update(deltaMs);             // call every frame
-driver.currentState;                // current state ID string
-driver.transitionTo('PATROL');      // force transition
+driver.currentStateId;              // current state ID string
+// Transitions happen via ctx.transition() from inside a state handler:
+//   ctx.transition('PATROL');
 ```
 
 Each state handler is a stateless object — all per-NPC runtime data lives in
@@ -235,17 +239,24 @@ interfaces. You implement each interface once and compose them per NPC:
 const ctx: INPCContext = {
   npcId:      npc.id,
   faction:    npc.faction,
-  perception: new MyPerception(npc),  // INPCPerception
-  health:     new MyHealth(npc),      // INPCHealth
-  cover:      coverAccess,            // ICoverAccess  (from AIPlugin)
-  danger:     dangerAdapter,          // IDangerAccess
-  squad:      squadAccess,            // ISquadAccess
-  suspicion:  suspicionAccess,        // ISuspicionAccess
-  conditions: conditionAccess,        // IConditionAccess
-  shoot:      (payload) => fireWeapon(npc, payload),
-  meleeHit:   (payload) => applyMelee(npc, payload),
+  perception: new MyPerception(npc),  // INPCPerception  | null
+  health:     new MyHealth(npc),      // INPCHealth      | null
+  cover:      coverAccess,            // ICoverAccess    | null  (from AIPlugin)
+  danger:     dangerAdapter,          // IDangerAccess   | null
+  squad:      squadAccess,            // ISquadAccess    | null
+  suspicion:  suspicionAccess,        // ISuspicionAccess | null
+  conditions: conditionAccess,        // IConditionAccess | null
+  // pack, restrictedZones also nullable — omit if not used
+  emitShoot:   (payload) => fireWeapon(npc, payload),
+  emitMeleeHit:(payload) => applyMelee(npc, payload),
 };
 ```
+
+> **Important:** Many subsystems are nullable (`T | null`). State handlers
+> must null-check before use — always access optional subsystems with optional
+> chaining: `ctx.cover?.findCover(...)`, `ctx.health?.hp`, `ctx.perception?.hasVisibleEnemy()`.
+> Omitting a subsystem (setting it to `null`) silently disables the
+> features that depend on it, with no code changes required in the handlers.
 
 ### Cover system
 
@@ -336,10 +347,12 @@ import { buildDefaultHandlerMap, OnlineAIDriver, ONLINE_STATE } from '@alife-sdk
 const ctx = buildStubContext({ hp: 100, targetId: 'enemy1' });
 const driver = new OnlineAIDriver(ctx, buildDefaultHandlerMap(), ONLINE_STATE.IDLE);
 
-driver.transitionTo(ONLINE_STATE.COMBAT);
+// Transitions happen via ctx.transition() inside a state handler.
+// To test a forced transition, put it inside a stub handler's enter/update:
+//   enter: (ctx) => ctx.transition(ONLINE_STATE.COMBAT)
 driver.update(16);
 
-expect(driver.currentState).toBe(ONLINE_STATE.COMBAT);
+expect(driver.currentStateId).toBe(ONLINE_STATE.COMBAT);
 ```
 
 Tips:

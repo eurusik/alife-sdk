@@ -16,7 +16,7 @@ npm install @alife-sdk/core
 
 - **NPC AI** — finite state machines, GOAP planners, memory and perception systems
 - **A-Life simulation** — offline NPC brains, terrain selection, spawn cooldowns, faction diplomacy
-- **Game clock** — accelerated in-game time, day/night cycle, hour events
+- **Game clock** — accelerated in-game time with configurable day/night cycle and time-change callbacks (HOUR_CHANGED, DAY_NIGHT_CHANGED events)
 - **World graph** — waypoint graph with A* pathfinding for offline NPC movement
 - **Plugin system** — extend the kernel with your own domain features
 
@@ -52,6 +52,8 @@ kernel.provide(Ports.PlayerPosition, { getPlayerPosition: () => ({ x: player.x, 
 fullPreset(kernel);
 
 // 4. Register game data (before init)
+// Plugins is a set of typed plugin tokens — alternative to string IDs
+// e.g. kernel.getPlugin(Plugins.FACTIONS) is equivalent to kernel.getPlugin('factions')
 const factions = kernel.getPlugin(Plugins.FACTIONS).factions;
 factions.register('stalker', { name: 'Stalker', baseRelations: { bandit: -80 } });
 factions.register('bandit',  { name: 'Bandit',  baseRelations: { stalker: -80 } });
@@ -83,7 +85,7 @@ Each module has its own import path for optimal tree-shaking:
 
 | Import path | What's inside | Module docs |
 |-------------|--------------|-------------|
-| `@alife-sdk/core` | `ALifeKernel`, `Clock`, `SpatialGrid`, `Ports` | [core/](src/core/) |
+| `@alife-sdk/core` | `ALifeKernel`, `Clock`, `SpatialGrid`, `Ports`, `PortRegistry`, `Vec2`, `createPortToken` | [core/](src/core/) |
 | `@alife-sdk/core/ai` | `StateMachine`, `MemoryBank`, `DangerManager`, `GOAPPlanner` | [ai/](src/ai/README.md) |
 | `@alife-sdk/core/combat` | `DamageInstance`, `MoraleTracker`, `ImmunityProfile` | [combat/](src/combat/README.md) |
 | `@alife-sdk/core/config` | `createDefaultConfig`, `IALifeConfig` | [config/](src/config/README.md) |
@@ -187,7 +189,7 @@ kernel.events.on(ALifeEvents.NPC_DIED, ({ npcId, killedBy }) => {
 });
 ```
 
-38 typed events across 9 categories: A-Life, AI, Surge, Anomaly, Squad,
+41 typed events across 9 categories: A-Life, AI, Surge, Anomaly, Squad,
 Faction, Time, Social, Monster. See [`events/README.md`](src/events/README.md).
 
 ### AI — StateMachine + GOAP
@@ -229,6 +231,23 @@ kernel.serialize()     ← capture state for save
 kernel.restoreState()  ← restore from save
   ↓
 kernel.destroy()       ← cleanup, call plugin.destroy() in reverse order
+```
+
+### Save versioning and migrations
+
+The kernel supports versioned saves. When a save file was created by an older
+version of your game, you can register migration functions to transform the
+state forward. Migrations are applied automatically during `restoreState()`.
+
+```ts
+// Register a migration that upgrades state from version 0 → 1
+kernel.registerMigration(0, (state) => {
+  // transform state as needed
+  return { ...state, version: 1, newField: 'default' };
+});
+
+// Later, restoreState() applies all needed migrations automatically
+kernel.restoreState(oldSave);
 ```
 
 ---
