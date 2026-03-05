@@ -125,7 +125,8 @@ Call `kernel.provide()` → `kernel.use()` → `kernel.init()` → `kernel.start
 
 **Port** — a narrow interface *your* code implements so the SDK can talk to your engine.
 The SDK never calls Phaser or any renderer directly. You write once: "here is how to
-move a sprite", "here is the player's position". Three ports are required; the rest have defaults.
+move a sprite", "here is the player's position". For prototyping, `createInMemoryKernel()`
+provides all no-op ports automatically — no adapter code needed.
 
 **Plugin** — a self-contained feature module. Install only what your game needs.
 `SimulationPlugin` runs offline NPC brains. `AIPlugin` drives online real-time behavior.
@@ -390,7 +391,16 @@ Full payload types are in `ALifeEventPayloads` from `@alife-sdk/core`.
 
 ## Testing
 
-All packages are designed for isolated unit testing:
+All packages are designed for isolated unit testing. Use `createInMemoryKernel()` to skip all port wiring:
+
+```ts
+import { createInMemoryKernel } from '@alife-sdk/simulation';
+
+const { kernel, sim, factions } = createInMemoryKernel();
+// kernel is already init()'d and start()'d — register NPCs and go
+```
+
+Or wire ports manually if you need a custom `SeededRandom` or bridge:
 
 ```ts
 const kernel = new ALifeKernel();
@@ -453,8 +463,9 @@ try {
 }
 ```
 
-Required ports are `Ports.EntityAdapter`, `Ports.EntityFactory`, and `Ports.PlayerPosition`.
+Required ports when wiring manually: `Ports.EntityAdapter`, `Ports.EntityFactory`, and `Ports.PlayerPosition`.
 `SimulationPlugin` additionally requires `SimulationPorts.SimulationBridge`.
+To skip all of this, use `createInMemoryKernel()` — it provides all no-op ports automatically.
 
 ### 2. NPC not moving
 
