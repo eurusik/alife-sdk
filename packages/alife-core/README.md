@@ -2,7 +2,7 @@
 
 Framework-agnostic A-Life simulation and AI decision-making system.
 
-Zero external dependencies. Works with Phaser, Unity, Node.js, or any other runtime.
+Zero external dependencies. Works with Phaser, PixiJS, Node.js, or any JavaScript runtime.
 
 ```
 npm install @alife-sdk/core
