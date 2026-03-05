@@ -2,6 +2,7 @@
 
 Phaser 3 adapter layer for the A-Life SDK. Provides duck-typed Phaser
 interfaces, ready-to-use adapter implementations, and a one-call kernel factory.
+This package is designed for single-player or local Phaser scenes. For online multiplayer, implement network sync on top of the SDK.
 
 ```ts
 // Sub-path imports keep bundles small — each path is a separate chunk.
@@ -139,6 +140,18 @@ export class GameScene extends Phaser.Scene {
 >
 > `simulationBridge` is optional but **required** for HP tracking when using the
 > `simulation` or `full` presets. Omit it only with the `minimal` preset.
+
+### Offline vs online AI
+
+When an NPC is **offline** (beyond the player's range), `SimulationPlugin`'s brain runs pure
+JavaScript logic — no Phaser physics involved. HP, morale, and damage are tracked through
+`PhaserSimulationBridge`, which maintains lightweight HP records and routes `applyDamage` /
+`adjustMorale` calls without touching any sprite.
+
+When an NPC goes **online**, `OnlineAIDriver` takes over: it wraps a `PhaserNPCContext` backed
+by your `IPhaserNPCHost` implementation and drives a full FSM with real Phaser physics — velocity,
+collision, perception — every frame. The transition is triggered by `simulation.setNPCOnline(id, true)`
+and managed by `OnlineOfflineManager.evaluate()`.
 
 ---
 
@@ -531,3 +544,29 @@ by calling `simulation.setNPCOnline(id, true/false)`.
 not the `time` parameter. Passing total elapsed time causes all plugin timers (brain tick
 intervals, surge cooldowns, spawn cooldowns) to fire on the very first frame and then never again.
 Use `kernel.update(delta)` where `delta` is typically 16–17 ms at 60 fps.
+
+---
+
+## Adding to an existing Phaser project
+
+1. **Install the package.**
+   ```bash
+   npm install @alife-sdk/phaser @alife-sdk/core @alife-sdk/simulation @alife-sdk/ai @alife-sdk/social
+   ```
+
+2. **Create adapters in `Scene.create()`.**
+   Instantiate `PhaserEntityAdapter`, `PhaserSimulationBridge`, `PhaserPlayerPosition` (passing
+   your player sprite), and `PhaserEntityFactory` (with `createNPC`, `createMonster`, and
+   `destroyEntity` callbacks).
+
+3. **Wrap entity creation in `PhaserEntityFactory` callbacks.**
+   Inside each callback, spawn your sprite, call `adapter.register(id, sprite)` and
+   `bridge.register(id, { currentHp, maxHp })`, then return the entity ID string.
+
+4. **Call `kernel.update(delta)` in `Scene.update()`.**
+   Pass the `delta` argument (milliseconds since last frame) — not `time`. Without this, no
+   plugin ticks and NPC brains never update.
+
+5. **Register existing sprites with `adapter.register()`.**
+   Any sprite already in your scene that the SDK should control must be registered before
+   calling `simulation.registerNPC()`. Register first, then hand the ID to `registerNPC`.

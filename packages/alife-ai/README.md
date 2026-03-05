@@ -271,8 +271,99 @@ peek/fire cycles:
    - `BestCoverEvaluator` — best angle + distance combined
    - `AmbushCoverEvaluator` — optimal ambush position
    - `SafeCoverEvaluator` — maximum distance from all threats
-3. **Lock** — `CoverLockRegistry.lock(npcId, coverId, ttlMs)` so no two NPCs share a point
-4. **Loopholes** — each cover point has 1–3 loophole offsets; `TakeCoverState` cycles `WAIT → PEEK → FIRE → RETURN`
+3. **Lock** — `CoverLockRegistry.tryLock(coverId, npcId, { ttlMs })` so no two NPCs share a point
+4. **Loopholes** — each cover point has 1–N loophole offsets (count randomized, cached per point); `TakeCoverState` cycles `WAIT → PEEK → FIRE → RETURN`
+
+#### Cover workflow inside a state handler
+
+The typical cover workflow in a custom state handler mirrors what `TakeCoverState`
+does internally:
+
+```ts
+// In your state handler's enter():
+enter(ctx: INPCContext): void {
+  const enemies = ctx.perception?.getVisibleEnemies() ?? [];
+  const enemy   = enemies[0] ?? null;
+
+  // 1. findCover() — searches CoverRegistry for the best available point.
+  //    Returns { x, y } or null. Internally stores the found point's ID.
+  let coverPt: { x: number; y: number } | null = null;
+  if (ctx.cover !== null && enemy !== null) {
+    coverPt = ctx.cover.findCover(ctx.x, ctx.y, enemy.x, enemy.y);
+  }
+
+  if (coverPt !== null) {
+    // 2. lockLastFound() — acquires a TTL lock on the point just returned
+    //    by findCover(). Returns false if already locked by another NPC.
+    const locked = ctx.cover?.lockLastFound?.(ctx.npcId, 8000) ?? true;
+    if (locked) {
+      ctx.state.coverPointX = coverPt.x;
+      ctx.state.coverPointY = coverPt.y;
+    } else {
+      coverPt = null; // contested — do not move to this point
+    }
+  }
+
+  // 3. Initialise the loophole phase cycle.
+  ctx.state.loophole = { phase: 'WAIT', phaseStartMs: ctx.now() };
+}
+
+// In your state handler's update(), cycle WAIT → PEEK → FIRE → RETURN:
+update(ctx: INPCContext, deltaMs: number): void {
+  const loophole = ctx.state.loophole;
+  const now      = ctx.now();
+  const enemies  = ctx.perception?.getVisibleEnemies() ?? [];
+  const enemy    = enemies[0] ?? null;
+
+  switch (loophole?.phase) {
+    case 'WAIT':
+      ctx.halt();
+      if (now >= ctx.state.lastGrenadeMs) {
+        loophole.phase = 'PEEK';
+        loophole.phaseStartMs = now;
+      }
+      break;
+
+    case 'PEEK':
+      // Move slightly toward enemy to simulate peeking out.
+      if (enemy) moveToward(ctx, enemy.x, enemy.y, speed * 0.5);
+      if (now - loophole.phaseStartMs >= cfg.loopholePeekDurationMs) {
+        loophole.phase = 'FIRE';
+        loophole.phaseStartMs = now;
+      }
+      break;
+
+    case 'FIRE':
+      ctx.halt();
+      if (enemy) {
+        ctx.emitShoot({ npcId: ctx.npcId, x: ctx.x, y: ctx.y,
+                        targetX: enemy.x, targetY: enemy.y,
+                        weaponType: ctx.state.primaryWeapon ?? 'rifle' });
+      }
+      if (now - loophole.phaseStartMs >= cfg.loopholeFireDurationMs) {
+        loophole.phase = 'RETURN';
+        loophole.phaseStartMs = now;
+      }
+      break;
+
+    case 'RETURN':
+      // Move back to cover centre, then restart WAIT.
+      moveToward(ctx, ctx.state.coverPointX, ctx.state.coverPointY, speed);
+      if (now - loophole.phaseStartMs >= cfg.loopholeReturnDurationMs) {
+        loophole.phase = 'WAIT';
+        ctx.state.lastGrenadeMs = now + waitDuration;
+      }
+      break;
+  }
+}
+
+// In exit(): release the lock so other NPCs can take the point.
+exit(ctx: INPCContext): void {
+  ctx.state.hasTakenCover = false;
+  ctx.state.loophole = null;
+  ctx.cover?.unlockAll?.(ctx.npcId);
+}
+```
 
 ```ts
 import { recommendCoverType } from '@alife-sdk/ai/cover';
@@ -289,17 +380,191 @@ const evaluatorType = recommendCoverType({
 ### GOAP — elite NPC planning
 
 For NPCs with rank ≥ 5, `GOAPController` wraps a `GOAPPlanner` (A* on a
-16-property `WorldState` bitmask) to select and execute goal-oriented action
-sequences. Replanning happens every 5 s or on a forced trigger.
+17-property `WorldState`) to select and execute goal-oriented action
+sequences. Replanning happens automatically on a configurable interval or
+immediately when `invalidatePlan()` is called.
+
+#### World state properties
+
+`buildWorldState(snapshot)` maps an `INPCWorldSnapshot` to 17 boolean
+properties. All property keys come from the `WorldProperty` constant:
+
+| Property key | Source field | What it means |
+|---|---|---|
+| `alive` | `snapshot.isAlive` | NPC is alive |
+| `criticallyWounded` | `hpRatio <= 0.3` | HP at or below 30 % |
+| `hasWeapon` | `snapshot.hasWeapon` | Has a usable weapon |
+| `hasAmmo` | `snapshot.hasAmmo` | Has ammunition |
+| `inCover` | `snapshot.inCover` | Currently at a cover point |
+| `seeEnemy` | `snapshot.seeEnemy` | Enemy visible in FOV |
+| `enemyPresent` | `snapshot.enemyPresent` | Enemy known (seen or heard) |
+| `enemyInRange` | `snapshot.enemyInRange` | Enemy within weapon range |
+| `danger` | `snapshot.hasDanger` | General danger signal active |
+| `dangerGrenade` | `snapshot.hasDangerGrenade` | Grenade danger signal active |
+| `enemyWounded` | `snapshot.enemyWounded` | Last known enemy is wounded |
+| `anomalyNear` | `snapshot.nearAnomalyZone` | Anomaly zone inside proximity |
+| `enemySeeMe` | `snapshot.seeEnemy` | (derived) enemy has line of sight |
+| `readyToKill` | `hasWeapon && hasAmmo && seeEnemy && enemyInRange` | Can fire immediately |
+| `positionHeld` | `inCover && !seeEnemy` | Holding cover without exposure |
+| `lookedOut` | always `false` | One-shot peek flag (actions set it) |
+| `atTarget` | `!enemyPresent && !hasDanger` | Safe at destination |
+
+#### Goal selection
+
+Goals are chosen by evaluating `DEFAULT_GOAL_RULES` in priority order (lowest
+number wins):
+
+| Priority | Goal | Trigger |
+|---|---|---|
+| 0 `CRITICALLY_WOUNDED` | Heal + disengage | `hpRatio <= healHpThreshold` |
+| 1 `ENEMY_PRESENT` | Eliminate enemy | `snapshot.enemyPresent` |
+| 2 `DANGER` | Evade danger | `snapshot.hasDanger` |
+| 3 `ANOMALY_AVOID` | Exit anomaly zone | `snapshot.nearAnomalyZone` |
+| 4 `DEFAULT` | Patrol / idle | always (fallback) |
+
+#### Integration example
 
 ```ts
-const goap = new GOAPController(ctx, goapConfig);
-goap.update(deltaMs); // ticks current action or replans if needed
+import { GOAPController }         from '@alife-sdk/ai/goap';
+import { GOAPPlanner }             from '@alife-sdk/core';
+import type { IGOAPConfig }        from '@alife-sdk/ai/types';
+import type { INPCWorldSnapshot }  from '@alife-sdk/ai/types';
+
+// 1. Create a planner and register actions once (shared across NPCs of same type).
+const planner = new GOAPPlanner();
+planner.registerAction(new PatrolAction());
+planner.registerAction(new TakeCoverAction());
+planner.registerAction(new EngageEnemyAction());
+
+// 2. Build config — replanIntervalMs drives periodic replanning.
+const goapConfig: IGOAPConfig = {
+  replanIntervalMs:    5000,   // replan every 5 s at minimum
+  eliteRankThreshold:  5,
+  healHpThreshold:     0.3,
+  maxPlanDepth:        6,
+  dangerMemoryMaxAge:  10000,
+};
+
+// 3. Create one GOAPController per NPC (in your per-NPC setup / state handler).
+const goap = new GOAPController(planner, goapConfig);
+
+// 4. Inside a state handler's update(), build a snapshot and tick GOAP.
+update(ctx: INPCContext, deltaMs: number): void {
+  const snapshot: INPCWorldSnapshot = {
+    isAlive:       ctx.health?.isAlive()  ?? true,
+    hpRatio:       ctx.health?.hpRatio()  ?? 1,
+    hasWeapon:     ctx.state.primaryWeapon !== null,
+    hasAmmo:       ctx.state.hasAmmo,
+    inCover:       ctx.state.hasTakenCover,
+    seeEnemy:      (ctx.perception?.getVisibleEnemies().length ?? 0) > 0,
+    enemyPresent:  ctx.state.lastKnownEnemyX !== 0,
+    enemyInRange:  ctx.state.enemyInRange,
+    hasDanger:     (ctx.danger?.getActiveZones().length ?? 0) > 0,
+    hasDangerGrenade: ctx.state.dangerGrenade,
+    enemyWounded:  ctx.state.enemyWounded,
+    nearAnomalyZone: ctx.state.nearAnomaly,
+  };
+
+  const entity = ctx.entity; // IEntity — your game object adapter
+  const result = goap.update(deltaMs, entity, snapshot);
+
+  if (!result.handled) {
+    // GOAP has no plan — fall back to FSM transition
+    ctx.transition('IDLE');
+  }
+
+  // Force immediate replan when significant world change occurs:
+  // goap.invalidatePlan();
+}
 
 // Custom world property builders and goal rules are opt-in:
 import { DEFAULT_WORLD_PROPERTY_BUILDERS,
          DEFAULT_GOAL_RULES } from '@alife-sdk/ai/goap';
 ```
+
+### Animation integration
+
+`AnimationController` is a stateful per-NPC controller with debounce and
+layer priority. It sits in front of your engine's animation API and
+prevents redundant `play()` calls.
+
+#### Layers
+
+Animations are tagged with one of three `AnimLayer` values (defined as numeric
+constants for priority comparison):
+
+| Layer | Value | Typical use |
+|---|---|---|
+| `LEGS` | `0` | Walking, running, crouching, idle |
+| `TORSO` | `1` | Combat stance, throw, fire |
+| `HEAD` | `2` | (reserved — for facial rigs etc.) |
+
+A higher numeric value wins when two layers compete. For example, a `TORSO`
+animation (value `1`) overrides a `LEGS` animation (value `0`). The priority
+mapping can be overridden via `ILayerPriorityMap`.
+
+#### Debouncing
+
+`request()` is a no-op if the same `key + layer` is already playing. This
+means you can call it every frame without spamming the engine renderer.
+`force()` bypasses both the debounce and the priority check — use it for
+one-shot events such as death animations or ability effects.
+
+#### Creating and using AnimationController
+
+```ts
+import { AnimationController }     from '@alife-sdk/ai/animation';
+import { getAnimationRequest }      from '@alife-sdk/ai/animation';
+import type { IAnimationDriver }    from '@alife-sdk/ai/animation';
+
+// 1. Implement IAnimationDriver once for your engine.
+//    Phaser example:
+class PhaserAnimDriver implements IAnimationDriver {
+  constructor(private readonly sprite: Phaser.GameObjects.Sprite) {}
+  play(key: string, opts: { loop: boolean; frameRate: number }): void {
+    this.sprite.anims.play({ key, loop: opts.loop, frameRate: opts.frameRate }, true);
+  }
+  hasAnimation(key: string): boolean {
+    return this.sprite.anims.exists(key);
+  }
+}
+
+// 2. Create one AnimationController per NPC.
+const animController = new AnimationController({
+  driver: new PhaserAnimDriver(sprite),
+  // layerPriority: { [AnimLayer.TORSO]: 10 } — optional override
+});
+
+// 3. Inside a state handler's update(), resolve and request the animation.
+update(ctx: INPCContext, deltaMs: number): void {
+  const req = getAnimationRequest({
+    state:          ctx.driver.currentStateId,   // e.g. 'COMBAT'
+    weaponCategory: ctx.state.primaryWeaponType, // e.g. 2 → 'rifle'
+    velocity:       { x: ctx.vx, y: ctx.vy },
+    directionCache: this.dirCache,               // DirectionCache — avoids atan2 every frame
+  });
+
+  // request() skips play() if the same key+layer is already active (debounce).
+  animController.request(req);
+
+  // For one-shot events — bypasses debounce and priority:
+  // animController.force({ key: 'death_rifle', loop: false, frameRate: 8,
+  //                        layer: AnimLayer.LEGS });
+}
+
+// 4. On respawn or object-pool recycle:
+animController.reset();
+```
+
+Key points:
+- `getAnimationRequest()` builds the animation key from `state + weaponCategory + direction`.
+  Default key format: `{base}_{weapon}_{direction}`, e.g. `combat_rifle_SE`.
+  States with `omitDirection: true` (e.g. `DEAD`, `GRENADE`, `SLEEP`) use
+  `{base}_{weapon}` only.
+- `DirectionCache.resolve(vx, vy)` caches the last 8-way compass direction and
+  only re-runs `atan2` when velocity changes by more than ~2 px/s.
+- The controller is stateless in terms of NPC data — one instance per NPC,
+  but one `StateHandlerMap` can carry a shared `AnimationController` factory.
 
 ---
 
@@ -396,3 +661,70 @@ src/
 ├── config/       IStateConfig, IStateTransitionMap, createDefaultStateConfig
 └── ports/        AI-specific port interfaces (IRestrictedZoneAccess, IHazardZoneAccess)
 ```
+
+---
+
+## Common pitfalls
+
+**NPC stuck in a state — update() is called but the state never changes**
+
+State transitions are only triggered by `ctx.transition()` being called from
+inside a state handler's `enter()` or `update()`. If your state never calls
+`ctx.transition()`, the driver stays in that state indefinitely.
+Check the transition conditions in your handler: perception null-checks, timer
+comparisons, and morale/health thresholds are the most common culprits.
+
+**Transitions not firing — `ctx.transition()` is called externally but ignored**
+
+`ctx.transition()` must be called from within a state handler's `enter()` or
+`update()` method. Calling it from outside (e.g. from your game's event
+handler directly) does nothing because the driver only processes transitions
+during its own `update()` call. To force a state change from outside,
+mutate `ctx.state` to put the NPC in the correct pre-condition, then let
+the next `driver.update()` frame evaluate the transition naturally.
+
+**Cover system returns null — NPC never finds a cover point**
+
+Work through this checklist:
+1. `CoverRegistry` populated? Call `registry.getSize()` — if it returns `0`,
+   no points have been registered. Call `registry.addPoints([...])` during
+   scene setup.
+2. Cover points within search radius? The default `searchRadius` from `ICoverConfig`
+   must be larger than the distance between the NPC and the nearest point.
+3. All points locked? If `CoverLockRegistry` is in use, points expire
+   automatically after their TTL. Check that `ttlMs` is not set so high
+   that points remain locked indefinitely.
+4. Score threshold too strict? `minScoreThreshold` in `ICoverConfig` filters
+   out low-quality candidates. Lower it for sparse maps.
+
+**Subsystem returning null — calls like `ctx.cover.findCover()` crash**
+
+All subsystems on `INPCContext` are typed `T | null`. You must access them
+with optional chaining:
+
+```ts
+// Safe — no-op if cover is null:
+const pt = ctx.cover?.findCover(ctx.x, ctx.y, ex, ey) ?? null;
+
+// Safe — defaults to empty array:
+const enemies = ctx.perception?.getVisibleEnemies() ?? [];
+
+// Safe — defaults to 1 (full HP):
+const hp = ctx.health?.hpRatio() ?? 1;
+```
+
+Setting a subsystem to `null` on `INPCContext` silently disables the
+features that depend on it — the built-in state handlers all guard with
+optional chaining, so no code changes are needed in the handlers themselves.
+
+**GOAP plan never advances — `result.handled` is always `false`**
+
+The most common causes:
+- No actions registered in `GOAPPlanner`. Call `planner.registerAction(...)` before
+  creating `GOAPController`.
+- `INPCWorldSnapshot` already satisfies the selected goal. When the world state
+  already matches the goal, the planner returns an empty plan and the controller
+  yields `handled: false`. This is correct behaviour — GOAP is done.
+- `action.isValid(entity)` returns `false` on every action. Each action
+  aborts immediately and the plan is marked invalid, triggering a replan loop.
+  Log `goap.getCurrentPlanIds()` and `goap.getLastGoalResult()` to diagnose.

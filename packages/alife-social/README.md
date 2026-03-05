@@ -75,6 +75,11 @@ kernel.portRegistry.register(SocialPorts.NPCSocialProvider, {
 
 // Both ports are required. If either is missing, the plugin will not emit bubbles.
 
+// INPCSocialProvider method contracts:
+//   getOnlineNPCs() returns []     → no remarks or campfires are triggered (graceful no-op).
+//   getNPCTerrainId() returns null → that NPC is excluded from remark terrain grouping
+//                                    and from campfire participant discovery.
+
 // 2. Register the plugin with your content data
 kernel.use(new SocialPlugin(random, { data: socialJson }));
 kernel.init();
@@ -169,6 +174,76 @@ You can supply a custom `stateGreetingMap` via `IMeetConfig.stateGreetingMap` to
 All text is loaded from `ISocialData` JSON into a `ContentPool` at startup.
 No-repeat selection: the same line is never picked twice in a row per category.
 Add custom categories via `ISocialData.custom` or `pool.addLines()` at runtime.
+
+### Configuration tuning
+
+All defaults come from `createDefaultSocialConfig()`. Pass overrides via the `social` key of `ISocialPluginConfig`.
+
+| Parameter | Default | Effect |
+|-----------|---------|--------|
+| `meet.meetDistance` | `150` px | Radius around the target in which an NPC triggers a greeting |
+| `meet.meetCooldownMs` | `60 000` ms | Per-NPC silence window after a greeting fires |
+| `remark.remarkChance` | `0.3` | Probability (0–1) that an eligible NPC speaks on each check interval |
+| `remark.remarkCheckIntervalMs` | `5 000` ms | How often the remark system evaluates candidates |
+| `campfire.weightStory` | `0.35` | Weight for the STORY branch in the idle→next transition |
+| `campfire.weightJokeCumulative` | `0.65` | Cumulative weight for JOKE (i.e. joke probability = 0.65 − 0.35 = 0.30) |
+
+Practical tips:
+
+- **Lower `meetCooldownMs`** (e.g. `20_000`) for more frequent greetings in busy social hubs.
+- **Raise `remarkChance`** (e.g. `0.6`) for noisier zones where NPCs should feel chatty.
+- **Lower `remarkCheckIntervalMs`** to make NPCs react to events faster, at the cost of slightly more CPU per second.
+- **Adjust `weightStory` / `weightJokeCumulative`** to shift the campfire mood — higher `weightStory` means more dramatic sessions, narrowing the gap between them increases joke frequency.
+
+```ts
+kernel.use(new SocialPlugin(random, {
+  data: socialJson,
+  social: {
+    meet:   { meetCooldownMs: 20_000 },          // greet more often
+    remark: { remarkChance: 0.6 },               // busier zones
+  },
+}));
+```
+
+---
+
+### Save/load integration
+
+`SocialPlugin` exposes `serialize()` and `restore()` for seamless save/load support.
+
+**What IS persisted:**
+
+- Per-NPC greeting cooldowns (`meetCooldowns`) — prevents NPCs from re-greeting immediately after a load.
+- Per-NPC remark cooldowns (`remarkCooldowns`) — preserves the time-independent remaining cooldown so NPCs don't burst-speak on resume.
+
+**What is NOT persisted:**
+
+- Campfire sessions — they are transient and auto-reconstruct from live NPC positions on the next sync tick (within `syncIntervalMs`, default 3 s).
+
+```ts
+// On save
+const saveData = {
+  social: kernel.getPlugin(Plugins.SOCIAL).serialize(),
+  // ...other plugin saves
+};
+fs.writeFileSync('save.json', JSON.stringify(saveData));
+
+// On load
+const saveData = JSON.parse(fs.readFileSync('save.json', 'utf8'));
+kernel.getPlugin(Plugins.SOCIAL).restore(saveData.social);
+```
+
+The `serialize()` return shape:
+
+```ts
+{
+  campfireTerrains: string[];                 // informational only — not restored
+  meetCooldowns:   Array<[npcId, expiryTs]>; // absolute timestamps (ms)
+  remarkCooldowns: Array<[npcId, remainMs]>; // remaining ms (time-independent)
+}
+```
+
+---
 
 ### Custom gathering FSM
 

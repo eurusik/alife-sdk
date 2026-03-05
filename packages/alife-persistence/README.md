@@ -135,6 +135,54 @@ if (result.ok) {
 > This is enforced by `kernel.serialize()` — if the field is absent or not a number, `load()`
 > returns `{ ok: false, reason: 'parse_failed' }` before attempting to restore.
 
+### Why synchronous?
+
+`IStorageBackend` is intentionally synchronous. Keeping the interface sync makes
+serialisation deterministic and predictable — save and load complete in a single
+call frame with no hidden state changes between ticks.
+
+From the source comment in `IStorageBackend.ts`:
+
+> NOTE: This interface is intentionally synchronous. For async backends
+> (IndexedDB, remote API), wrap with a sync cache layer or use a separate
+> async persistence strategy outside of PersistencePlugin.
+
+In practice this means:
+- `localStorage`, `sessionStorage`, and `fs.writeFileSync` work directly.
+- For **IndexedDB or remote APIs**, maintain an in-memory cache that is written
+  asynchronously in the background, and expose the cached values through the sync
+  interface. Alternatively, handle that persistence layer entirely outside
+  `PersistencePlugin`.
+
+### Error recovery
+
+Because `save()` and `load()` return typed result objects instead of throwing,
+you can handle each failure mode explicitly:
+
+| Failure reason | Likely cause | Recommended action |
+|---|---|---|
+| `write_failed` | Storage quota exceeded or permission denied | Show a UI prompt (e.g. "Storage full — free space and try again"), then retry `save()` with a smaller data set or a different save slot |
+| `parse_failed` | Corrupted save data or missing `version` field | Offer the player a "New Game" option or a fallback save slot; do not attempt to restore partial state |
+| `restore_failed` | Incompatible save version or corrupted state rejected by `kernel.restoreState()` | Log `result.message` for debugging, then offer "New Game"; the save file can be deleted with `deleteSave()` |
+
+```ts
+const load = persistence.load();
+if (!load.ok) {
+  switch (load.reason) {
+    case 'write_failed':
+      ui.showPrompt('Storage full — free space and retry.');
+      break;
+    case 'parse_failed':
+      ui.offerNewGame('Save data is corrupted.');
+      break;
+    case 'restore_failed':
+      logger.error(`restore_failed: ${load.message}`);
+      ui.offerNewGame('Incompatible save version.');
+      break;
+  }
+}
+```
+
 ### Multiple save slots
 
 Pass a custom `saveKey` per plugin instance:

@@ -289,6 +289,210 @@ const mockBridge = {
 
 ---
 
+## Events emitted
+
+All events flow through `kernel.events` (an `EventBus<ALifeEventPayloads>`).
+Subscribe with:
+
+```ts
+kernel.events.on('alife:tick', ({ tick, delta }) => { /* ... */ });
+```
+
+The table below lists every event the simulation package emits. Events from
+other packages (AI perception, anomaly, social, monster) are not included.
+
+| Event | String key | Payload | When |
+|-------|-----------|---------|------|
+| `TICK` | `'alife:tick'` | `{ tick: number; delta: number }` | End of every tick pipeline execution (every `tickIntervalMs`) |
+| `NPC_MOVED` | `'alife:npc_moved'` | `{ npcId: string; fromZone: string; toZone: string }` | NPC moves between terrain zones (movement simulator) |
+| `NPC_DIED` | `'alife:npc_died'` | `{ npcId: string; killedBy: string; zoneId: string }` | NPC HP reaches zero (offline combat or surge damage) |
+| `NPC_RELEASED` | `'alife:npc_released'` | `{ npcId: string; terrainId: string }` | NPC leaves a terrain/job slot |
+| `TASK_ASSIGNED` | `'alife:task_assigned'` | `{ npcId: string; terrainId: string; taskType: string }` | Brain assigns NPC to a terrain job |
+| `FACTION_CONFLICT` | `'alife:faction_conflict'` | `{ factionA: string; factionB: string; zoneId: string }` | Two hostile factions share a terrain zone (once per tick per pair) |
+| `NPC_PANICKED` | `'ai:npc_panicked'` | `{ npcId: string; squadId: string \| null }` | NPC morale drops below `panicThreshold` |
+| `TERRAIN_STATE_CHANGED` | `'alife:terrain_state_changed'` | `{ terrainId: string; oldState: number; newState: number }` | Terrain FSM transitions (PEACEFUL↔ALERT↔COMBAT) |
+| `SURGE_WARNING` | `'surge:warning'` | `{ timeUntilSurge: number }` | Surge enters WARNING phase |
+| `SURGE_STARTED` | `'surge:started'` | `{ surgeNumber: number }` | Surge enters ACTIVE phase |
+| `SURGE_ENDED` | `'surge:ended'` | `{ surgeNumber: number }` | Surge enters AFTERMATH phase |
+| `SURGE_DAMAGE` | `'surge:damage'` | `{ npcId: string; damage: number }` | PSI damage tick applied to an unsheltered NPC |
+| `SQUAD_FORMED` | `'squad:formed'` | `{ squadId: string; factionId: string; memberIds: string[] }` | New squad created from faction members |
+| `SQUAD_DISBANDED` | `'squad:disbanded'` | `{ squadId: string }` | Squad dissolved (leader died or last member left) |
+| `SQUAD_MEMBER_ADDED` | `'squad:member_added'` | `{ squadId: string; npcId: string }` | NPC joined an existing squad |
+| `SQUAD_MEMBER_REMOVED` | `'squad:member_removed'` | `{ squadId: string; npcId: string }` | NPC left or was removed from a squad |
+| `SQUAD_GOAL_SET` | `'squad:goal_set'` | `{ squadId: string; goalType: string; terrainId: string \| null; priority: number }` | Squad receives a new movement/combat goal |
+| `SQUAD_GOAL_CLEARED` | `'squad:goal_cleared'` | `{ squadId: string; previousGoalType: string }` | Squad goal removed or completed |
+
+---
+
+## Porting to your engine
+
+The simulation package is engine-agnostic. The only integration point is
+`ISimulationBridge` — a four-method interface your engine implements once.
+
+### Step 1 — Implement ISimulationBridge
+
+```ts
+import type { ISimulationBridge } from '@alife-sdk/simulation/ports';
+
+class MyEngineBridge implements ISimulationBridge {
+  isAlive(entityId: string): boolean {
+    // Return false when the entity has been destroyed or HP ≤ 0
+    return this.entityRegistry.get(entityId)?.health.isAlive ?? false;
+  }
+
+  applyDamage(entityId: string, amount: number, damageTypeId: string): boolean {
+    const entity = this.entityRegistry.get(entityId);
+    if (!entity) return false;
+    const effective = this.immunitySystem.reduce(entity, amount, damageTypeId);
+    entity.health.applyDamage(effective);
+    return !entity.health.isAlive; // true = entity just died
+  }
+
+  getEffectiveDamage(entityId: string, rawDamage: number, damageTypeId: string): number {
+    // Apply immunity/resistance multipliers WITHOUT mutating HP
+    const entity = this.entityRegistry.get(entityId);
+    return entity ? this.immunitySystem.reduce(entity, rawDamage, damageTypeId) : 0;
+  }
+
+  adjustMorale(entityId: string, delta: number, _reason: string): void {
+    // Write the delta to your morale component — the brain is authoritative
+    // while offline; sync back to brain.morale when the NPC goes online.
+    this.entityRegistry.get(entityId)?.alife.adjustMorale(delta);
+  }
+}
+```
+
+The `damageTypeId` values used by the simulation are `'physical'` (offline
+combat) and `'psi'` (surge damage) unless overridden in config.
+
+### Step 2 — Register the bridge before kernel.init()
+
+```ts
+import { SimulationPorts } from '@alife-sdk/simulation/ports';
+
+kernel.provide(
+  SimulationPorts.SimulationBridge,
+  new MyEngineBridge(entityRegistry, immunitySystem),
+);
+// kernel.init() validates all required ports — missing bridge throws immediately.
+kernel.init();
+```
+
+### Step 3 — Sync brain state when an NPC goes online
+
+When a player enters render range the SDK stops ticking that NPC. Read the
+authoritative morale from the brain before handing off to the host engine:
+
+```ts
+const brain = sim.getNPCBrain(npcId);
+if (brain) {
+  myEntity.morale = brain.morale;
+  myEntity.position = brain.lastPosition ?? myEntity.position;
+}
+sim.setNPCOnline(npcId, true); // SDK tick pipeline skips this NPC
+```
+
+When the NPC leaves render range, write the current position back before
+returning control to the SDK:
+
+```ts
+const record = sim.getNPCRecord(npcId);
+if (record) {
+  record.lastPosition = myEntity.position;
+}
+sim.setNPCOnline(npcId, false); // SDK tick pipeline resumes
+```
+
+### Step 4 — Call kernel.update(deltaMs) in your game loop
+
+The kernel's `update` call drives surge (every frame) and the tick pipeline
+(gated by `tickIntervalMs`):
+
+```ts
+function gameLoop(deltaMs: number) {
+  // Toggle online/offline before update so the current tick sees the right state
+  sim.setNPCOnline('npc_soldier_1', playerIsNear('npc_soldier_1'));
+  kernel.update(deltaMs);
+}
+```
+
+### Step 5 — Handle events
+
+React to simulation outcomes without polling:
+
+```ts
+// Spawn a death effect
+kernel.events.on('alife:npc_died', ({ npcId, killedBy, zoneId }) => {
+  vfx.playDeathEffect(npcId, worldMap.getZoneCenter(zoneId));
+});
+
+// Show surge HUD warning
+kernel.events.on('surge:warning', ({ timeUntilSurge }) => {
+  hud.showSurgeCountdown(timeUntilSurge);
+});
+
+// React to offline panic — maybe play a distant scream
+kernel.events.on('ai:npc_panicked', ({ npcId }) => {
+  audio.playDistantScream(npcId);
+});
+```
+
+---
+
+## Performance tuning
+
+All knobs live in `ISimulationPluginConfig` (plugin-level) and
+`ISimulationConfig` sub-sections (simulation-level). Pass overrides to
+`SimulationPlugin` or `createInMemoryKernel`.
+
+### Plugin-level knobs
+
+| Knob | Default | Effect |
+|------|---------|--------|
+| `tickIntervalMs` | `5000` ms | How often the full tick pipeline runs. Increase to 10 000 ms for 200+ NPCs; decrease to 2 000 ms for a more reactive world. |
+| `maxBrainUpdatesPerTick` | `20` | Round-robin budget: at most this many offline brains are updated per tick. Raise for faster NPC reactions; lower to spread CPU across more frames. |
+| `moraleRestoreRate` | `0.02` | Morale delta per tick toward baseline. Higher values = NPCs recover from fear faster. |
+| `moraleBaseline` | `0.5` | Morale target all NPCs drift toward over time. |
+| `moraleEvalIntervalMs` | `2000` ms | How often panic threshold is evaluated (runs every frame, gated by this interval). |
+| `redundancyCleanupInterval` | `3` ticks | Dead NPCs are unregistered every N ticks. Lower = faster memory recovery; higher = less per-tick overhead. |
+
+### Simulation sub-config knobs
+
+| Knob | Path | Default | Effect |
+|------|------|---------|--------|
+| `combatDecayMs` | `terrainState.combatDecayMs` | `30 000` ms | Time for terrain COMBAT → ALERT decay. |
+| `alertDecayMs` | `terrainState.alertDecayMs` | `15 000` ms | Time for terrain ALERT → PEACEFUL decay. |
+| `maxResolutionsPerTick` | `offlineCombat.maxResolutionsPerTick` | `10` | Max faction-pair combat exchanges per tick. Reduce for lower CPU cost with many hostile pairs. |
+| `detectionProbability` | `offlineCombat.detectionProbability` | `70` (%) | Chance two co-located hostile factions detect each other per tick. Lower for sparser fights. |
+| `combatLockMs` | `offlineCombat.combatLockMs` | `15 000` ms | Cooldown between exchanges for the same pair. Raise to throttle combat frequency. |
+| `reEvaluateIntervalMs` | `brain.reEvaluateIntervalMs` | `30 000` ms | How often a brain reconsiders its terrain assignment. Raise to reduce terrain churn CPU. |
+
+### Practical guidance by NPC count
+
+| Scale | Recommended settings |
+|-------|---------------------|
+| **50 NPCs** | Defaults work well. `tickIntervalMs: 5_000`, `maxBrainUpdatesPerTick: 20`. All NPCs updated every tick. |
+| **150 NPCs** | Raise `tickIntervalMs` to `8_000`. Keep `maxBrainUpdatesPerTick` at `20` — each brain gets a turn every ~2 ticks. |
+| **300 NPCs** | `tickIntervalMs: 10_000`, `maxBrainUpdatesPerTick: 30`. Each brain updated roughly every ~2 ticks. Raise `reEvaluateIntervalMs` to `60_000` to reduce terrain selection churn. |
+| **500 NPCs** | `tickIntervalMs: 15_000`, `maxBrainUpdatesPerTick: 40`, `maxResolutionsPerTick: 5`. Consider disabling graph movement (`levelGraph: undefined`) if not needed. |
+
+```ts
+// Example: tuning for ~300 offline NPCs
+const kernel = new ALifeKernel();
+kernel.use(new SimulationPlugin({
+  tickIntervalMs:          10_000,
+  maxBrainUpdatesPerTick:  30,
+  moraleEvalIntervalMs:     3_000,
+  redundancyCleanupInterval: 5,
+  simulation: {
+    brain:        { reEvaluateIntervalMs: 60_000 },
+    offlineCombat: { maxResolutionsPerTick: 5 },
+  },
+}));
+```
+
+---
+
 ## See also
 
 - [`@alife-sdk/ai`](../alife-ai/README.md) — online frame-based AI for NPCs that come within player range
