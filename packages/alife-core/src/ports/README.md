@@ -20,7 +20,7 @@ import { DefaultRandom, SeededRandom } from '@alife-sdk/core/ports';
 
 ## Why ports?
 
-The SDK has zero runtime dependencies on Phaser, Unity, or any other engine.
+The SDK has zero runtime dependencies on Phaser, PixiJS, or any other JS engine.
 All interaction with the host environment goes through **ports** — narrow
 interfaces the host implements once. The SDK calls them; the host provides
 the implementation.

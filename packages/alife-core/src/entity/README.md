@@ -14,7 +14,7 @@ The SDK is engine-agnostic. It never creates, renders, or owns game objects.
 Instead, it defines the **minimum slice** of an entity it needs to do its work:
 
 ```
-Your Phaser.Sprite (or Unity GameObject, or plain object)
+Your Phaser.Sprite (or Pixi.js DisplayObject, or plain object)
            │
            ▼
     implements IEntity

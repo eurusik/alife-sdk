@@ -61,7 +61,7 @@ const kernel = new ALifeKernel({
 ## Ports — bridging to your engine
 
 Ports are typed adapters that connect the kernel to your game engine.
-The SDK defines interfaces; you implement them for Phaser, Unity, or any
+The SDK defines interfaces; you implement them for Phaser, PixiJS, or any
 other engine.
 
 ### Engine ports (optional — auto-provided as no-ops)
@@ -381,7 +381,7 @@ console.log(kernel.tick); // 5
 kernel.destroy();
 ```
 
-In production (Phaser, Unity, etc.) supply real adapters before `init()`:
+In production (Phaser, PixiJS, etc.) supply real adapters before `init()`:
 
 ```ts
 import { ALifeKernel, Ports } from '@alife-sdk/core';
