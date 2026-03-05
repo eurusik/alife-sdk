@@ -182,7 +182,6 @@ export function selectBestWeapon(
   if (loadout.secondary && loadout.secondary.ammo > 0) {
     const secScore = weaponScore(loadout.secondary.category, distanceToEnemy, enemyCount, hpRatio, config);
     if (secScore > bestScore) {
-      bestScore = secScore;
       bestSlot = loadout.secondary;
     }
   }

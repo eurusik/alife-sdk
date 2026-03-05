@@ -58,7 +58,7 @@ export class TakeCoverState implements IOnlineStateHandler {
         ctx.state.coverPointX = coverPt.x;
         ctx.state.coverPointY = coverPt.y;
       } else {
-        coverPt = null;
+        coverPt = null; // eslint-disable-line no-useless-assignment
       }
     }
     // If no cover found, we still enter — the NPC will try to move to last

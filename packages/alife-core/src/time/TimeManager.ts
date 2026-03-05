@@ -46,10 +46,9 @@ export class TimeManager {
   private _buildCallbacks(): Pick<IClockConfig, 'onHourChanged' | 'onDayNightChanged'> {
     if (!this._events) return {};
     const events = this._events;
-    const self = this;
     return {
       onHourChanged: (hour: number, day: number) => {
-        events.emit(ALifeEvents.HOUR_CHANGED, { hour, day, isDay: self._clock.isDay });
+        events.emit(ALifeEvents.HOUR_CHANGED, { hour, day, isDay: this._clock.isDay });
       },
       onDayNightChanged: (isDay: boolean) => {
         events.emit(ALifeEvents.DAY_NIGHT_CHANGED, { isDay });

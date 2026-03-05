@@ -23,6 +23,14 @@ export default tseslint.config(
     },
   },
   {
+    files: ['**/*.test.ts', '**/__integration__/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'warn',
+      'no-useless-assignment': 'off',
+      'prefer-const': 'warn',
+    },
+  },
+  {
     ignores: ['**/dist/', '**/node_modules/'],
   },
 );

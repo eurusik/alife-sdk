@@ -11,7 +11,6 @@
 
 import { type Vec2, distance, lerp, EventBus, ALifeEvents } from '@alife-sdk/core';
 import type { ALifeEventPayloads } from '@alife-sdk/core';
-import type { IMovementDispatcher } from '../brain/BrainScheduleManager';
 import type { IMovementSimulator } from './IMovementSimulator';
 
 // ---------------------------------------------------------------------------
