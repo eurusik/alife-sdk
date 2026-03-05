@@ -109,6 +109,106 @@ npx tsx --tsconfig examples/tsconfig.json examples/03-combat-bridge.ts
 
 ---
 
+### 04-persistence.ts — Save / load game state
+
+**What it shows:**
+
+- `PersistencePlugin` wired to a kernel with `MemoryStorageProvider`
+- Run offline ticks, then `SAVE` the kernel state (NPC HP, rank, position, game clock, tick counter)
+- Run more ticks (state drifts), then `LOAD` the save — kernel reverts to the snapshot
+- Verify restored state matches what was saved
+- `hasSave()` / `deleteSave()` API
+- Two independent save slots (autosave + manual)
+- Error handling: load before save, corrupted data
+- How to swap `MemoryStorageProvider` for `localStorage` in the browser
+
+**Run:**
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/04-persistence.ts
+```
+
+---
+
+### 05-hazards.ts — Anomaly zones, radiation, artefacts
+
+**What it shows:**
+
+- Two hazard zones: a radiation field and a fire pit
+- Three artefacts with different zone-type affinities and weights
+- Three entities: unprotected stalker, radiation-resistant scientist, fire-immune player
+- Damage ticks, immunity reduction, artefact spawning and collection
+- A short-lived surge zone that auto-expires
+- Why `HazardsPlugin.update()` is a no-op — and how to drive `hazards.manager.tick(deltaMs, entities)` yourself
+
+**Run:**
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/05-hazards.ts
+```
+
+---
+
+### 06-economy.ts — Trade, inventory, quests
+
+**What it shows:**
+
+- `EconomyPlugin` with player inventory and item events
+- A trader with item lines and a configurable restock cycle
+- `executeBuy` — neutral relation price, ally discount, failure cases
+- `executeSell` — flat sell multiplier
+- `executeGift` — item transfer without money (quest reward)
+- `QuestEngine` — register → start → progress → complete lifecycle
+- Quest chains: first quest unlocks the next; quest failure path
+
+**Run:**
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/06-economy.ts
+```
+
+---
+
+### 07-ai.ts — Online frame-based NPC AI
+
+**What it shows:**
+
+- `SimpleNPCHost` — minimal host contract every NPC must satisfy
+- `OnlineAIDriver` — per-NPC FSM driver; call `update(deltaMs)` each frame
+- Full human FSM cycle: `IDLE → ALERT → COMBAT → SEARCH → IDLE`
+- `CombatState` firing shots and transitioning to `TAKE_COVER`
+- `COMBAT → FLEE` when morale reaches `PANICKED`
+- Monster FSM (bloodsucker) using `buildChornobylMonsterHandlerMap → STALK`
+- `AIPlugin` + `RestrictedZoneManager` for movement constraints
+- How `SimpleNPCHost` is replaced by `PhaserNPCContext` in production without touching state handlers
+
+**Run:**
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/07-ai.ts
+```
+
+---
+
+### 08-social.ts — NPC social interaction system
+
+**What it shows:**
+
+- `ContentPool` — text pool by category; `addLines` / `loadSocialData`
+- `MeetOrchestrator` — greeting bubbles when player approaches NPCs
+- `RemarkDispatcher` — ambient NPC remarks driven by `plugin.update()`
+- `CampfireFSM` — auto-managed campfire sessions (`IDLE → STORY/JOKE → REACTING`, or `EATING → IDLE`)
+- `SocialPlugin` + kernel — wiring `ISocialPresenter` and `INPCSocialProvider`
+- Serialize / restore — cooldowns survive save/load
+
+**Run:**
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/08-social.ts
+```
+
+---
+
 ### 09-phaser.ts — Phaser 3 integration reference ⚠️ browser-only
 
 > **NOT runnable in Node.js** — requires a live Phaser 3 context (browser + WebGL/Canvas).
