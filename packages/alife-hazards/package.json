@@ -1,6 +1,6 @@
 {
   "name": "@alife-sdk/hazards",
-  "version": "0.1.1",
+  "version": "0.3.0",
   "description": "Hazard zones, anomalies and artefact spawning for A-Life SDK",
   "type": "module",
   "sideEffects": false,

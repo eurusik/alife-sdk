@@ -1,5 +1,12 @@
 # @alife-sdk/social
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies [975b346]
+  - @alife-sdk/core@0.3.0
+
 ## 0.1.1
 
 ### Patch Changes
