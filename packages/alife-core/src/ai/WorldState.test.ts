@@ -242,4 +242,55 @@ describe('WorldState', () => {
       expect(keys).toContain('c');
     });
   });
+
+  // -------------------------------------------------------------------------
+  // from()
+  // -------------------------------------------------------------------------
+
+  describe('from()', () => {
+    it('WorldState.from({}) creates an empty state (no keys)', () => {
+      const ws = WorldState.from({});
+      expect([...ws.keys()]).toHaveLength(0);
+    });
+
+    it('sets a boolean value from a plain object', () => {
+      const ws = WorldState.from({ alive: true });
+      expect(ws.get('alive')).toBe(true);
+      expect(ws.has('alive')).toBe(true);
+    });
+
+    it('sets a number value from a plain object', () => {
+      const ws = WorldState.from({ ammo: 30 });
+      expect(ws.get('ammo')).toBe(30);
+    });
+
+    it('sets a string value from a plain object', () => {
+      const ws = WorldState.from({ weapon: 'rifle' });
+      expect(ws.get('weapon')).toBe('rifle');
+    });
+
+    it('sets multiple keys from a plain object', () => {
+      const ws = WorldState.from({ alive: true, ammo: 10, weapon: 'pistol' });
+      expect(ws.get('alive')).toBe(true);
+      expect(ws.get('ammo')).toBe(10);
+      expect(ws.get('weapon')).toBe('pistol');
+      expect([...ws.keys()]).toHaveLength(3);
+    });
+
+    it('returned instance satisfies a matching goal', () => {
+      const ws = WorldState.from({ armed: true, inCover: true });
+      const goal = new WorldState();
+      goal.set('armed', true);
+      expect(ws.satisfies(goal)).toBe(true);
+    });
+
+    it('from({}) is equivalent to new WorldState() — no keys set', () => {
+      const fromEmpty = WorldState.from({});
+      const manual = new WorldState();
+      expect([...fromEmpty.keys()]).toHaveLength(0);
+      expect([...manual.keys()]).toHaveLength(0);
+      expect(fromEmpty.satisfies(manual)).toBe(true);
+      expect(manual.satisfies(fromEmpty)).toBe(true);
+    });
+  });
 });
