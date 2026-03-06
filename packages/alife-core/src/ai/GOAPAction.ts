@@ -13,7 +13,7 @@
  *   3. abort()    -- called when the action is interrupted (default no-op)
  */
 
-import type { WorldState } from './WorldState';
+import type { WorldState, WorldStateValue } from './WorldState';
 import type { IEntity } from '../entity/IEntity';
 
 // ---------------------------------------------------------------------------
@@ -82,8 +82,8 @@ export abstract class GOAPAction {
 export interface GOAPActionDef {
   readonly id: string;
   readonly cost: number;
-  readonly preconditions: Record<string, import('./WorldState').WorldStateValue>;
-  readonly effects:       Record<string, import('./WorldState').WorldStateValue>;
-  isValid?(entity: import('../entity/IEntity').IEntity): boolean;
-  execute?(entity: import('../entity/IEntity').IEntity, delta: number): ActionStatus;
+  readonly preconditions: Record<string, WorldStateValue>;
+  readonly effects:       Record<string, WorldStateValue>;
+  isValid?(entity: IEntity): boolean;
+  execute?(entity: IEntity, delta: number): ActionStatus;
 }

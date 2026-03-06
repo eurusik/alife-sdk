@@ -323,9 +323,7 @@ export class GOAPPlanner {
 // ---------------------------------------------------------------------------
 
 function isGOAPActionDef(a: GOAPAction | GOAPActionDef): a is GOAPActionDef {
-  return typeof (a as GOAPActionDef).preconditions === 'object'
-      && !((a as GOAPAction).getPreconditions instanceof Function &&
-           Object.getPrototypeOf(a) !== Object.prototype);
+  return !(a instanceof GOAPAction);
 }
 
 class InlineGOAPAction extends GOAPAction {
