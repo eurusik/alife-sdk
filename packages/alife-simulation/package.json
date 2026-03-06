@@ -1,6 +1,6 @@
 {
   "name": "@alife-sdk/simulation",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Offline tick-based A-Life world simulation",
   "type": "module",
   "sideEffects": false,
