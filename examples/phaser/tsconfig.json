@@ -6,10 +6,10 @@
     "strict": true,
     "esModuleInterop": true,
     "paths": {
-      "@alife-sdk/core":        ["../../packages/alife-core/dist/index.js"],
-      "@alife-sdk/core/*":      ["../../packages/alife-core/dist/*/index.js"],
-      "@alife-sdk/simulation":  ["../../packages/alife-simulation/dist/index.js"],
-      "@alife-sdk/phaser":      ["../../packages/alife-phaser/dist/index.js"]
+      "@alife-sdk/core":        ["../../packages/alife-core/dist/index.d.ts"],
+      "@alife-sdk/core/*":      ["../../packages/alife-core/dist/*/index.d.ts"],
+      "@alife-sdk/simulation":  ["../../packages/alife-simulation/dist/index.d.ts"],
+      "@alife-sdk/phaser":      ["../../packages/alife-phaser/dist/index.d.ts"]
     }
   },
   "include": ["src"]
