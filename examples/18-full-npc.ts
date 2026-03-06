@@ -227,16 +227,21 @@ const WAYPOINTS = [
 
 const patrolHandler: IStateHandler = {
   enter(entity) {
+    const e = entity as KozakEntity; // widen once; IEntity doesn't expose NPC-specific fields
+    if (!e.isAlive) return;
     console.log(`  [PATROL.enter] Kozak begins patrol`);
-    (entity as KozakEntity).waypointIdx = 0;
+    e.waypointIdx = 0;
     // Clear memory on return to patrol — the threat has been neutralised.
     // This prevents the PATROL→ALERT transition from firing again immediately
     // because of the still-live bandit_north record from the previous fight.
+    // NOTE: if you add states between COMBAT and PATROL, override this in
+    // that state's enter() too — patrol.enter() is the only place that clears it.
     memory.clear();
   },
 
   update(entity, _delta) {
     const e  = entity as KozakEntity;
+    if (!e.isAlive) return;
     const wp = WAYPOINTS[e.waypointIdx % WAYPOINTS.length];
     e.setPosition(wp.x, wp.y);
     console.log(`  [PATROL.update] Kozak at waypoint ${e.waypointIdx} (${wp.x}, ${wp.y})`);
@@ -251,11 +256,13 @@ const patrolHandler: IStateHandler = {
 
 const alertHandler: IStateHandler = {
   enter(entity) {
+    const e = entity as KozakEntity;
+    if (!e.isAlive) return;
     console.log(`  [ALERT.enter] Kozak heard something — going alert`);
     // Decay memory every frame while alert so confidence naturally drops if
     // Kozak stops getting new information.
     memory.update(0); // synchronise the bank timestamp on entry
-    (entity as KozakEntity).targetEliminated = false;
+    e.targetEliminated = false;
   },
 
   update(_entity, _delta) {
@@ -279,13 +286,15 @@ const alertHandler: IStateHandler = {
 
 const combatHandler: IStateHandler = {
   enter(entity) {
+    const e = entity as KozakEntity;
+    if (!e.isAlive) return;
     console.log(`  [COMBAT.enter] Kozak engages`);
     // Move Kozak to the combat area — near the bandit's last known position.
     // In a real game the NavMesh pathfinder would route him here; we set it
     // directly so the danger-zone check works correctly in tick 6.
-    entity.setPosition(130, 110);
+    e.setPosition(130, 110);
     // Sync the BT blackboard with the entity's inventory on combat entry.
-    bb.set('ammo', (entity as KozakEntity).ammo);
+    bb.set('ammo', e.ammo);
     bb.set('inCover', false);
     bb.set('canSeeEnemy', true);    // assume line of sight on entry
   },
@@ -315,6 +324,9 @@ const combatHandler: IStateHandler = {
     //    Build world state from entity + blackboard so the planner has
     //    accurate information. Re-plan each tick so Kozak adapts if he
     //    uses his medkit or loses cover.
+    //    NOTE: re-planning every tick is fine for a single NPC in an example.
+    //    In a real game with many NPCs, cache the plan and replan every 3-5 s
+    //    or when world state changes materially — see GOAP.md "Performance notes".
     const worldState = WorldState.from({
       isHealthy:  e.hp >= 50,         // "healthy" means above half HP
       hasMedkit:  e.hasMedkit,
@@ -330,9 +342,11 @@ const combatHandler: IStateHandler = {
     console.log(`  [COMBAT.update] GOAP plan: ${plan.map(a => a.id).join(' → ')}`);
 
     // 3. Tick BehaviorTree to execute the first plan step.
-    //    The BT handles moment-to-moment decisions (shoot vs. cover) within
-    //    the overall strategy the planner produced.
-    //    GOAP provides "what to do next"; BT provides "how exactly to do it".
+    //    GOAP provides strategy ("what to do next") — plan[0] is the current action.
+    //    BT provides tactics ("how exactly to do it this frame").
+    //    The contract: BT fires the weapon; we check plan[0].id === 'Attack' to
+    //    confirm the strategy also says "attack now" before marking target eliminated.
+    //    If BT succeeds on any other plan step (e.g. FindCover), we just continue.
     const btResult = combatTree.tick(bb);
     console.log(`  [COMBAT.update] BT result: ${btResult}`);
 
@@ -348,9 +362,10 @@ const combatHandler: IStateHandler = {
   },
 
   exit(entity) {
+    const e = entity as KozakEntity;
     console.log(`  [COMBAT.exit] Kozak disengages`);
     // Reset combat flags so a future COMBAT entry starts fresh.
-    (entity as KozakEntity).targetEliminated = false;
+    e.targetEliminated = false;
   },
 };
 
