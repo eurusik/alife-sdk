@@ -227,7 +227,7 @@ function buildNpcFSM(
           replan(underFire);
         },
         update: (_e, deltaSec) => { memory.update(deltaSec); },
-        exit:  () => {},
+        exit:  () => { bundle.currentPlan = []; },
       },
       transitionConditions: [
         {
@@ -688,7 +688,7 @@ export class GameScene extends Phaser.Scene {
       }
 
       // 6. Floating state icon above sprite
-      const icon = ai.fsm.state === 'COMBAT' ? '⚔' : ai.fsm.state === 'ALERT' ? '!' : '';
+      const icon = ai.fsm.state === 'COMBAT' ? '[C]' : ai.fsm.state === 'ALERT' ? '[A]' : '';
       this.npcStateLabels.get(id)?.setPosition(sprite.x - 4, sprite.y - 32).setText(icon);
 
       // Debug panel row
