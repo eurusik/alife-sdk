@@ -1,6 +1,6 @@
 {
   "name": "@alife-sdk/persistence",
-  "version": "0.1.1",
+  "version": "0.3.0",
   "description": "Framework-agnostic save/load pipeline for A-Life kernel — pluggable storage backends",
   "type": "module",
   "sideEffects": false,
