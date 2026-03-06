@@ -1,6 +1,6 @@
 {
   "name": "@alife-sdk/economy",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Trade, inventory, and quest systems for A-Life SDK",
   "type": "module",
   "sideEffects": false,

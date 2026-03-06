@@ -1,5 +1,12 @@
 # @alife-sdk/simulation
 
+## 0.4.0
+
+### Patch Changes
+
+- Updated dependencies [f9b73d2]
+  - @alife-sdk/core@0.4.0
+
 ## 0.3.0
 
 ### Patch Changes

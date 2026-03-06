@@ -1,6 +1,6 @@
 {
   "name": "@alife-sdk/social",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "NPC social interaction systems — greetings, remarks, campfire storytelling",
   "type": "module",
   "sideEffects": false,
