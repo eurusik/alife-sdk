@@ -107,6 +107,12 @@ export interface ISimulationPluginConfig {
    * When provided, GraphMovementSimulator is used instead of MovementSimulator.
    */
   readonly levelGraph?: LevelGraph;
+  /**
+   * Optional custom movement simulator.
+   * When provided, takes priority over `levelGraph` and the default MovementSimulator.
+   * Use this to inject a PathfinderJS adapter or any other IMovementSimulator implementation.
+   */
+  readonly movementSimulator?: IMovementSimulator;
 }
 
 /** Default production-tuned plugin config. */
@@ -124,6 +130,7 @@ export function createDefaultPluginConfig(
     moraleEvalIntervalMs: overrides?.moraleEvalIntervalMs ?? 2_000,
     simulation: createDefaultSimulationConfig(overrides?.simulation),
     levelGraph: overrides?.levelGraph,
+    movementSimulator: overrides?.movementSimulator,
   };
 }
 
@@ -327,9 +334,10 @@ export class SimulationPlugin implements IALifePlugin {
     // Create subsystems.
     const simConfig = this.pluginConfig.simulation;
 
-    this.movement = this.pluginConfig.levelGraph
-      ? new GraphMovementSimulator(this.pluginConfig.levelGraph, this.events)
-      : new MovementSimulator(this.events);
+    this.movement = this.pluginConfig.movementSimulator
+      ?? (this.pluginConfig.levelGraph
+        ? new GraphMovementSimulator(this.pluginConfig.levelGraph, this.events)
+        : new MovementSimulator(this.events));
     this.squadManager = new SquadManager(
       createDefaultSquadConfig({
         moraleAllyDeathPenalty: simConfig.offlineCombat.moraleAllyDeathPenalty,

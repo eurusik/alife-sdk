@@ -230,6 +230,29 @@ For a **live visual demo** (real sprites, HP bars, terrain zones) see the browse
 
 ---
 
+### 10-custom-pathfinder.ts — Custom IMovementSimulator
+
+**What it shows:**
+
+- How to replace the built-in movement simulator with any custom implementation
+- `GridMovementSimulator` — a minimal grid-based pathfinder (no external deps)
+  written from scratch to show exactly what `IMovementSimulator` requires
+- Passing it via `movementSimulator` in `SimulationPlugin` config — one field,
+  no SDK changes needed
+- Priority order: `movementSimulator` → `levelGraph` → straight-line default
+- Where to plug in PathfinderJS / EasyStar / navmesh in a real project
+
+Use this as the starting point when your game's world is a tile map and you
+need wall avoidance that the default waypoint graph doesn't provide.
+
+**Run:**
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/10-custom-pathfinder.ts
+```
+
+---
+
 ### phaser/ — Browser demo with Phaser 3
 
 **What it shows:**

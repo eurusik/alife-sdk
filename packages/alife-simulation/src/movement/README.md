@@ -155,17 +155,45 @@ with a `SpatialGrid`-backed structure instead.
 
 ---
 
-## Choosing between the two
+## Custom implementation
 
-| | `MovementSimulator` | `GraphMovementSimulator` |
-|---|---|---|
-| Pathfinding | No — straight line | Yes — LevelGraph BFS/Dijkstra |
-| Setup | Minimal (just events) | Requires a built `LevelGraph` |
-| Position accuracy | Good for open worlds | Better for corridors/rooms |
-| Perf at 200+ NPCs | O(n) per tick | O(n) per tick + O(V) per start |
-| Fallback on no path | n/a | Instant teleport |
+Implement `IMovementSimulator` to plug in any pathfinding backend — PathfinderJS,
+EasyStar, a navmesh, etc. — without modifying the SDK:
 
-Both are interchangeable via `IMovementSimulator` — switch implementations
+```ts
+import type { IMovementSimulator } from '@alife-sdk/simulation/movement';
+import { SimulationPlugin } from '@alife-sdk/simulation/plugin';
+
+class PathfinderJSAdapter implements IMovementSimulator {
+  addMovingNPC(npcId, fromTerrainId, toTerrainId, fromPos, toPos, speed) { /* ... */ }
+  isMoving(npcId) { return false; }
+  cancelJourney(npcId) {}
+  update(deltaMs) { /* advance grid path, emit NPC_MOVED on arrival */ }
+  getPosition(npcId) { return null; }
+  get activeCount() { return 0; }
+  clear() {}
+}
+
+const sim = new SimulationPlugin({
+  movementSimulator: new PathfinderJSAdapter(),
+});
+```
+
+See `examples/10-custom-pathfinder.ts` for a full working example.
+
+---
+
+## Choosing between the three
+
+| | `MovementSimulator` | `GraphMovementSimulator` | Custom |
+|---|---|---|---|
+| Pathfinding | No — straight line | Yes — LevelGraph A* | Whatever you implement |
+| Setup | Minimal (just events) | Requires a built `LevelGraph` | Implement `IMovementSimulator` |
+| Position accuracy | Good for open worlds | Better for corridors/rooms | Up to you |
+| Perf at 200+ NPCs | O(n) per tick | O(n) per tick + O(V) per start | Up to you |
+| Fallback on no path | n/a | Instant teleport | Up to you |
+
+All three are interchangeable via `IMovementSimulator` — switch implementations
 without changing brain or simulation code.
 
 ---

@@ -176,6 +176,7 @@ sim.getSurgeManager();        // SurgeManager
 | `moraleEvalIntervalMs` | `2_000` | Panic evaluation cadence |
 | `simulation` | (see types/README) | Full `ISimulationConfig` sub-configs |
 | `levelGraph?` | `undefined` | When set, uses `GraphMovementSimulator` |
+| `movementSimulator?` | `undefined` | Custom `IMovementSimulator` — takes priority over `levelGraph` |
 
 ```ts
 import { createDefaultPluginConfig } from '@alife-sdk/simulation/plugin';
