@@ -198,9 +198,27 @@ Every online NPC runs a `StateMachine` over states registered in `AIStateRegistr
 Each state has `enter / update / exit` handlers and optional auto-transition rules.
 
 Elite NPCs (rank ≥ 5) additionally run a `GOAPPlanner` — an A* planner over
-a `WorldState` bitmask that picks the optimal action sequence to achieve a goal.
+a `WorldState` that picks the optimal action sequence to achieve a goal.
 
-See [`ai/README.md`](src/ai/README.md).
+Actions are registered as plain objects — no subclassing required:
+
+```ts
+import { GOAPPlanner, WorldState } from '@alife-sdk/core/ai';
+
+const planner = new GOAPPlanner();
+
+planner.registerAction({
+  id: 'heal_self', cost: 2,
+  preconditions: { hasMedkit: true, isHealthy: false },
+  effects:       { hasMedkit: false, isHealthy: true },
+});
+
+const current = WorldState.from({ isHealthy: false, hasMedkit: true });
+const goal    = WorldState.from({ isHealthy: true });
+const plan    = planner.plan(current, goal); // ['heal_self']
+```
+
+See [`ai/README.md`](src/ai/README.md) for the full API including class-based `GOAPAction` for complex multi-frame logic.
 
 ### Offline simulation — LevelGraph + SmartTerrain
 
