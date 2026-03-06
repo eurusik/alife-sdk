@@ -277,6 +277,163 @@ Controls: **WASD** or arrow keys. Walk toward NPCs (cyan circle = proximity radi
 
 ---
 
+### 11-fsm-tags.ts — Extended FSM: tags, events, guards, history
+
+**What it shows:**
+
+- Tags on state definitions (`'passive'`, `'active'`, `'hostile'`) and `fsm.hasTag()` for group queries
+- Metadata on states (animation hints, priority) readable via `fsm.metadata`
+- Event subscriptions: `onEnter`, `onExit`, `onChange` — all return unsubscribe functions
+- Guards: `canEnter` / `canExit` that veto transitions
+- `fsm.previous`, `fsm.currentStateDuration`, `fsm.getHistory()`
+- 4-state guard NPC: `IDLE → ALERT → COMBAT → RETREAT`
+
+**Run:**
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/11-fsm-tags.ts
+```
+
+---
+
+### 12-behavior-tree.ts — Behavior Tree
+
+**What it shows:**
+
+- `Blackboard<T>` typed shared state passed to every node each tick
+- Composites: `Sequence` (AND gate), `Selector` (OR gate), `Parallel` (`require-all` / `require-one`)
+- Decorators: `Inverter`, `Cooldown`, `Repeater`
+- Leaves: `Task` (arbitrary action), `Condition` (boolean predicate)
+- `ITreeNode<T>` interface for writing custom nodes
+- How BT fits with FSM: FSM picks the goal, BT executes it step by step
+
+**Run:**
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/12-behavior-tree.ts
+```
+
+---
+
+### 13-entity-handles.ts — EntityHandleManager
+
+**What it shows:**
+
+- Versioned handles that make use-after-free bugs impossible
+- Bit-packed handle encoding: 20-bit slot index + 28-bit generation counter
+- `resolve()` returns `null` for stale or freed handles — no silent wrong-entity bugs
+- Slot reuse: when a slot is freed and reallocated, old handles stay stale
+- `NULL_HANDLE` sentinel for optional handle fields
+- A `Squad` class that tracks members safely through death and replacement
+
+**Run:**
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/13-entity-handles.ts
+```
+
+---
+
+### 14-reactive-query.ts — ReactiveQuery
+
+**What it shows:**
+
+- Predicate-based entity set observer: `onChange` fires only when membership changes (O(change), not O(n))
+- No-op update: when nothing changes, no callbacks fire
+- Reactive to mutations: mutate an entity, call `update()`, the query reacts automatically
+- Manual `track()` / `untrack()` for special-case membership (bypass the predicate)
+- `has()`, `size`, `current` for inspection
+- `dispose()` for cleanup
+
+**Run:**
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/14-reactive-query.ts
+```
+
+---
+
+### 15-memory-bank.ts — MemoryBank
+
+**What it shows:**
+
+- Per-NPC episodic memory with channel-based confidence decay
+- Three channels: `VISUAL` (medium decay), `SOUND` (fast decay), `HIT` (slow decay)
+- `remember()` — add or update a memory; same `sourceId` upgrades the record
+- `recall()`, `getByChannel()`, `getMostConfident()` for querying
+- `update(deltaSec)` — automatic confidence decay and pruning below threshold
+- `forget()` — manual instant removal
+- `serialize()` / `restore()` — save game support
+
+**Run:**
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/15-memory-bank.ts
+```
+
+---
+
+### 16-danger-manager.ts — DangerManager
+
+**What it shows:**
+
+- Spatial danger zones with TTL and weighted threat scoring
+- `isDangerous(position)` — should the NPC flee?
+- `getThreatAt(position)` — accumulated threat from all overlapping zones
+- `getSafeDirection(position)` — normalized flee vector away from all threats
+- `getDangersNear(position, radius)` — situational awareness (what and how far)
+- `update(deltaMs)` — TTL decay and auto-expiry
+- Custom threshold: `new DangerManager(0.5)` for braver NPCs
+
+**Run:**
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/16-danger-manager.ts
+```
+
+---
+
+### 17-goap-planner.ts — GOAPPlanner
+
+**What it shows:**
+
+- `WorldState` — key-value map of planning facts (`isHealthy`, `isLoaded`, etc.)
+- `GOAPAction` abstract class — `id`, `cost`, `getPreconditions()`, `getEffects()`, `execute()`
+- `planner.plan(currentState, goal)` — A\* search returns an ordered action list or `null`
+- 4 scenarios: short plan (2 steps), full chain (6 steps), unreachable goal (`null`), mid-execution replanning
+- How replanning works: world state changes mid-mission → call `plan()` again → new plan adapts automatically
+
+**Run:**
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/17-goap-planner.ts
+```
+
+---
+
+### 18-full-npc.ts — Capstone: all AI systems in one NPC ★
+
+**What it shows:**
+
+How StateMachine, MemoryBank, DangerManager, GOAPPlanner, and BehaviorTree
+work **together** in a single realistic NPC — "Kozak the Veteran Stalker".
+
+- **FSM** drives top-level state: `PATROL → ALERT → COMBAT → PATROL`
+- **MemoryBank** stores enemy sightings; FSM reads confidence to decide when to go alert / engage
+- **DangerManager** detects a grenade mid-combat; Kozak repositions using `getSafeDirection()`
+- **GOAPPlanner** decides the combat strategy each tick (heal? find cover? attack?)
+- **BehaviorTree** executes moment-to-moment decisions inside COMBAT state
+
+**Start here if you want to see the big picture before reading individual system examples.**
+
+**Run:**
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/18-full-npc.ts
+```
+
+---
+
 ## Going further
 
 Once you are comfortable with these examples, the natural next steps are:
