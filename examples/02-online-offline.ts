@@ -29,64 +29,29 @@
 // Imports
 // ---------------------------------------------------------------------------
 
-import { ALifeKernel, Ports, FactionBuilder, SmartTerrain, ALifeEvents } from '@alife-sdk/core';
-import type {
-  IEntityAdapter,
-  IEntityFactory,
-  IPlayerPositionProvider,
-  Vec2,
+import {
+  ALifeKernel, Ports, FactionBuilder, SmartTerrain, ALifeEvents,
+  createNoOpEntityAdapter, createNoOpEntityFactory,
 } from '@alife-sdk/core';
+import type { Vec2 } from '@alife-sdk/core';
 import { FactionsPlugin } from '@alife-sdk/core';
 import { SimulationPlugin, SimulationPorts, createNoOpBridge } from '@alife-sdk/simulation';
 
 // ---------------------------------------------------------------------------
-// Minimal port stubs (same as example 01 — see comments there for details)
+// Kernel setup
 // ---------------------------------------------------------------------------
 
 // We make the player position mutable this time so we can move the player
 // during the simulation and trigger the online/offline transition manually.
 let playerPosition: Vec2 = { x: 9999, y: 9999 }; // start far away
 
-const stubEntityAdapter: IEntityAdapter = {
-  getPosition:      (_id)              => null,
-  isAlive:          (_id)              => true,
-  hasComponent:     (_id, _name)       => false,
-  getComponentValue: <T>(_id, _name): T | null => null,
-  setPosition:      (_id, _pos)        => {},
-  setActive:        (_id, _active)     => {},
-  setVisible:       (_id, _visible)    => {},
-  setVelocity:      (_id, _vel)        => {},
-  getVelocity:      (_id)              => ({ x: 0, y: 0 }),
-  setRotation:      (_id, _rad)        => {},
-  teleport:         (_id, _pos)        => {},
-  disablePhysics:   (_id)              => {},
-  setAlpha:         (_id, _alpha)      => {},
-  playAnimation:    (_id, _key)        => {},
-  hasAnimation:     (_id, _key)        => false,
-};
-
-let _entityCounter = 0;
-const stubEntityFactory: IEntityFactory = {
-  createNPC:     (_req) => `npc_${++_entityCounter}`,
-  createMonster: (_req) => `monster_${++_entityCounter}`,
-  destroyEntity: (_id)  => {},
-};
-
-// PlayerPosition reads from our mutable variable so we can "move" the player
-// between steps without rebuilding the kernel.
-const mutablePlayerPosition: IPlayerPositionProvider = {
-  getPlayerPosition: (): Vec2 => playerPosition,
-};
-
-// ---------------------------------------------------------------------------
-// Kernel setup
-// ---------------------------------------------------------------------------
-
 const kernel = new ALifeKernel();
 
-kernel.provide(Ports.EntityAdapter,  stubEntityAdapter);
-kernel.provide(Ports.EntityFactory,  stubEntityFactory);
-kernel.provide(Ports.PlayerPosition, mutablePlayerPosition);
+kernel.provide(Ports.EntityAdapter,  createNoOpEntityAdapter());
+kernel.provide(Ports.EntityFactory,  createNoOpEntityFactory());
+// Custom PlayerPosition so we can "move" the player between steps and
+// trigger the online/offline transition without rebuilding the kernel.
+kernel.provide(Ports.PlayerPosition, { getPlayerPosition: () => playerPosition });
 kernel.provide(SimulationPorts.SimulationBridge, createNoOpBridge());
 
 // Factions: stalker and bandit, hostile to each other.

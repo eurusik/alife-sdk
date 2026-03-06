@@ -21,12 +21,9 @@
 // ---------------------------------------------------------------------------
 
 // The kernel is the central orchestrator — all plugins and ports attach here.
-import { ALifeKernel, Ports, FactionBuilder, ALifeEvents } from '@alife-sdk/core';
-import type {
-  IEntityAdapter,
-  IEntityFactory,
-  IPlayerPositionProvider,
-  Vec2,
+import {
+  ALifeKernel, Ports, FactionBuilder, ALifeEvents,
+  createNoOpEntityAdapter, createNoOpEntityFactory, createNoOpPlayerPosition,
 } from '@alife-sdk/core';
 
 // FactionsPlugin owns all faction definitions and relations.
@@ -41,72 +38,29 @@ import { SmartTerrain } from '@alife-sdk/core';
 import { SimulationPlugin, SimulationPorts, createNoOpBridge } from '@alife-sdk/simulation';
 
 // ---------------------------------------------------------------------------
-// Step 1: Minimal port stubs
+// Step 1: Build the kernel
 //
-// The kernel validates three required ports at init():
+// ALifeKernel is the central hub. It owns the event bus, clock, port
+// registry, and plugin list. It never imports Phaser or any engine API.
+//
+// The kernel requires three ports at init():
 //   - EntityAdapter  — read/write entity position, components, visibility
 //   - EntityFactory  — create and destroy game entities
 //   - PlayerPosition — provides player world position for online/offline checks
 //
-// In a real game these are non-trivial adapters that delegate to Phaser,
-// Pixi, etc. For a Node.js example we return safe empty values so all
-// simulation logic runs correctly without touching the DOM.
-// ---------------------------------------------------------------------------
-
-// EntityAdapter: the kernel never mutates real entities in this example,
-// so returning null positions and ignoring all writes is correct.
-const stubEntityAdapter: IEntityAdapter = {
-  // -- IEntityQuery (read-only) ---
-  getPosition: (_id: string): Vec2 | null => null,
-  isAlive: (_id: string): boolean => true,
-  hasComponent: (_id: string, _name: string): boolean => false,
-  getComponentValue: <T>(_id: string, _name: string): T | null => null,
-
-  // -- IEntityMutation (writes) ---
-  setPosition: (_id: string, _pos: Vec2): void => {},
-  setActive: (_id: string, _active: boolean): void => {},
-  setVisible: (_id: string, _visible: boolean): void => {},
-  setVelocity: (_id: string, _vel: Vec2): void => {},
-  getVelocity: (_id: string): Vec2 => ({ x: 0, y: 0 }),
-  setRotation: (_id: string, _rad: number): void => {},
-  teleport: (_id: string, _pos: Vec2): void => {},
-  disablePhysics: (_id: string): void => {},
-
-  // -- IEntityRendering (visual) ---
-  setAlpha: (_id: string, _alpha: number): void => {},
-  playAnimation: (_id: string, _key: string): void => {},
-  hasAnimation: (_id: string, _key: string): boolean => false,
-};
-
-// EntityFactory: we don't actually spawn game objects here, so IDs are
-// sequential strings and destroy is a no-op.
-let _entityCounter = 0;
-const stubEntityFactory: IEntityFactory = {
-  createNPC: (_req): string => `npc_spawned_${++_entityCounter}`,
-  createMonster: (_req): string => `monster_spawned_${++_entityCounter}`,
-  destroyEntity: (_id: string): void => {},
-};
-
-// PlayerPosition: the player stands at the origin. All NPCs are therefore
-// "far away" and remain in offline mode for this example — the simulation
-// tick pipeline drives them.
-const stubPlayerPosition: IPlayerPositionProvider = {
-  getPlayerPosition: (): Vec2 => ({ x: 0, y: 0 }),
-};
-
-// ---------------------------------------------------------------------------
-// Step 2: Build the kernel
-//
-// ALifeKernel is the central hub. It owns the event bus, clock, port
-// registry, and plugin list. It never imports Phaser or any engine API.
+// In a real game these delegate to Phaser, Pixi, etc. For a Node.js example
+// we use the SDK's built-in no-op helpers — safe stubs that return neutral
+// values without touching the DOM.
 // ---------------------------------------------------------------------------
 
 const kernel = new ALifeKernel();
 
-// Register the three required ports before init().
-kernel.provide(Ports.EntityAdapter,  stubEntityAdapter);
-kernel.provide(Ports.EntityFactory,  stubEntityFactory);
-kernel.provide(Ports.PlayerPosition, stubPlayerPosition);
+// createNoOpEntityAdapter() — returns null positions, ignores all writes.
+// createNoOpEntityFactory() — returns sequential IDs, destroy is a no-op.
+// createNoOpPlayerPosition() — player stands at origin; all NPCs stay offline.
+kernel.provide(Ports.EntityAdapter,  createNoOpEntityAdapter());
+kernel.provide(Ports.EntityFactory,  createNoOpEntityFactory());
+kernel.provide(Ports.PlayerPosition, createNoOpPlayerPosition());
 
 // Register the simulation bridge. createNoOpBridge() is the SDK's own
 // helper — it returns true for isAlive, 0 effective damage, no morale
