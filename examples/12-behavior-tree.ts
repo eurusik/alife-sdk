@@ -299,7 +299,7 @@ console.log('');
 type ScoutBB = { scanCooldown: number; patrolDone: boolean };
 
 const scanTask = new Task<ScoutBB>((b) => {
-  const cd = (b.get('scanCooldown') ?? 0) - 16;
+  const cd = b.getOr('scanCooldown', 0) - 16;
   b.set('scanCooldown', Math.max(0, cd));
   if (cd <= 0) {
     console.log(`    [Parallel] Scan complete — area clear`);

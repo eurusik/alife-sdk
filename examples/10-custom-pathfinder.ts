@@ -31,12 +31,12 @@
 // Imports
 // ---------------------------------------------------------------------------
 
-import { ALifeKernel, Ports, FactionBuilder, ALifeEvents } from '@alife-sdk/core';
+import {
+  ALifeKernel, Ports, FactionBuilder, ALifeEvents,
+  createNoOpEntityAdapter, createNoOpEntityFactory,
+} from '@alife-sdk/core';
 import { FactionsPlugin, SmartTerrain } from '@alife-sdk/core';
 import type {
-  IEntityAdapter,
-  IEntityFactory,
-  IPlayerPositionProvider,
   Vec2,
   EventBus,
   ALifeEventPayloads,
@@ -204,44 +204,16 @@ class GridMovementSimulator implements IMovementSimulator {
 // Minimal port stubs (same pattern as 01-hello-npc.ts)
 // ---------------------------------------------------------------------------
 
-const stubEntityAdapter: IEntityAdapter = {
-  getPosition:       (_id: string) => null,
-  isAlive:           (_id: string) => true,
-  hasComponent:      (_id: string, _name: string) => false,
-  getComponentValue: <T>(_id: string, _name: string): T | null => null,
-  setPosition:       (_id: string, _pos: Vec2) => {},
-  setActive:         (_id: string, _active: boolean) => {},
-  setVisible:        (_id: string, _visible: boolean) => {},
-  setVelocity:       (_id: string, _vel: Vec2) => {},
-  getVelocity:       (_id: string) => ({ x: 0, y: 0 }),
-  setRotation:       (_id: string, _rad: number) => {},
-  teleport:          (_id: string, _pos: Vec2) => {},
-  disablePhysics:    (_id: string) => {},
-  setAlpha:          (_id: string, _alpha: number) => {},
-  playAnimation:     (_id: string, _key: string) => {},
-  hasAnimation:      (_id: string, _key: string) => false,
-};
-
-let _entityCounter = 0;
-const stubEntityFactory: IEntityFactory = {
-  createNPC:     (_req: unknown) => `npc_${++_entityCounter}`,
-  createMonster: (_req: unknown) => `mon_${++_entityCounter}`,
-  destroyEntity: (_id: string) => {},
-};
-
-const stubPlayerPosition: IPlayerPositionProvider = {
-  getPlayerPosition: () => ({ x: -9999, y: -9999 }), // far away → all NPCs stay offline
-};
-
 // ---------------------------------------------------------------------------
 // Build the kernel
 // ---------------------------------------------------------------------------
 
 const kernel = new ALifeKernel();
 
-kernel.provide(Ports.EntityAdapter,  stubEntityAdapter);
-kernel.provide(Ports.EntityFactory,  stubEntityFactory);
-kernel.provide(Ports.PlayerPosition, stubPlayerPosition);
+kernel.provide(Ports.EntityAdapter,  createNoOpEntityAdapter());
+kernel.provide(Ports.EntityFactory,  createNoOpEntityFactory());
+// far away → all NPCs stay offline, driven by the tick pipeline
+kernel.provide(Ports.PlayerPosition, { getPlayerPosition: () => ({ x: -9999, y: -9999 } as Vec2) });
 kernel.provide(SimulationPorts.SimulationBridge, createNoOpBridge());
 
 // ---------------------------------------------------------------------------

@@ -185,9 +185,9 @@ const bb = new Blackboard<CombatBB>({
 // Sequence = AND gate: both conditions must hold or the branch fails.
 const shootBranch = new Sequence<CombatBB>([
   new Condition<CombatBB>((b) => !!b.get('canSeeEnemy')),
-  new Condition<CombatBB>((b) => (b.get('ammo') ?? 0) > 0),
+  new Condition<CombatBB>((b) => b.getOr('ammo', 0) > 0),
   new Task<CombatBB>((b) => {
-    const remaining = (b.get('ammo') ?? 1) - 1;
+    const remaining = b.getOr('ammo', 1) - 1;
     b.set('ammo', remaining);
     console.log(`  [BT] Kozak fires! Ammo remaining: ${remaining}`);
     return 'success';
@@ -330,7 +330,7 @@ const combatHandler: IStateHandler = {
     const worldState = WorldState.from({
       isHealthy:  e.hp >= 50,         // "healthy" means above half HP
       hasMedkit:  e.hasMedkit,
-      inCover:    bb.get('inCover') ?? false,
+      inCover:    bb.getOr('inCover', false),
     });
 
     const plan = planner.plan(worldState, combatGoal);
