@@ -151,3 +151,98 @@ console.log(diag.format()); // human-readable multiline string
 
 Each `IDiagnostic` has `source`, `path`, `message`, and an optional `hint`
 for how to fix the problem.
+
+---
+
+## `ReactiveQuery<T>` — observe entity set changes
+
+`ReactiveQuery` maintains a stable "matched" set and fires change notifications
+only when entities enter or exit the query — not every tick of every entity.
+
+```ts
+import { ReactiveQuery } from '@alife-sdk/core';
+import type { QueryChanges, QueryChangeListener } from '@alife-sdk/core';
+```
+
+### When to use it
+
+Instead of polling the entity set every frame:
+```ts
+// polling — O(n) work every tick even when nothing changed
+function update() {
+  const hostiles = allEntities.filter(e => e.alive && e.hostile);
+  combatSystem.setTargets(hostiles);
+}
+```
+
+Use a reactive query:
+```ts
+// reactive — fires only when the set changes
+const hostileQuery = new ReactiveQuery<Entity>(
+  (e) => e.isAlive && e.hasComponent('hostile')
+);
+
+hostileQuery.onChange(({ added, removed }) => {
+  added.forEach(e => combatSystem.track(e));
+  removed.forEach(e => combatSystem.untrack(e));
+});
+
+// Each tick — cheap: only notifies if membership changed
+hostileQuery.update(world.entities());
+```
+
+### API
+
+```ts
+const q = new ReactiveQuery<T>(predicate: (e: T) => boolean);
+
+// Re-evaluate predicate; fires onChange if set changed
+q.update(allEntities: Iterable<T>): void
+
+// Subscribe to changes — returns unsubscribe function
+q.onChange(listener: QueryChangeListener<T>): () => void
+
+// Current matched set (snapshot)
+q.current: readonly T[]
+q.size: number
+q.has(entity: T): boolean
+
+// Manual control (bypasses predicate, still fires listeners)
+q.track(entity: T): void
+q.untrack(entity: T): void
+
+// Cleanup
+q.dispose(): void
+```
+
+### `QueryChanges<T>`
+
+```ts
+interface QueryChanges<T> {
+  readonly added:   readonly T[]; // newly matched this update
+  readonly removed: readonly T[]; // no longer matching this update
+  readonly current: readonly T[]; // full matched set after this update
+}
+```
+
+### Example — faction combat tracking
+
+```ts
+const militaryQuery = new ReactiveQuery<IEntity>(
+  (e) => e.isAlive && e.entityType === 'soldier' && e.getComponent('faction').id === 'military'
+);
+
+militaryQuery.onChange(({ added, removed }) => {
+  added.forEach(e => {
+    squadManager.register(e);
+    combatAI.beginTracking(e);
+  });
+  removed.forEach(e => {
+    squadManager.unregister(e);
+    combatAI.stopTracking(e);
+  });
+});
+
+// In game loop:
+militaryQuery.update(kernel.entityAdapter.getAll());
+```

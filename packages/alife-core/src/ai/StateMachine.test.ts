@@ -1,4 +1,5 @@
 import { StateMachine } from './StateMachine';
+import type { StateTransitionEvent } from './StateMachine';
 import { AIStateRegistry } from '../registry/AIStateRegistry';
 import type { IAIStateDefinition, IStateHandler } from '../registry/AIStateRegistry';
 import type { IEntity } from '../entity/IEntity';
@@ -415,6 +416,209 @@ describe('StateMachine', () => {
       const result = fsm.transition('restricted');
 
       expect(result).toEqual({ success: false, reason: 'enter_guard' });
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // previous / currentStateDuration
+  // -------------------------------------------------------------------------
+
+  describe('previous and currentStateDuration', () => {
+    it('previous is null before any transition', () => {
+      const registry = buildRegistry({ idle: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle');
+      expect(fsm.previous).toBeNull();
+    });
+
+    it('previous reflects the state before the last transition', () => {
+      const registry = buildRegistry({ idle: {}, patrol: {}, combat: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle');
+      fsm.transition('patrol');
+      expect(fsm.previous).toBe('idle');
+      fsm.transition('combat');
+      expect(fsm.previous).toBe('patrol');
+    });
+
+    it('currentStateDuration is a non-negative number', () => {
+      const registry = buildRegistry({ idle: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle');
+      expect(fsm.currentStateDuration).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // tags / metadata
+  // -------------------------------------------------------------------------
+
+  describe('hasTag / metadata', () => {
+    it('hasTag returns true when current state has the tag', () => {
+      const registry = buildRegistry({ combat: { tags: ['hostile', 'active'] } });
+      const fsm = new StateMachine(createMockEntity(), registry, 'combat');
+      expect(fsm.hasTag('hostile')).toBe(true);
+      expect(fsm.hasTag('active')).toBe(true);
+    });
+
+    it('hasTag returns false when current state does not have the tag', () => {
+      const registry = buildRegistry({ idle: { tags: ['passive'] } });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle');
+      expect(fsm.hasTag('hostile')).toBe(false);
+    });
+
+    it('hasTag returns false when no tags defined', () => {
+      const registry = buildRegistry({ idle: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle');
+      expect(fsm.hasTag('any')).toBe(false);
+    });
+
+    it('hasTag reflects current state after transition', () => {
+      const registry = buildRegistry({
+        idle: { tags: ['passive'] },
+        combat: { tags: ['hostile'] },
+      });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle');
+      expect(fsm.hasTag('passive')).toBe(true);
+      fsm.transition('combat');
+      expect(fsm.hasTag('passive')).toBe(false);
+      expect(fsm.hasTag('hostile')).toBe(true);
+    });
+
+    it('metadata returns the state metadata object', () => {
+      const registry = buildRegistry({ idle: { metadata: { animId: 'idle_anim', priority: 1 } } });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle');
+      expect(fsm.metadata).toEqual({ animId: 'idle_anim', priority: 1 });
+    });
+
+    it('metadata returns undefined when not defined', () => {
+      const registry = buildRegistry({ idle: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle');
+      expect(fsm.metadata).toBeUndefined();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Event subscriptions
+  // -------------------------------------------------------------------------
+
+  describe('onEnter / onExit / onChange', () => {
+    it('onEnter fires when FSM enters the subscribed state', () => {
+      const registry = buildRegistry({ idle: {}, patrol: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle');
+
+      const calls: string[] = [];
+      fsm.onEnter('patrol', (from) => calls.push(`enter:${from}`));
+      fsm.transition('patrol');
+
+      expect(calls).toEqual(['enter:idle']);
+    });
+
+    it('onExit fires when FSM exits the subscribed state', () => {
+      const registry = buildRegistry({ idle: {}, patrol: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle');
+
+      const calls: string[] = [];
+      fsm.onExit('idle', (to) => calls.push(`exit:${to}`));
+      fsm.transition('patrol');
+
+      expect(calls).toEqual(['exit:patrol']);
+    });
+
+    it('onChange fires on every transition', () => {
+      const registry = buildRegistry({ idle: {}, patrol: {}, combat: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle');
+
+      const calls: string[] = [];
+      fsm.onChange((from, to) => calls.push(`${from}->${to}`));
+      fsm.transition('patrol');
+      fsm.transition('combat');
+
+      expect(calls).toEqual(['idle->patrol', 'patrol->combat']);
+    });
+
+    it('unsubscribe stops future callbacks', () => {
+      const registry = buildRegistry({ idle: {}, patrol: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle');
+
+      const calls: string[] = [];
+      const unsub = fsm.onEnter('patrol', () => calls.push('fired'));
+      unsub();
+      fsm.transition('patrol');
+
+      expect(calls).toHaveLength(0);
+    });
+
+    it('subscriptions do not fire when transition is blocked', () => {
+      const registry = buildRegistry({
+        idle: { handler: createMockHandler() },
+        locked: { handler: createMockHandler(), canEnter: () => false },
+      });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle');
+
+      const calls: string[] = [];
+      fsm.onEnter('locked', () => calls.push('entered'));
+      fsm.onChange((f, t) => calls.push(`${f}->${t}`));
+      fsm.transition('locked');
+
+      expect(calls).toHaveLength(0);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // History
+  // -------------------------------------------------------------------------
+
+  describe('getHistory / clearHistory', () => {
+    it('getHistory is empty on construction', () => {
+      const registry = buildRegistry({ idle: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle');
+      expect(fsm.getHistory()).toHaveLength(0);
+    });
+
+    it('getHistory records transitions in order', () => {
+      const registry = buildRegistry({ idle: {}, patrol: {}, combat: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle');
+      fsm.transition('patrol');
+      fsm.transition('combat');
+
+      const history = fsm.getHistory() as StateTransitionEvent[];
+      expect(history).toHaveLength(2);
+      expect(history[0]).toMatchObject({ from: 'idle', to: 'patrol' });
+      expect(history[1]).toMatchObject({ from: 'patrol', to: 'combat' });
+    });
+
+    it('getHistory entries have timestamps', () => {
+      const registry = buildRegistry({ idle: {}, patrol: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle');
+      fsm.transition('patrol');
+      const [entry] = fsm.getHistory() as StateTransitionEvent[];
+      expect(typeof entry.timestamp).toBe('number');
+      expect(entry.timestamp).toBeGreaterThan(0);
+    });
+
+    it('clearHistory empties the log', () => {
+      const registry = buildRegistry({ idle: {}, patrol: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle');
+      fsm.transition('patrol');
+      fsm.clearHistory();
+      expect(fsm.getHistory()).toHaveLength(0);
+    });
+
+    it('getHistory returns a snapshot (not a live reference)', () => {
+      const registry = buildRegistry({ idle: {}, patrol: {}, combat: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle');
+      fsm.transition('patrol');
+      const snapshot = fsm.getHistory();
+      fsm.transition('combat');
+      expect(snapshot).toHaveLength(1);
+    });
+
+    it('does not record blocked transitions', () => {
+      const registry = buildRegistry({
+        idle: {},
+        locked: { canEnter: () => false },
+      });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle');
+      fsm.transition('locked');
+      expect(fsm.getHistory()).toHaveLength(0);
     });
   });
 

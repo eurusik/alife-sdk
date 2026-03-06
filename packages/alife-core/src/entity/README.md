@@ -242,3 +242,90 @@ IStateHandler.enter/exit(entity)        ← StateMachine transitions
 
 Every AI primitive in `@alife-sdk/core/ai` receives an `IEntity` — no
 engine-specific type leaks into the AI layer.
+
+---
+
+## `EntityHandle` — versioned entity references
+
+Use `EntityHandle` instead of raw entity IDs when holding long-lived references
+to entities. A handle encodes both a **slot index** and a **generation counter**,
+so it automatically becomes stale if the entity is destroyed and the slot reused.
+
+```ts
+import {
+  EntityHandleManager,
+  NULL_HANDLE,
+  isValidHandle,
+  handleToString,
+} from '@alife-sdk/core/entity';
+import type { EntityHandle } from '@alife-sdk/core/entity';
+```
+
+### Why this matters
+
+Without handles:
+```ts
+const id = enemy.id; // string reference
+enemy.destroy();
+// id still points to "enemy_007" — another entity might reuse that ID
+doSomething(world.getEntity(id)); // silent bug: wrong entity
+```
+
+With handles:
+```ts
+const handle = manager.alloc(enemy.id);
+enemy.destroy();
+manager.free(handle);
+// Later:
+const id = manager.resolve(handle); // null — slot was freed
+```
+
+### `EntityHandleManager<TId>`
+
+```ts
+const manager = new EntityHandleManager<string>();
+
+// Allocate
+const handle: EntityHandle = manager.alloc('enemy_007');
+
+// Resolve (returns null if stale)
+const id = manager.resolve(handle); // 'enemy_007'
+
+// Release
+manager.free(handle);
+
+// After free, old handles are stale
+manager.resolve(handle); // null
+manager.isAlive(handle); // false
+
+// Slot reuse bumps generation — old handle stays stale
+const handle2 = manager.alloc('new_entity');
+manager.resolve(handle);  // null  (stale)
+manager.resolve(handle2); // 'new_entity'
+
+// Size
+manager.size; // 1
+```
+
+### API summary
+
+| Method | Description |
+|--------|-------------|
+| `alloc(id)` | Allocate a new handle for entity `id`. Returns `EntityHandle`. |
+| `free(handle)` | Release the slot; bumps generation. No-op for stale handles. |
+| `resolve(handle)` | Returns the stored id, or `null` if stale or null handle. |
+| `isAlive(handle)` | `true` if the handle points to a live slot. |
+| `size` | Number of currently live slots. |
+
+### Primitives
+
+```ts
+import { makeHandle, indexOf, genOf, isValidHandle, handleToString, NULL_HANDLE } from '@alife-sdk/core/entity';
+
+const h = makeHandle(5, 3);
+indexOf(h);       // 5
+genOf(h);         // 3
+isValidHandle(h); // true
+isValidHandle(NULL_HANDLE); // false
+handleToString(h);          // 'Entity(idx=5, gen=3)'
+```

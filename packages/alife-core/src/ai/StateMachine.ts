@@ -18,15 +18,29 @@ export type TransitionResult =
   | { readonly success: true }
   | { readonly success: false; readonly reason: 'not_allowed' | 'exit_guard' | 'enter_guard' };
 
+export interface StateTransitionEvent {
+  readonly from: string;
+  readonly to: string;
+  readonly timestamp: number;
+}
+
 export class StateMachine {
   private currentStateId: string;
+  private previousStateId: string | null = null;
+  private stateEnterTime: number;
   private readonly registry: AIStateRegistry;
   private readonly entity: IEntity;
+
+  private readonly enterListeners = new Map<string, Set<(from: string | null) => void>>();
+  private readonly exitListeners = new Map<string, Set<(to: string) => void>>();
+  private readonly changeListeners = new Set<(from: string, to: string) => void>();
+  private readonly historyLog: StateTransitionEvent[] = [];
 
   constructor(entity: IEntity, registry: AIStateRegistry, initialState: string) {
     this.entity = entity;
     this.registry = registry;
     this.currentStateId = initialState;
+    this.stateEnterTime = Date.now();
 
     const definition = this.registry.get(this.currentStateId);
     definition.handler.enter(this.entity);
@@ -39,6 +53,78 @@ export class StateMachine {
   /** Current active state identifier. */
   get state(): string {
     return this.currentStateId;
+  }
+
+  /** Previous state identifier, or `null` if no transition has occurred yet. */
+  get previous(): string | null {
+    return this.previousStateId;
+  }
+
+  /** Milliseconds elapsed since entering the current state. */
+  get currentStateDuration(): number {
+    return Date.now() - this.stateEnterTime;
+  }
+
+  // -----------------------------------------------------------------------
+  // Tag queries
+  // -----------------------------------------------------------------------
+
+  /** Returns `true` if the current state has the given tag. */
+  hasTag(tag: string): boolean {
+    const def = this.registry.tryGet(this.currentStateId);
+    return def?.tags?.includes(tag) ?? false;
+  }
+
+  /** Returns the metadata object of the current state, or `undefined`. */
+  get metadata(): Readonly<Record<string, unknown>> | undefined {
+    return this.registry.tryGet(this.currentStateId)?.metadata;
+  }
+
+  // -----------------------------------------------------------------------
+  // Event subscriptions
+  // -----------------------------------------------------------------------
+
+  /**
+   * Subscribe to the moment the FSM enters `state`.
+   * @returns Unsubscribe function.
+   */
+  onEnter(state: string, callback: (from: string | null) => void): () => void {
+    if (!this.enterListeners.has(state)) this.enterListeners.set(state, new Set());
+    this.enterListeners.get(state)!.add(callback);
+    return () => this.enterListeners.get(state)?.delete(callback);
+  }
+
+  /**
+   * Subscribe to the moment the FSM exits `state`.
+   * @returns Unsubscribe function.
+   */
+  onExit(state: string, callback: (to: string) => void): () => void {
+    if (!this.exitListeners.has(state)) this.exitListeners.set(state, new Set());
+    this.exitListeners.get(state)!.add(callback);
+    return () => this.exitListeners.get(state)?.delete(callback);
+  }
+
+  /**
+   * Subscribe to any state change.
+   * @returns Unsubscribe function.
+   */
+  onChange(callback: (from: string, to: string) => void): () => void {
+    this.changeListeners.add(callback);
+    return () => this.changeListeners.delete(callback);
+  }
+
+  // -----------------------------------------------------------------------
+  // History
+  // -----------------------------------------------------------------------
+
+  /** Returns a snapshot of the transition history (oldest first). */
+  getHistory(): readonly StateTransitionEvent[] {
+    return [...this.historyLog];
+  }
+
+  /** Clears the transition history. */
+  clearHistory(): void {
+    this.historyLog.length = 0;
   }
 
   // -----------------------------------------------------------------------
@@ -64,9 +150,27 @@ export class StateMachine {
     if (oldDefinition.canExit?.(this.entity, newState) === false) return { success: false, reason: 'exit_guard' };
     if (newDefinition.canEnter?.(this.entity, this.currentStateId) === false) return { success: false, reason: 'enter_guard' };
 
+    const from = this.currentStateId;
+
+    // Exit
     oldDefinition.handler.exit(this.entity);
+    this.exitListeners.get(from)?.forEach(cb => cb(newState));
+
+    // Advance state
+    this.previousStateId = from;
     this.currentStateId = newState;
+    this.stateEnterTime = Date.now();
+
+    // Record history
+    this.historyLog.push({ from, to: newState, timestamp: this.stateEnterTime });
+
+    // Notify change listeners
+    this.changeListeners.forEach(cb => cb(from, newState));
+
+    // Enter
     newDefinition.handler.enter(this.entity);
+    this.enterListeners.get(newState)?.forEach(cb => cb(from));
+
     return { success: true };
   }
 

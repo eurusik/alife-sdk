@@ -33,6 +33,10 @@ export interface IAIStateDefinition {
   readonly canEnter?: (entity: IEntity, fromState: string) => boolean;
   /** Guard: return `false` to prevent leaving this state for `toState`. */
   readonly canExit?: (entity: IEntity, toState: string) => boolean;
+  /** Categorical tags for querying state group membership (e.g. 'combat', 'grounded'). */
+  readonly tags?: readonly string[];
+  /** Arbitrary metadata for tooling/debugging (e.g. animation hints, priority weights). */
+  readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
 /** Registry of AI FSM states with built-in transition evaluation. */
