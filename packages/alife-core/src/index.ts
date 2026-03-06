@@ -18,6 +18,8 @@ export { Clock } from './core/Clock';
 export type { IClockConfig, IClockState } from './core/Clock';
 export { SpatialGrid } from './core/SpatialGrid';
 export type { IRect } from './core/SpatialGrid';
+export { ReactiveQuery } from './core/ReactiveQuery';
+export type { QueryChanges, QueryChangeListener } from './core/ReactiveQuery';
 export type { ISerializable } from './core/ISerializable';
 
 // ---------------------------------------------------------------------------

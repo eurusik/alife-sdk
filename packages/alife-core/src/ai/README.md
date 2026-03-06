@@ -1,11 +1,22 @@
 # ai
 
-Core AI primitives for `@alife-sdk/core`: finite state machines, per-NPC
-episodic memory, spatial danger awareness, and GOAP planning.
+Core AI primitives for `@alife-sdk/core`: finite state machines, behavior trees,
+per-NPC episodic memory, spatial danger awareness, and GOAP planning.
 
 ```ts
 import {
   StateMachine,
+  Blackboard,
+  Task,
+  Condition,
+  Sequence,
+  Selector,
+  Parallel,
+  Inverter,
+  AlwaysSucceed,
+  AlwaysFail,
+  Repeater,
+  Cooldown,
   MemoryBank,
   MemoryChannel,
   DangerManager,
@@ -20,6 +31,10 @@ import type {
   ITransitionCondition,
   IAIStateDefinition,
   TransitionResult,
+  StateTransitionEvent,
+  TaskStatus,
+  ITreeNode,        // base interface for custom BT nodes
+  ParallelPolicy,   // 'require-all' | 'require-one'
   MemoryRecord,
   IMemoryBankConfig,
   IMemoryInput,
@@ -33,8 +48,18 @@ import type {
 
 | Component | What it does |
 |-----------|--------------|
-| `StateMachine` | Generic FSM — delegates behaviour to `IStateHandler` objects registered in `AIStateRegistry` |
-| `AIStateRegistry` | State registry with auto-transitions, guards, and whitelist enforcement (`@alife-sdk/core/registry`) |
+| `StateMachine` | Generic FSM — delegates behaviour to `IStateHandler` objects; supports tags, metadata, event subscriptions, and transition history |
+| `AIStateRegistry` | State registry with auto-transitions, guards, whitelist, tags, and metadata (`@alife-sdk/core/registry`) |
+| `Blackboard<T>` | Typed key-value store shared across all BT nodes during a tick |
+| `Sequence` | BT composite — AND gate; fails on first child failure |
+| `Selector` | BT composite — OR gate; succeeds on first child success |
+| `Parallel` | BT composite — ticks all children; `'require-all'` (fail on any failure) or `'require-one'` (succeed if any succeed) |
+| `Inverter` | BT decorator — flips success ↔ failure |
+| `AlwaysSucceed` / `AlwaysFail` | BT decorators — force a fixed outcome |
+| `Repeater` | BT decorator — repeat child N times |
+| `Cooldown` | BT decorator — blocks child while timer is active |
+| `Task` | BT leaf — runs an arbitrary action callback |
+| `Condition` | BT leaf — wraps a boolean predicate |
 | `MemoryBank` | Per-NPC multi-channel memory with confidence decay and eviction |
 | `DangerManager` | Spatial danger zones with TTL, threat scoring, and safe-direction computation |
 | `WorldState` | GOAP key-value map with `satisfies()`, `applyEffects()`, and A* heuristic |
@@ -51,61 +76,104 @@ import { AIStateRegistry } from '@alife-sdk/core/registry';
 import type { IStateHandler, IAIStateDefinition } from '@alife-sdk/core/ai';
 import type { IEntity } from '@alife-sdk/core/entity';
 
-// 1. Define state handlers
 const idleHandler: IStateHandler = {
   enter(entity) { console.log('entered IDLE'); },
-  update(entity, delta) { /* play idle animation, look around */ },
+  update(entity, delta) { /* look around */ },
   exit(entity)  { console.log('leaving IDLE'); },
 };
 
 const alertHandler: IStateHandler = {
   enter(entity) { /* raise weapon */ },
-  update(entity, delta) { /* scan for threat source */ },
+  update(entity, delta) { /* scan for threat */ },
   exit(entity)  { /* lower weapon */ },
 };
 
-// 2. Build the registry
 const registry = new AIStateRegistry();
 
+// IEntity does not have getTag/setTag — cast to your concrete entity type
+// or read from entity.metadata (read-only KV store on IEntity).
+// See example 11-fsm-tags.ts for a complete typed pattern.
 registry.register('IDLE', {
   handler: idleHandler,
+  tags: ['passive'],
   allowedTransitions: ['ALERT', 'PATROL'],
   transitionConditions: [
-    {
-      targetState: 'ALERT',
-      priority: 10,
-      condition: (entity) => entity.getTag('heardNoise') === true,
-    },
+    { targetState: 'ALERT', priority: 10, condition: (e) => e.metadata?.get('heardNoise') === true },
   ],
 } satisfies IAIStateDefinition);
 
 registry.register('ALERT', {
   handler: alertHandler,
+  tags: ['active'],
   transitionConditions: [
-    {
-      targetState: 'IDLE',
-      priority: 5,
-      condition: (entity) => entity.getTag('threatGone') === true,
-    },
+    { targetState: 'IDLE', priority: 5, condition: (e) => e.metadata?.get('threatGone') === true },
   ],
 } satisfies IAIStateDefinition);
 
-// 3. Create the FSM (calls enter() on the initial state)
 const fsm = new StateMachine(entity, registry, 'IDLE');
 
-// 4. Each frame
+// Event subscription
+fsm.onEnter('ALERT', (from) => console.log(`Alert! was in ${from}`));
+fsm.onChange((from, to) => logger.debug(`${from} → ${to}`));
+
+// Tag query
+if (fsm.hasTag('active')) { /* in any 'active'-tagged state */ }
+
+// Each frame
 function update(delta: number) {
-  fsm.update(delta); // runs handler.update() then evaluates auto-transitions
+  fsm.update(delta);
 }
 
-// 5. Force transition when needed (e.g. event-driven)
+// Force transition
 const result = fsm.transition('ALERT');
-if (!result.success) {
-  console.warn('Transition blocked:', result.reason);
-}
+if (!result.success) console.warn('Blocked:', result.reason);
 
-// 6. On entity destruction
-fsm.destroy(); // calls exit() on the current state
+// On entity destruction
+fsm.destroy();
+```
+
+---
+
+## Quick start — Behavior Tree
+
+Behavior Trees compose well with GOAP: GOAP decides *what* goal to pursue,
+the BT decides *how* to execute it step by step.
+
+```ts
+import {
+  Blackboard, Selector, Sequence, Condition, Task, Cooldown, Inverter,
+} from '@alife-sdk/core/ai';
+
+// 1. Define shared state
+type NpcBB = { canSeeTarget: boolean; ammo: number; inCover: boolean };
+const bb = new Blackboard<NpcBB>({ canSeeTarget: false, ammo: 10, inCover: false });
+
+// 2. Compose the tree
+const tree = new Selector([
+  // Attack branch — engage if visible and armed
+  new Sequence([
+    new Condition((b) => !!b.get('canSeeTarget')),
+    new Condition((b) => (b.get('ammo') ?? 0) > 0),
+    new Cooldown(
+      new Task((b) => {
+        shoot();
+        b.set('ammo', (b.get('ammo') ?? 0) - 1);
+        return 'success';
+      }),
+      1500, // 1.5 s between shots
+    ),
+  ]),
+
+  // Fallback — take cover
+  new Sequence([
+    new Inverter(new Condition((b) => !!b.get('inCover'))),
+    new Task(() => { moveToCover(); return 'running'; }),
+  ]),
+]);
+
+// 3. Tick each frame (shoot / moveToCover are your game functions)
+bb.set('canSeeTarget', perception.canSeePlayer());
+const status = tree.tick(bb); // 'success' | 'failure' | 'running'
 ```
 
 ---
@@ -116,13 +184,12 @@ fsm.destroy(); // calls exit() on the current state
 import { MemoryBank, MemoryChannel } from '@alife-sdk/core/ai';
 
 const memory = new MemoryBank({
-  timeFn: () => performance.now() / 1000, // game time in seconds
+  timeFn: () => performance.now() / 1000,
   maxRecords: 16,
-  decayRate: 0.05,                         // 0.05 confidence/sec
-  channelDecayRates: { [MemoryChannel.SOUND]: 0.2 }, // sounds fade faster
+  decayRate: 0.05,
+  channelDecayRates: { [MemoryChannel.SOUND]: 0.2 },
 });
 
-// Record a visual sighting
 memory.remember({
   sourceId: 'enemy_007',
   channel: MemoryChannel.VISUAL,
@@ -130,15 +197,8 @@ memory.remember({
   confidence: 1.0,
 });
 
-// Check if the NPC still remembers the enemy
 const rec = memory.recall('enemy_007');
-console.log(rec?.confidence); // 1.0 initially, decays toward 0
-
-// Decay memories each frame
 memory.update(deltaSeconds);
-
-// Query all threats by channel
-const threats = memory.getByChannel(MemoryChannel.VISUAL);
 ```
 
 ---
@@ -149,21 +209,13 @@ const threats = memory.getByChannel(MemoryChannel.VISUAL);
 import { DangerManager, DangerType } from '@alife-sdk/core/ai';
 
 const dangers = new DangerManager();
-
-// Register a grenade landing
 dangers.addDanger({
-  id: 'grenade_01',
-  type: DangerType.GRENADE,
-  position: { x: 500, y: 300 },
-  radius: 150,
-  threatScore: 0.9,
-  remainingMs: 3000,
+  id: 'grenade_01', type: DangerType.GRENADE,
+  position: { x: 500, y: 300 }, radius: 150,
+  threatScore: 0.9, remainingMs: 3000,
 });
+dangers.update(deltaMs);
 
-// Each frame
-dangers.update(deltaMs); // decays TTL, removes expired entries
-
-// NPC decision-making
 if (dangers.isDangerous({ x: npc.x, y: npc.y })) {
   const safeDir = dangers.getSafeDirection({ x: npc.x, y: npc.y });
   npc.flee(safeDir.x, safeDir.y);
@@ -176,52 +228,23 @@ if (dangers.isDangerous({ x: npc.x, y: npc.y })) {
 
 ```ts
 import { GOAPPlanner, GOAPAction, ActionStatus, WorldState } from '@alife-sdk/core/ai';
-import type { IEntity } from '@alife-sdk/core/entity';
 
-// 1. Define an action
 class HealSelf extends GOAPAction {
   readonly id = 'heal_self';
   readonly cost = 2;
-
-  getPreconditions() {
-    const p = new WorldState();
-    p.set('hasMedkit', true);
-    return p;
-  }
-
-  getEffects() {
-    const e = new WorldState();
-    e.set('isHealthy', true);
-    e.set('hasMedkit', false);
-    return e;
-  }
-
-  isValid(entity: IEntity) {
-    return entity.getTag('medkitCount') > 0;
-  }
-
-  execute(entity: IEntity, delta: number): ActionStatus {
-    // ... apply healing logic
-    return ActionStatus.SUCCESS;
-  }
+  getPreconditions() { const p = new WorldState(); p.set('hasMedkit', true); return p; }
+  getEffects()       { const e = new WorldState(); e.set('isHealthy', true); e.set('hasMedkit', false); return e; }
+  isValid(entity) { return (entity.metadata?.get('medkitCount') as number ?? 0) > 0; }
+  execute(entity, delta) { return ActionStatus.SUCCESS; }
 }
 
-// 2. Set up planner
 const planner = new GOAPPlanner();
 planner.registerAction(new HealSelf());
-planner.registerAction(new FindMedkit()); // another action
 
-// 3. Build current + goal states
-const current = new WorldState();
-current.set('isHealthy', false);
-current.set('hasMedkit', false);
+const current = new WorldState(); current.set('isHealthy', false); current.set('hasMedkit', false);
+const goal    = new WorldState(); goal.set('isHealthy', true);
 
-const goal = new WorldState();
-goal.set('isHealthy', true);
-
-// 4. Find the plan
-const plan = planner.plan(current, goal);
-// plan = [FindMedkit, HealSelf] — ordered by execution
+const plan = planner.plan(current, goal); // [FindMedkit, HealSelf]
 ```
 
 ---
@@ -229,16 +252,17 @@ const plan = planner.plan(current, goal);
 ## System relationships
 
 ```
-AIStateRegistry  ←  defines state definitions (handlers, guards, conditions)
+AIStateRegistry  ←  defines state definitions (handlers, guards, conditions, tags)
        │
        ▼  registered into
 StateMachine  ←  owns current state + drives lifecycle
-       │
+       │           └── onEnter/onExit/onChange subscriptions
        ▼  calls each frame
 IStateHandler.update()
        │
-       ├── reads MemoryBank  →  "what have I seen/heard recently?"
+       ├── reads MemoryBank     →  "what have I seen/heard recently?"
        ├── reads DangerManager  →  "is my position safe?"
+       ├── ticks BehaviorTree   →  "how do I execute this goal?"
        └── if GOAP: GOAPPlanner.plan()
                │
                ▼
@@ -251,7 +275,8 @@ IStateHandler.update()
 
 | File | Purpose |
 |------|---------|
-| [StateMachine.md](StateMachine.md) | `StateMachine` + `AIStateRegistry` — FSM lifecycle, guards, auto-transitions |
+| [StateMachine.md](StateMachine.md) | `StateMachine` + `AIStateRegistry` — FSM lifecycle, guards, tags, event subscriptions, history |
+| [BehaviorTree.md](BehaviorTree.md) | `Blackboard`, composites, decorators, `Parallel` policies — full BT API |
 | [MemorySystem.md](MemorySystem.md) | `MemoryBank` — per-NPC episodic memory with confidence decay |
 | [DangerManager.md](DangerManager.md) | `DangerManager` — spatial danger zones with TTL and safe-direction vector |
 | [GOAP.md](GOAP.md) | `WorldState` + `GOAPAction` + `GOAPPlanner` — A\* goal-oriented planning |
@@ -263,7 +288,9 @@ IStateHandler.update()
 | Scenario | Tool |
 |----------|------|
 | NPC with a fixed set of behaviors (idle, patrol, combat) | `StateMachine` |
+| Complex multi-step behavior within a state | `BehaviorTree` + `Blackboard` |
+| GOAP selects a goal; BT executes it | `GOAPPlanner` → `BehaviorTree` |
 | NPC needs to remember where it last saw the player | `MemoryBank` |
 | NPC needs to avoid grenade blast radius or anomaly fields | `DangerManager` |
 | Elite NPC that dynamically selects multi-step strategies | `GOAPPlanner` |
-| Mix: elite NPC with memory-aware GOAP | All four, composed |
+| Mix: elite NPC with memory-aware GOAP + BT execution | All four, composed |
