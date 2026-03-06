@@ -34,12 +34,11 @@ import {
   DangerManager,
   DangerType,
   GOAPPlanner,
-  GOAPAction,
-  ActionStatus,
   WorldState,
 } from '@alife-sdk/core';
 import type { IEntity } from '@alife-sdk/core';
 import type { SimulationPlugin } from '@alife-sdk/simulation';
+import { createDefaultBehaviorConfig } from '@alife-sdk/simulation';
 import {
   PhaserEntityAdapter,
   PhaserEntityFactory,
@@ -59,9 +58,9 @@ const TICK_MS         = 2_000;
 const DETECTION_RANGE = 180; // px — NPC can "see" player within this radius
 
 // FSM transition thresholds (memory confidence 0..1)
-const CONF_ALERT  = 0.45; // PATROL → ALERT
-const CONF_COMBAT = 0.78; // ALERT  → COMBAT
-const CONF_FORGET = 0.12; // *      → PATROL
+const CONF_ALERT  = 0.35; // PATROL → ALERT   (~115px from NPC)
+const CONF_COMBAT = 0.60; // ALERT  → COMBAT  (~72px from NPC)
+const CONF_FORGET = 0.10; // *      → PATROL
 
 // NPC definitions
 const NPC_DEFS = [
@@ -70,51 +69,6 @@ const NPC_DEFS = [
   { entityId: 'bandit_knife', factionId: 'bandit',  hp: 80,  combatPower: 40, rank: 2 },
   { entityId: 'bandit_razor', factionId: 'bandit',  hp: 90,  combatPower: 60, rank: 3 },
 ] as const;
-
-// ---------------------------------------------------------------------------
-// GOAP actions
-//
-// Two plan paths depending on world state:
-//   Safe   → TakePosition(1) + Attack(2)         = cost 3
-//   Danger → FindCover(1)    + AttackFromCover(1) = cost 2  ← preferred
-// ---------------------------------------------------------------------------
-
-class TakePositionAction extends GOAPAction {
-  readonly id   = 'TakePosition';
-  readonly cost = 1;
-  getPreconditions() { return new WorldState(); }
-  getEffects()       { const ws = new WorldState(); ws.set('inPosition', true); return ws; }
-  isValid()          { return true; }
-  execute()          { return ActionStatus.SUCCESS; }
-}
-
-class AttackAction extends GOAPAction {
-  readonly id   = 'Attack';
-  readonly cost = 2;
-  getPreconditions() { const ws = new WorldState(); ws.set('inPosition', true); return ws; }
-  getEffects()       { const ws = new WorldState(); ws.set('targetEliminated', true); return ws; }
-  isValid()          { return true; }
-  execute()          { return ActionStatus.SUCCESS; }
-}
-
-class FindCoverAction extends GOAPAction {
-  readonly id   = 'FindCover';
-  readonly cost = 1;
-  // Only reachable when a grenade / explosion is nearby
-  getPreconditions() { const ws = new WorldState(); ws.set('underFire', true); return ws; }
-  getEffects()       { const ws = new WorldState(); ws.set('inCover', true); ws.set('inPosition', true); return ws; }
-  isValid()          { return true; }
-  execute()          { return ActionStatus.SUCCESS; }
-}
-
-class AttackFromCoverAction extends GOAPAction {
-  readonly id   = 'AttackFromCover';
-  readonly cost = 1;
-  getPreconditions() { const ws = new WorldState(); ws.set('inCover', true); return ws; }
-  getEffects()       { const ws = new WorldState(); ws.set('targetEliminated', true); return ws; }
-  isValid()          { return true; }
-  execute()          { return ActionStatus.SUCCESS; }
-}
 
 // ---------------------------------------------------------------------------
 // Minimal IEntity wrapper — position is synced from sprite each frame
@@ -165,11 +119,8 @@ function buildNpcFSM(
 
   /** Run GOAP and store the resulting plan in bundle.currentPlan. */
   function replan(underFire: boolean): void {
-    const ws = new WorldState();
-    ws.set('hasAmmo', true);
-    if (underFire) ws.set('underFire', true);
-    const goal = new WorldState();
-    goal.set('targetEliminated', true);
+    const ws   = WorldState.from({ hasAmmo: true, ...(underFire ? { underFire: true } : {}) });
+    const goal = WorldState.from({ targetEliminated: true });
     const plan = planner.plan(ws, goal);
     bundle.currentPlan = plan ? plan.map(a => a.id) : [];
   }
@@ -286,6 +237,18 @@ export class GameScene extends Phaser.Scene {
   private wanderTargets  = new Map<string, { x: number; y: number }>();
   private lastTaskLog    = new Map<string, string>();
 
+  // Combat
+  private playerHp        = 100;
+  private playerMaxHp     = 100;
+  private playerDead      = false;
+  private playerDeadText!: Phaser.GameObjects.Text;
+  private npcBullets!:     Phaser.Physics.Arcade.Group;
+  private playerBullets!:  Phaser.Physics.Arcade.Group;
+  private npcLastShot        = new Map<string, number>();
+  private lastPlayerShot     = 0;
+  private locallyDeadNpcs    = new Set<string>();
+  private playerDamageDealt  = new Map<string, number>(); // cumulative player dmg per NPC
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -302,9 +265,11 @@ export class GameScene extends Phaser.Scene {
 
     // --- 1. Textures --------------------------------------------------------
 
-    this.makeTexture('player',  24, 24, g => { g.fillStyle(0xffffff); g.fillCircle(12, 12, 11); });
-    this.makeTexture('stalker', 22, 22, g => { g.fillStyle(0x3a7bd5); g.fillRect(2, 2, 18, 18); });
-    this.makeTexture('bandit',  22, 22, g => { g.fillStyle(0xd53a3a); g.fillRect(2, 2, 18, 18); });
+    this.makeTexture('player',        24, 24, g => { g.fillStyle(0xffffff); g.fillCircle(12, 12, 11); });
+    this.makeTexture('stalker',       22, 22, g => { g.fillStyle(0x3a7bd5); g.fillRect(2, 2, 18, 18); });
+    this.makeTexture('bandit',        22, 22, g => { g.fillStyle(0xd53a3a); g.fillRect(2, 2, 18, 18); });
+    this.makeTexture('npc_bullet',    6,  6,  g => { g.fillStyle(0xff3333); g.fillCircle(3, 3, 3); });
+    this.makeTexture('player_bullet', 6,  6,  g => { g.fillStyle(0x00ffee); g.fillCircle(3, 3, 3); });
 
     // --- 2. Terrain zones ---------------------------------------------------
 
@@ -459,13 +424,7 @@ export class GameScene extends Phaser.Scene {
         rank:        def.rank,
         combatPower: def.combatPower,
         currentHp:   def.hp,
-        behaviorConfig: {
-          retreatThreshold: 0.15,
-          panicThreshold:   -0.8,
-          searchIntervalMs: TICK_MS,
-          dangerTolerance:  4,
-          aggression:       0.8,
-        },
+        behaviorConfig: createDefaultBehaviorConfig({ aggression: 0.8, retreatThreshold: 0.15, panicThreshold: -0.8, searchIntervalMs: TICK_MS, dangerTolerance: 4 }),
         options: { type: 'human' },
       });
     }
@@ -473,10 +432,30 @@ export class GameScene extends Phaser.Scene {
     // --- 7. GOAP planner (shared, stateless) --------------------------------
 
     this.goapPlanner = new GOAPPlanner();
-    this.goapPlanner.registerAction(new TakePositionAction());
-    this.goapPlanner.registerAction(new AttackAction());
-    this.goapPlanner.registerAction(new FindCoverAction());
-    this.goapPlanner.registerAction(new AttackFromCoverAction());
+    this.goapPlanner.registerAction({
+      id:            'TakePosition',
+      cost:          3,
+      preconditions: { inPosition: false },
+      effects:       { inPosition: true },
+    });
+    this.goapPlanner.registerAction({
+      id:            'Attack',
+      cost:          2,
+      preconditions: { inPosition: true },
+      effects:       { targetEliminated: true },
+    });
+    this.goapPlanner.registerAction({
+      id:            'FindCover',
+      cost:          1,
+      preconditions: { underFire: true },
+      effects:       { inCover: true },
+    });
+    this.goapPlanner.registerAction({
+      id:            'AttackFromCover',
+      cost:          1,
+      preconditions: { inCover: true },
+      effects:       { targetEliminated: true },
+    });
 
     // --- 8. Per-NPC AI bundles ----------------------------------------------
 
@@ -527,16 +506,41 @@ export class GameScene extends Phaser.Scene {
 
     this.kernel.update(TICK_MS);
 
-    // --- 10. UI layer -------------------------------------------------------
+    // --- 10. Bullet groups + combat collisions ------------------------------
+
+    this.npcBullets    = this.physics.add.group({ runChildUpdate: false });
+    this.playerBullets = this.physics.add.group({ runChildUpdate: false });
+
+    // NPC bullet → player
+    this.physics.add.overlap(this.npcBullets, this.player, (_player, bullet) => {
+      (bullet as Phaser.Physics.Arcade.Sprite).destroy();
+      if (this.playerDead) return;
+      this.playerHp = Math.max(0, this.playerHp - 10);
+      if (this.playerHp === 0) this.killPlayer();
+    });
+
+    // Player bullet → NPC: handled manually in update() via checkPlayerBulletHits()
+    // (IArcadeSprite wrapper is incompatible with physics.add.overlap)
+
+    // Mouse click → player shoots
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      this.shootPlayerBullet(pointer.worldX, pointer.worldY);
+    });
+
+    // --- 11. UI layer -------------------------------------------------------
 
     this.hpGraphics      = this.add.graphics().setDepth(5);
     this.onlineRadiusGfx = this.add.graphics().setDepth(4);
     this.dangerGfx       = this.add.graphics().setDepth(6);
 
     this.add.text(10, 10, 'ALife SDK — AI Showcase', { fontSize: '13px', color: '#aaaaaa' });
-    this.add.text(10, 26, 'WASD/arrows: move  ·  G: throw grenade  ·  walk toward NPCs to engage them', {
+    this.add.text(10, 26, 'WASD/arrows: move  ·  G: grenade  ·  Click: shoot  ·  walk toward NPCs to engage them', {
       fontSize: '11px', color: '#555555',
     });
+
+    this.playerDeadText = this.add.text(W / 2, H / 2, 'YOU DIED\nClick to respawn', {
+      fontSize: '32px', color: '#ff0000', align: 'center',
+    }).setOrigin(0.5).setDepth(10).setVisible(false);
 
     this.tickText = this.add.text(10, H - 36, '', { fontSize: '11px', color: '#888888' });
     this.eventLogText = this.add.text(10, H - 20, '', { fontSize: '10px', color: '#555555' });
@@ -565,17 +569,19 @@ export class GameScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     // 1. Player movement
-    const vx = (this.cursors.left.isDown  || this.wasd.left.isDown  ? -1 : 0)
-             + (this.cursors.right.isDown || this.wasd.right.isDown ?  1 : 0);
-    const vy = (this.cursors.up.isDown    || this.wasd.up.isDown    ? -1 : 0)
-             + (this.cursors.down.isDown  || this.wasd.down.isDown  ?  1 : 0);
-    this.player.setVelocity(vx * PLAYER_SPEED, vy * PLAYER_SPEED);
+    if (!this.playerDead) {
+      const vx = (this.cursors.left.isDown  || this.wasd.left.isDown  ? -1 : 0)
+               + (this.cursors.right.isDown || this.wasd.right.isDown ?  1 : 0);
+      const vy = (this.cursors.up.isDown    || this.wasd.up.isDown    ? -1 : 0)
+               + (this.cursors.down.isDown  || this.wasd.down.isDown  ?  1 : 0);
+      this.player.setVelocity(vx * PLAYER_SPEED, vy * PLAYER_SPEED);
+    }
 
     // 2. Advance simulation
     this.kernel.update(delta);
 
     // 3. Sync offline NPC sprite positions
-    this.syncOfflineNPCPositions();
+    this.syncOfflineNPCPositions(delta);
 
     // 4. Online/offline transitions
     this.handleOnlineOffline();
@@ -591,7 +597,10 @@ export class GameScene extends Phaser.Scene {
     // 7. Per-NPC AI update
     this.updateNpcAI(delta);
 
-    // 8. Draw overlays and grenade effects
+    // 8. Player bullet → NPC hit detection (manual, IArcadeSprite-safe)
+    this.checkPlayerBulletHits();
+
+    // 9. Draw overlays and grenade effects
     this.drawOverlays();
     this.drawGrenadeFlashes(delta);
 
@@ -643,7 +652,7 @@ export class GameScene extends Phaser.Scene {
 
     for (const [id, ai] of this.npcAI) {
       const record = this.simulation.getAllNPCRecords().get(id);
-      const alive  = record && record.currentHp > 0;
+      const alive  = record && record.currentHp > 0 && !this.locallyDeadNpcs.has(id);
 
       if (!alive) {
         rows.push(`[${id.slice(0, 12).padEnd(12)}] DEAD`);
@@ -687,7 +696,48 @@ export class GameScene extends Phaser.Scene {
         if (plan) ai.currentPlan = plan.map(a => a.id);
       }
 
-      // 6. Floating state icon above sprite
+      // 6. Move online NPCs toward last known player position
+      const arcadeSprite = sprite as unknown as Phaser.Physics.Arcade.Sprite;
+      if (!arcadeSprite.body) continue; // body disabled (NPC killed by player this frame)
+      const lastKnown = ai.memory.getMostConfident();
+      if (record.isOnline && lastKnown) {
+        const isCombat = ai.fsm.state === 'COMBAT';
+        const speed    = isCombat ? 70 : 45;
+        const stopDist = isCombat ? 90 : 20; // COMBAT: hang back and shoot
+        const angle = Phaser.Math.Angle.Between(sprite.x, sprite.y, lastKnown.position.x, lastKnown.position.y);
+        const dx = lastKnown.position.x - sprite.x;
+        const dy = lastKnown.position.y - sprite.y;
+        const distToTarget = Math.sqrt(dx * dx + dy * dy);
+        if (distToTarget > stopDist) {
+          arcadeSprite.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+        } else {
+          arcadeSprite.setVelocity(0, 0);
+          if (isCombat && !this.playerDead) {
+            this.fireNpcBullet(id, this.player.x, this.player.y, sprite.x, sprite.y);
+          }
+        }
+      } else if (record.isOnline && ai.fsm.state === 'PATROL') {
+        // Return to spawn position while still online
+        const spawn = this.npcSpawnPos.get(id);
+        if (spawn) {
+          const dx = spawn.x - sprite.x;
+          const dy = spawn.y - sprite.y;
+          const distToSpawn = Math.sqrt(dx * dx + dy * dy);
+          if (distToSpawn > 20) {
+            const angle = Phaser.Math.Angle.Between(sprite.x, sprite.y, spawn.x, spawn.y);
+            arcadeSprite.setVelocity(Math.cos(angle) * 60, Math.sin(angle) * 60);
+          } else {
+            arcadeSprite.setVelocity(0, 0);
+          }
+        } else {
+          arcadeSprite.setVelocity(0, 0);
+        }
+      } else if (record.isOnline) {
+        // Online but memory cleared and not PATROL — stop drifting
+        arcadeSprite.setVelocity(0, 0);
+      }
+
+      // 7. Floating state icon above sprite
       const icon = ai.fsm.state === 'COMBAT' ? '[C]' : ai.fsm.state === 'ALERT' ? '[A]' : '';
       this.npcStateLabels.get(id)?.setPosition(sprite.x - 4, sprite.y - 32).setText(icon);
 
@@ -756,31 +806,46 @@ export class GameScene extends Phaser.Scene {
     }
     for (const id of goOffline) {
       this.simulation.setNPCOnline(id, false);
-      this.entityAdapter.getSprite(id)?.setAlpha(0.35);
+      const offSprite = this.entityAdapter.getSprite(id) as unknown as Phaser.Physics.Arcade.Sprite;
+      offSprite?.setAlpha(0.35);
+      offSprite?.setVelocity(0, 0); // stop physics momentum so offline lerp takes over cleanly
+      // After a chase, walk straight back to spawn at constant OFFLINE_SPEED
+      const aiBundle = this.npcAI.get(id);
+      const spawn    = this.npcSpawnPos.get(id);
+      if (aiBundle && spawn && (aiBundle.fsm.state === 'ALERT' || aiBundle.fsm.state === 'COMBAT')) {
+        this.wanderTargets.set(id, { x: spawn.x, y: spawn.y });
+      } else {
+        this.wanderTargets.delete(id);
+      }
     }
   }
 
   private syncBridgeHP(): void {
     for (const record of this.simulation.getAllNPCRecords().values()) {
+      if (this.locallyDeadNpcs.has(record.entityId)) continue;
       const hpRec = this.hpRecords.get(record.entityId);
-      if (hpRec) hpRec.currentHp = record.currentHp;
+      if (hpRec) {
+        // Subtract accumulated player damage so ticks don't reset partial hits
+        const playerDmg = this.playerDamageDealt.get(record.entityId) ?? 0;
+        hpRec.currentHp = Math.max(0, record.currentHp - playerDmg);
+      }
     }
   }
 
-  private syncOfflineNPCPositions(): void {
-    const movement = this.simulation.getMovementSimulator();
+  private syncOfflineNPCPositions(delta: number): void {
+    const dt = delta / 1000;
+    const OFFLINE_SPEED = 55; // px/s — constant, prevents rubber-band snap from lerp
 
     for (const record of this.simulation.getAllNPCRecords().values()) {
-      if (record.isOnline || record.currentHp <= 0) continue;
+      if (record.isOnline || record.currentHp <= 0 || this.locallyDeadNpcs.has(record.entityId)) continue;
 
       const sprite = this.entityAdapter.getSprite(record.entityId);
       if (!sprite) continue;
 
-      const livePos = movement.getPosition(record.entityId);
-      if (livePos) {
-        sprite.setPosition(livePos.x, livePos.y);
-        continue;
-      }
+      // Do NOT use movement.getPosition() — it returns a stale simulation
+      // position that diverges from the Phaser sprite when the NPC was
+      // moved online via physics. Using it causes teleportation.
+      // Always lerp smoothly from the sprite's current position.
 
       const brain     = this.simulation.getNPCBrain(record.entityId);
       const terrainId = brain?.currentTerrainId;
@@ -796,10 +861,16 @@ export class GameScene extends Phaser.Scene {
         this.wanderTargets.set(record.entityId, wander);
       }
 
-      sprite.setPosition(
-        Phaser.Math.Linear(sprite.x, wander.x, 0.02),
-        Phaser.Math.Linear(sprite.y, wander.y, 0.02),
-      );
+      const dx   = wander.x - sprite.x;
+      const dy   = wander.y - sprite.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 4) {
+        const move = Math.min(OFFLINE_SPEED * dt, dist);
+        sprite.setPosition(
+          sprite.x + (dx / dist) * move,
+          sprite.y + (dy / dist) * move,
+        );
+      }
     }
   }
 
@@ -808,22 +879,38 @@ export class GameScene extends Phaser.Scene {
     this.hpGraphics.clear();
     this.onlineRadiusGfx.clear();
 
+    // Player HP bar (top-left, below title)
+    const barW = 120, barH = 8, bx = 10, by = 44;
+    const hpFrac  = this.playerHp / this.playerMaxHp;
+    const hpColor = hpFrac > 0.5 ? 0x44ff44 : hpFrac > 0.25 ? 0xffaa00 : 0xff3333;
+    this.hpGraphics.fillStyle(0x222222);
+    this.hpGraphics.fillRect(bx, by, barW, barH);
+    this.hpGraphics.fillStyle(hpColor);
+    this.hpGraphics.fillRect(bx, by, Math.round(barW * hpFrac), barH);
+
     // Online proximity ring (cyan)
-    this.onlineRadiusGfx.lineStyle(1, 0x00ffff, 0.25);
+    this.onlineRadiusGfx.lineStyle(1, 0x00ffff, 0.20);
     this.onlineRadiusGfx.strokeCircle(this.player.x, this.player.y, this.onlineDistance);
 
-    // Detection ring (yellow, dimmer) — enter this to trigger NPC memory
-    this.onlineRadiusGfx.lineStyle(1, 0xffff00, 0.18);
-    this.onlineRadiusGfx.strokeCircle(this.player.x, this.player.y, DETECTION_RANGE);
+    // ALERT ring (yellow) — enter this → NPC goes ALERT
+    const alertRadius = Math.round(DETECTION_RANGE * (1 - CONF_ALERT));
+    this.onlineRadiusGfx.lineStyle(1, 0xffff00, 0.40);
+    this.onlineRadiusGfx.strokeCircle(this.player.x, this.player.y, alertRadius);
+
+    // COMBAT ring (orange) — enter this → NPC goes COMBAT
+    const combatRadius = Math.round(DETECTION_RANGE * (1 - CONF_COMBAT));
+    this.onlineRadiusGfx.lineStyle(1, 0xff6600, 0.50);
+    this.onlineRadiusGfx.strokeCircle(this.player.x, this.player.y, combatRadius);
 
     for (const record of this.simulation.getAllNPCRecords().values()) {
-      if (record.currentHp <= 0) continue;
+      if (record.currentHp <= 0 || this.locallyDeadNpcs.has(record.entityId)) continue;
 
       const sprite = this.entityAdapter.getSprite(record.entityId);
       if (!sprite) continue;
 
-      const maxHp = NPC_DEFS.find(d => d.entityId === record.entityId)?.hp ?? 100;
-      const frac  = Math.max(0, record.currentHp / maxHp);
+      const maxHp  = NPC_DEFS.find(d => d.entityId === record.entityId)?.hp ?? 100;
+      const hpRec  = this.hpRecords.get(record.entityId);
+      const frac   = Math.max(0, (hpRec?.currentHp ?? record.currentHp) / maxHp);
       const bw    = 24;
       const bx    = sprite.x - bw / 2;
       const by    = sprite.y - 18;
@@ -848,5 +935,104 @@ export class GameScene extends Phaser.Scene {
     draw(g);
     g.generateTexture(key, w, h);
     g.destroy();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Combat helpers
+  // ---------------------------------------------------------------------------
+
+  private killPlayer(): void {
+    this.playerDead = true;
+    this.playerDeadText.setVisible(true);
+    (this.player as unknown as Phaser.Physics.Arcade.Sprite).setVelocity(0, 0);
+    this.player.setAlpha(0.3);
+    this.input.once('pointerdown', () => this.respawnPlayer());
+  }
+
+  private respawnPlayer(): void {
+    const W = this.scale.width;
+    const H = this.scale.height;
+    this.playerHp   = this.playerMaxHp;
+    this.playerDead = false;
+    this.player.setPosition(Math.round(W * 0.06), Math.round(H * 0.5));
+    this.player.setAlpha(1.0);
+    this.playerDeadText.setVisible(false);
+  }
+
+  private damageNpc(id: string, dmg: number): void {
+    if (this.locallyDeadNpcs.has(id)) return;
+    const totalDmg = (this.playerDamageDealt.get(id) ?? 0) + dmg;
+    this.playerDamageDealt.set(id, totalDmg);
+
+    const record = this.simulation.getAllNPCRecords().get(id);
+    const simHp  = record?.currentHp ?? 0;
+    const effectiveHp = Math.max(0, simHp - totalDmg);
+
+    const hpRec = this.hpRecords.get(id);
+    if (hpRec) hpRec.currentHp = effectiveHp;
+
+    if (effectiveHp === 0) {
+      this.locallyDeadNpcs.add(id);
+      const sprite = this.entityAdapter.getSprite(id) as unknown as Phaser.Physics.Arcade.Sprite | undefined;
+      if (sprite) {
+        sprite.setVisible(false);
+        const body = sprite.body as Phaser.Physics.Arcade.Body | null | undefined;
+        if (body) { body.enable = false; body.setVelocity(0, 0); }
+      }
+      this.npcStateLabels.get(id)?.setVisible(false);
+    }
+  }
+
+  private checkPlayerBulletHits(): void {
+    const bullets = this.playerBullets.getChildren() as Phaser.Physics.Arcade.Sprite[];
+    for (const [id] of this.npcAI) {
+      if (this.locallyDeadNpcs.has(id)) continue;
+      const record = this.simulation.getAllNPCRecords().get(id);
+      if (!record?.isOnline) continue; // can only shoot online NPCs
+      const sprite = this.entityAdapter.getSprite(id);
+      if (!sprite) continue;
+      for (const bullet of bullets) {
+        if (!bullet.active) continue;
+        const dist = Phaser.Math.Distance.Between(bullet.x, bullet.y, sprite.x, sprite.y);
+        if (dist < 14) {
+          bullet.destroy();
+          this.damageNpc(id, 25);
+          break;
+        }
+      }
+    }
+  }
+
+  private shootPlayerBullet(targetX: number, targetY: number): void {
+    if (this.playerDead) return;
+    const now = Date.now();
+    if (now - this.lastPlayerShot < 300) return;
+    this.lastPlayerShot = now;
+
+    const b = this.physics.add.sprite(this.player.x, this.player.y, 'player_bullet').setDepth(5);
+    this.playerBullets.add(b);
+    const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, targetX, targetY);
+    (b as unknown as Phaser.Physics.Arcade.Sprite).setVelocity(
+      Math.cos(angle) * 500,
+      Math.sin(angle) * 500,
+    );
+    this.time.delayedCall(2000, () => { if (b.active) b.destroy(); });
+  }
+
+  private fireNpcBullet(npcId: string, targetX: number, targetY: number, spriteX: number, spriteY: number): void {
+    const now  = Date.now();
+    const last = this.npcLastShot.get(npcId) ?? 0;
+    if (now - last < 1500) return;
+    this.npcLastShot.set(npcId, now);
+
+    const spread = (Math.random() - 0.5) * 0.25;
+    const angle  = Phaser.Math.Angle.Between(spriteX, spriteY, targetX, targetY) + spread;
+    const b = this.physics.add.sprite(spriteX, spriteY, 'npc_bullet').setDepth(5);
+    this.npcBullets.add(b);
+    (b as unknown as Phaser.Physics.Arcade.Sprite).setVelocity(
+      Math.cos(angle) * 300,
+      Math.sin(angle) * 300,
+    );
+    this.time.delayedCall(2000, () => { if (b.active) b.destroy(); });
   }
 }

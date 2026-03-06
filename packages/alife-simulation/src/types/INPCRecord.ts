@@ -26,6 +26,30 @@ export interface INPCBehaviorConfig {
   readonly aggression: number;
 }
 
+/**
+ * Create an {@link INPCBehaviorConfig} with sensible defaults.
+ * Override only the fields you need.
+ *
+ * @example
+ * registerNPC({
+ *   entityId: 'npc_01',
+ *   // ...
+ *   behaviorConfig: createDefaultBehaviorConfig({ aggression: 0.9 }),
+ * });
+ */
+export function createDefaultBehaviorConfig(
+  overrides?: Partial<INPCBehaviorConfig>,
+): INPCBehaviorConfig {
+  return {
+    retreatThreshold:  0.1,
+    panicThreshold:    -0.7,
+    searchIntervalMs:  5_000,
+    dangerTolerance:   3,
+    aggression:        0.5,
+    ...overrides,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // NPC Record
 // ---------------------------------------------------------------------------

@@ -14,8 +14,10 @@
  *   Space: O(b^d) for the open/closed sets, bounded by maxDepth
  */
 
-import type { GOAPAction } from './GOAPAction';
-import type { WorldState } from './WorldState';
+import { GOAPAction, ActionStatus } from './GOAPAction';
+import type { GOAPActionDef } from './GOAPAction';
+import { WorldState } from './WorldState';
+import type { IEntity } from '../entity/IEntity';
 
 // ---------------------------------------------------------------------------
 // Internal planning node
@@ -67,12 +69,15 @@ export class GOAPPlanner {
   }
 
   /** Register an action that the planner can use when building plans. */
-  registerAction(action: GOAPAction): void {
-    this.actions.push(action);
+  registerAction(action: GOAPAction | GOAPActionDef): void {
+    const resolved: GOAPAction = isGOAPActionDef(action)
+      ? new InlineGOAPAction(action)
+      : action;
+    this.actions.push(resolved);
 
     // P21: Cache action keys incrementally.
-    for (const k of action.getPreconditions().keys()) this._actionKeys.add(k);
-    for (const k of action.getEffects().keys()) this._actionKeys.add(k);
+    for (const k of resolved.getPreconditions().keys()) this._actionKeys.add(k);
+    for (const k of resolved.getEffects().keys()) this._actionKeys.add(k);
   }
 
   /**
@@ -310,5 +315,41 @@ export class GOAPPlanner {
     }
     // Tag with high bit: result is always negative (int32), disjoint from bitmask.
     return h | 0x80000000;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Plain-object action support (module-private)
+// ---------------------------------------------------------------------------
+
+function isGOAPActionDef(a: GOAPAction | GOAPActionDef): a is GOAPActionDef {
+  return typeof (a as GOAPActionDef).preconditions === 'object'
+      && !((a as GOAPAction).getPreconditions instanceof Function &&
+           Object.getPrototypeOf(a) !== Object.prototype);
+}
+
+class InlineGOAPAction extends GOAPAction {
+  readonly id: string;
+  readonly cost: number;
+  private readonly _pre: WorldState;
+  private readonly _eff: WorldState;
+  private readonly _isValid?: (entity: IEntity) => boolean;
+  private readonly _execute?: (entity: IEntity, delta: number) => ActionStatus;
+
+  constructor(def: GOAPActionDef) {
+    super();
+    this.id   = def.id;
+    this.cost = def.cost;
+    this._pre = WorldState.from(def.preconditions);
+    this._eff = WorldState.from(def.effects);
+    this._isValid  = def.isValid;
+    this._execute  = def.execute;
+  }
+
+  getPreconditions(): WorldState { return this._pre; }
+  getEffects():       WorldState { return this._eff; }
+  isValid(entity: IEntity): boolean  { return this._isValid ? this._isValid(entity) : true; }
+  execute(entity: IEntity, delta: number): ActionStatus {
+    return this._execute ? this._execute(entity, delta) : ActionStatus.SUCCESS;
   }
 }

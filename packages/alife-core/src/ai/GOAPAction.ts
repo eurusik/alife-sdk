@@ -62,3 +62,28 @@ export abstract class GOAPAction {
     // Default no-op. Concrete actions override for cleanup.
   }
 }
+
+// ---------------------------------------------------------------------------
+// Plain-object action descriptor
+// ---------------------------------------------------------------------------
+
+/**
+ * Plain-object descriptor for a GOAP action.
+ * Alternative to subclassing {@link GOAPAction} for simple cases.
+ *
+ * @example
+ * planner.registerAction({
+ *   id: 'TakePosition',
+ *   cost: 1,
+ *   preconditions: { inPosition: false },
+ *   effects:       { inPosition: true },
+ * });
+ */
+export interface GOAPActionDef {
+  readonly id: string;
+  readonly cost: number;
+  readonly preconditions: Record<string, import('./WorldState').WorldStateValue>;
+  readonly effects:       Record<string, import('./WorldState').WorldStateValue>;
+  isValid?(entity: import('../entity/IEntity').IEntity): boolean;
+  execute?(entity: import('../entity/IEntity').IEntity, delta: number): ActionStatus;
+}
