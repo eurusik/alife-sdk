@@ -325,14 +325,8 @@ for (let step = 0; step < MAX_TICKS; step++) {
   }
 
   // Early exit: check if one faction has no surviving NPCs.
-  const stalkerAlive = npcs.filter(s => s.factionId === 'stalker').some(s => {
-    const r = sim.getNPCRecord(s.entityId);
-    return r != null && r.currentHp > 0;
-  });
-  const banditAlive = npcs.filter(s => s.factionId === 'bandit').some(s => {
-    const r = sim.getNPCRecord(s.entityId);
-    return r != null && r.currentHp > 0;
-  });
+  const stalkerAlive = npcs.some(s => s.factionId === 'stalker' && (sim.getNPCRecord(s.entityId)?.currentHp ?? 0) > 0);
+  const banditAlive  = npcs.some(s => s.factionId === 'bandit'  && (sim.getNPCRecord(s.entityId)?.currentHp ?? 0) > 0);
 
   if (!stalkerAlive || !banditAlive) {
     console.log('');
