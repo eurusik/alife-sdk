@@ -151,6 +151,7 @@ all adapter ports to your Phaser scene in one call:
 import { createPhaserKernel } from '@alife-sdk/phaser/scene';
 import { TerrainBuilder, SmartTerrain } from '@alife-sdk/core/terrain';
 import { PhaserEntityAdapter } from '@alife-sdk/phaser/adapters';
+import { createDefaultBehaviorConfig } from '@alife-sdk/simulation';
 
 class GameScene extends Phaser.Scene {
   create() {
@@ -198,8 +199,7 @@ class GameScene extends Phaser.Scene {
       //   searchIntervalMs  ms        — time between search-state scans (5000 = scan every 5 s)
       //   dangerTolerance   1–5       — maximum danger level NPC will tolerate before fleeing (higher = braver)
       //   aggression        0.0–1.0   — preference for offensive actions on contact (1.0 = always attacks)
-      behaviorConfig: { retreatThreshold: 0.3, panicThreshold: -0.6,
-                        searchIntervalMs: 5000, dangerTolerance: 3, aggression: 0.5 },
+      behaviorConfig: createDefaultBehaviorConfig({ retreatThreshold: 0.3, panicThreshold: -0.6 }),
       options:        { type: 'human' },
     });
 
@@ -220,6 +220,7 @@ Implement four port interfaces once — the kernel never calls engine APIs direc
 import { ALifeKernel, Ports } from '@alife-sdk/core';
 import { FactionsPlugin, SpawnPlugin } from '@alife-sdk/core/plugins';
 import { SimulationPlugin, SimulationPorts } from '@alife-sdk/simulation/plugin';
+import { createDefaultBehaviorConfig } from '@alife-sdk/simulation';
 import { TerrainBuilder, SmartTerrain } from '@alife-sdk/core/terrain';
 
 const kernel = new ALifeKernel();
@@ -277,8 +278,7 @@ sim.registerNPC({
   //   searchIntervalMs  ms        — time between search-state scans (5000 = scan every 5 s)
   //   dangerTolerance   1–5       — maximum danger level NPC will tolerate before fleeing (higher = braver)
   //   aggression        0.0–1.0   — preference for offensive actions on contact (1.0 = always attacks)
-  behaviorConfig: { retreatThreshold: 0.3, panicThreshold: -0.6,
-                    searchIntervalMs: 5000, dangerTolerance: 3, aggression: 0.5 },
+  behaviorConfig: createDefaultBehaviorConfig({ retreatThreshold: 0.3, panicThreshold: -0.6 }),
   options:        { type: 'human' },
 });
 

@@ -43,6 +43,7 @@ kernel.destroy();
 ```ts
 import { ALifeKernel, FactionsPlugin } from '@alife-sdk/core';
 import { SimulationPlugin, createDefaultPluginConfig } from '@alife-sdk/simulation/plugin';
+import { createDefaultBehaviorConfig } from '@alife-sdk/simulation';
 import { SimulationPorts } from '@alife-sdk/simulation/ports';
 
 // 1. Build the kernel
@@ -80,7 +81,7 @@ sim.registerNPC({
   currentHp:      100,
   rank:           3,
   position:       { x: 400, y: 300 },
-  behaviorConfig: { retreatThreshold: 0.2, panicThreshold: -0.7 },
+  behaviorConfig: createDefaultBehaviorConfig({ retreatThreshold: 0.2 }),
   options:        { type: 'human' },
 });
 
