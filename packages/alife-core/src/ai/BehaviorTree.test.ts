@@ -65,6 +65,11 @@ describe('Blackboard', () => {
       board.delete('hp');
       expect(board.getOr('hp', 0)).toBe(0);
     });
+
+    it('returns 0 when value is 0 (falsy but valid — guards against !v regression)', () => {
+      const board = new Blackboard<{ ammo: number }>({ ammo: 0 });
+      expect(board.getOr('ammo', 99)).toBe(0);
+    });
   });
 });
 

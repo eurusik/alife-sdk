@@ -69,7 +69,7 @@ engine adapter ready yet:
 ```ts
 import {
   createNoOpEntityAdapter,   // getPosition→null, isAlive→true, all writes→no-op
-  createNoOpEntityFactory,   // createNPC/createMonster→sequential IDs, destroyEntity→no-op
+  createNoOpEntityFactory,   // createNPC→"noop-npc-<n>", createMonster→"noop-monster-<n>", destroyEntity→no-op
   createNoOpPlayerPosition,  // getPlayerPosition→{x:0,y:0}
 } from '@alife-sdk/core';
 
