@@ -48,6 +48,29 @@ describe('Blackboard', () => {
     board.delete('hp');
     expect(board.has('hp')).toBe(false);
   });
+
+  describe('getOr()', () => {
+    it('returns the value when key is set', () => {
+      const board = new Blackboard<{ hp: number }>({ hp: 80 });
+      expect(board.getOr('hp', 0)).toBe(80);
+    });
+
+    it('returns defaultValue when key is absent', () => {
+      const board = new Blackboard<{ hp: number }>();
+      expect(board.getOr('hp', 42)).toBe(42);
+    });
+
+    it('returns defaultValue when key was deleted', () => {
+      const board = new Blackboard<{ hp: number }>({ hp: 100 });
+      board.delete('hp');
+      expect(board.getOr('hp', 0)).toBe(0);
+    });
+
+    it('returns 0 when value is 0 (falsy but valid — guards against !v regression)', () => {
+      const board = new Blackboard<{ ammo: number }>({ ammo: 0 });
+      expect(board.getOr('ammo', 99)).toBe(0);
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -20,7 +20,7 @@
 // Imports
 // ---------------------------------------------------------------------------
 
-import { GOAPPlanner, GOAPAction, ActionStatus, WorldState } from '@alife-sdk/core/ai';
+import { GOAPPlanner, ActionStatus, WorldState } from '@alife-sdk/core/ai';
 import type { IEntity } from '@alife-sdk/core/entity';
 
 // ---------------------------------------------------------------------------
@@ -83,139 +83,36 @@ const mockEntity: IEntity = {
 // entity movement, animation, etc.
 // ---------------------------------------------------------------------------
 
-// Helper: create a WorldState from a plain object — reduces boilerplate below.
-function makeState(props: Record<string, boolean | number | string>): WorldState {
-  const ws = new WorldState();
-  for (const [k, v] of Object.entries(props)) ws.set(k, v);
-  return ws;
-}
-
 // ----- FindMedkit -----
 // The NPC scans the area for a medkit and picks it up.
 // No preconditions — the NPC can always try to find one.
 // After success: hasMedkit = true.
-class FindMedkit extends GOAPAction {
-  readonly id   = 'FindMedkit';
-  readonly cost = 2;   // costs more than HealSelf alone — finding takes time
-
-  getPreconditions(): WorldState { return makeState({}); }
-  getEffects():       WorldState { return makeState({ hasMedkit: true }); }
-
-  isValid(_entity: IEntity): boolean {
-    // In a real game: check if any medkit exists in search radius.
-    return true;
-  }
-
-  execute(_entity: IEntity, _delta: number): ActionStatus {
-    // Simulate: takes 2 ticks to find and pick up a medkit.
-    this._ticks++;
-    if (this._ticks >= 2) { this._ticks = 0; return ActionStatus.SUCCESS; }
-    return ActionStatus.RUNNING;
-  }
-  private _ticks = 0;
-}
 
 // ----- HealSelf -----
 // The NPC uses the medkit they're carrying to restore HP.
 // Precondition: must already have a medkit (hasMedkit = true).
 // After success: isHealthy = true, hasMedkit = false (consumed).
-class HealSelf extends GOAPAction {
-  readonly id   = 'HealSelf';
-  readonly cost = 1;   // cheap — just using an item already in hand
-
-  getPreconditions(): WorldState { return makeState({ hasMedkit: true }); }
-  getEffects():       WorldState { return makeState({ isHealthy: true, hasMedkit: false }); }
-
-  isValid(_entity: IEntity): boolean { return true; }
-
-  execute(_entity: IEntity, _delta: number): ActionStatus {
-    // Simulate: instant — applying a medkit takes one tick.
-    return ActionStatus.SUCCESS;
-  }
-}
 
 // ----- FindAmmo -----
 // The NPC searches a nearby body or ammo cache for bullets.
 // No preconditions — can always look for ammo.
 // After success: hasAmmo = true.
-class FindAmmo extends GOAPAction {
-  readonly id   = 'FindAmmo';
-  readonly cost = 2;
-
-  getPreconditions(): WorldState { return makeState({}); }
-  getEffects():       WorldState { return makeState({ hasAmmo: true }); }
-
-  isValid(_entity: IEntity): boolean { return true; }
-
-  execute(_entity: IEntity, _delta: number): ActionStatus {
-    this._ticks++;
-    if (this._ticks >= 2) { this._ticks = 0; return ActionStatus.SUCCESS; }
-    return ActionStatus.RUNNING;
-  }
-  private _ticks = 0;
-}
 
 // ----- Reload -----
 // The NPC loads the ammo they found into their weapon.
 // Precondition: must have ammo to load (hasAmmo = true).
 // After success: isLoaded = true, hasAmmo = false (ammo is now in the gun).
-class Reload extends GOAPAction {
-  readonly id   = 'Reload';
-  readonly cost = 1;
-
-  getPreconditions(): WorldState { return makeState({ hasAmmo: true }); }
-  getEffects():       WorldState { return makeState({ isLoaded: true, hasAmmo: false }); }
-
-  isValid(_entity: IEntity): boolean { return true; }
-
-  execute(_entity: IEntity, _delta: number): ActionStatus {
-    return ActionStatus.SUCCESS;
-  }
-}
 
 // ----- TakePosition -----
 // The NPC moves to a good firing position (e.g. behind cover with line of sight).
 // No preconditions — movement is always possible.
 // After success: inPosition = true.
 // Cost 3 — moving costs more time than using items.
-class TakePosition extends GOAPAction {
-  readonly id   = 'TakePosition';
-  readonly cost = 3;
-
-  getPreconditions(): WorldState { return makeState({}); }
-  getEffects():       WorldState { return makeState({ inPosition: true }); }
-
-  isValid(_entity: IEntity): boolean { return true; }
-
-  execute(_entity: IEntity, _delta: number): ActionStatus {
-    this._ticks++;
-    if (this._ticks >= 3) { this._ticks = 0; return ActionStatus.SUCCESS; }
-    return ActionStatus.RUNNING;
-  }
-  private _ticks = 0;
-}
 
 // ----- Attack -----
 // The NPC engages and eliminates the target. This is the GOAL action.
 // All three preconditions must be true: healthy, loaded, in position.
 // After success: targetEliminated = true — mission complete!
-class Attack extends GOAPAction {
-  readonly id   = 'Attack';
-  readonly cost = 1;
-
-  getPreconditions(): WorldState {
-    return makeState({ isHealthy: true, isLoaded: true, inPosition: true });
-  }
-  getEffects(): WorldState {
-    return makeState({ targetEliminated: true });
-  }
-
-  isValid(_entity: IEntity): boolean { return true; }
-
-  execute(_entity: IEntity, _delta: number): ActionStatus {
-    return ActionStatus.SUCCESS;
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Step 3: Create the planner and register actions
@@ -230,16 +127,46 @@ const planner = new GOAPPlanner();
 // Register every action the NPC can theoretically perform.
 // The planner will figure out which ones to actually use based on the current
 // world state and goal. Order doesn't matter — A* explores by cost.
-planner.registerAction(new FindMedkit());
-planner.registerAction(new HealSelf());
-planner.registerAction(new FindAmmo());
-planner.registerAction(new Reload());
-planner.registerAction(new TakePosition());
-planner.registerAction(new Attack());
+planner.registerAction({
+  id: 'FindMedkit',
+  cost: 2,   // costs more than HealSelf alone — finding takes time
+  preconditions: {},
+  effects:       { hasMedkit: true },
+});
+planner.registerAction({
+  id: 'HealSelf',
+  cost: 1,   // cheap — just using an item already in hand
+  preconditions: { hasMedkit: true },
+  effects:       { isHealthy: true, hasMedkit: false },
+});
+planner.registerAction({
+  id: 'FindAmmo',
+  cost: 2,
+  preconditions: {},
+  effects:       { hasAmmo: true },
+});
+planner.registerAction({
+  id: 'Reload',
+  cost: 1,
+  preconditions: { hasAmmo: true },
+  effects:       { isLoaded: true, hasAmmo: false },
+});
+planner.registerAction({
+  id: 'TakePosition',
+  cost: 3,   // moving costs more time than using items
+  preconditions: {},
+  effects:       { inPosition: true },
+});
+planner.registerAction({
+  id: 'Attack',
+  cost: 1,
+  preconditions: { isHealthy: true, isLoaded: true, inPosition: true },
+  effects:       { targetEliminated: true },
+});
 
 // The goal never changes for this NPC: eliminate the target.
 // We define it once and reuse it across all scenarios and replanning.
-const goal = makeState({ targetEliminated: true });
+const goal = WorldState.from({ targetEliminated: true });
 
 // ---------------------------------------------------------------------------
 // Scenario 1: Healthy, armed NPC
@@ -256,7 +183,7 @@ console.log('  The mercenary is in peak condition: full health, weapon hot.');
 console.log('  They just need to find a firing angle and pull the trigger.');
 console.log('');
 
-const state1 = makeState({
+const state1 = WorldState.from({
   isHealthy:  true,   // already treated any wounds before the mission
   isLoaded:   true,   // weapon was loaded at base
   inPosition: false,  // still needs to move into position
@@ -302,7 +229,7 @@ console.log('  The mercenary is bleeding out and their AK is dry.');
 console.log('  They need to handle both problems before engaging.');
 console.log('');
 
-const state2 = makeState({
+const state2 = WorldState.from({
   // Notice: isHealthy, isLoaded, inPosition are all ABSENT (not false, just unset).
   // An absent key means "we don't have that condition yet" — the planner will
   // look for actions that can produce these effects.
@@ -343,7 +270,7 @@ console.log('  We ask the planner for { miracleHappened: true } — a key that')
 console.log('  no registered action can produce.');
 console.log('');
 
-const impossibleGoal = makeState({ miracleHappened: true });
+const impossibleGoal = WorldState.from({ miracleHappened: true });
 const plan3 = planner.plan(state2, impossibleGoal);
 
 if (plan3 === null) {
@@ -372,7 +299,7 @@ console.log('  Mid-mission they take a burst to the chest. Time to replan.');
 console.log('');
 
 // --- Initial plan ---
-let liveState = makeState({
+let liveState = WorldState.from({
   isHealthy: true,
   isLoaded:  true,
 });
@@ -380,7 +307,7 @@ let liveState = makeState({
 const initialPlan = planner.plan(liveState, goal);
 if (!initialPlan) { throw new Error('Expected a plan for scenario 4 initial state'); }
 
-console.log(`  Initial plan: ${initialPlan.map((a: GOAPAction) => a.id).join(' → ')}`);
+console.log(`  Initial plan: ${initialPlan.map((a) => a.id).join(' → ')}`);
 console.log('');
 
 // --- Simulate executing the first action ---
@@ -403,7 +330,7 @@ console.log('');
 
 // Update world state — isHealthy is now false (wounded).
 // isLoaded is still true (weapon wasn't lost).
-liveState = makeState({
+liveState = WorldState.from({
   isHealthy: false,  // got shot!
   isLoaded:  true,
   inPosition: true,  // they did reach position before being hit
@@ -416,7 +343,7 @@ const newPlan = planner.plan(liveState, goal);
 if (newPlan === null) {
   console.log('  [!] No replan found — unexpected.');
 } else {
-  console.log(`  Replan (${newPlan.length} steps): ${newPlan.map((a: GOAPAction) => a.id).join(' → ')}`);
+  console.log(`  Replan (${newPlan.length} steps): ${newPlan.map((a) => a.id).join(' → ')}`);
   console.log('');
   console.log('  Notice: the planner inserted FindMedkit → HealSelf at the front');
   console.log('  because isHealthy is now false. The rest of the plan adjusted');
@@ -424,7 +351,7 @@ if (newPlan === null) {
 
   // Note: inPosition=true is already in liveState, so TakePosition is not needed.
   // The planner is smart enough to skip actions whose effects are already satisfied.
-  if (!newPlan.some((a: GOAPAction) => a.id === 'TakePosition')) {
+  if (!newPlan.some((a) => a.id === 'TakePosition')) {
     console.log('  And because inPosition=true already, TakePosition was skipped — clever!');
   }
 }
@@ -447,14 +374,16 @@ console.log('    4. Execute the returned action list, calling execute() each tic
 console.log('    5. When world state changes, replan — the planner adapts automatically.');
 console.log('');
 console.log('  Key APIs used:');
-console.log('    WorldState.set(key, value)    — record a fact');
-console.log('    WorldState.get(key)            — read a fact');
-console.log('    WorldState.satisfies(goal)     — check if all goal facts are met');
-console.log('    GOAPAction (abstract class)    — extend to define any action');
+console.log('    WorldState.from({ key: value })  — build state from plain record (preferred)');
+console.log('    WorldState.set(key, value)        — set a single fact imperatively');
+console.log('    WorldState.get(key)               — read a fact');
+console.log('    WorldState.satisfies(goal)        — check if all goal facts are met');
+console.log('    planner.registerAction({ id, cost, preconditions, effects })');
+console.log('                                      — plain-object action (preferred, no subclassing)');
+console.log('    GOAPAction (abstract class)       — extend only for complex multi-frame logic');
 console.log('    ActionStatus.RUNNING/SUCCESS/FAILURE — tick-by-tick execution status');
-console.log('    new GOAPPlanner()              — create the planner');
-console.log('    planner.registerAction(action) — teach it what the NPC can do');
-console.log('    planner.plan(state, goal)      — returns GOAPAction[] or null');
-console.log('    plan.map(a => a.id).join(" → ") — readable plan logging');
+console.log('    new GOAPPlanner()                 — create the planner');
+console.log('    planner.plan(state, goal)         — returns GOAPAction[] or null');
+console.log('    plan.map(a => a.id).join(" → ")  — readable plan logging');
 console.log('');
 console.log('Done.');

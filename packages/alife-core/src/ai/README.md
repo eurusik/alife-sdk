@@ -39,6 +39,8 @@ import type {
   IMemoryBankConfig,
   IMemoryInput,
   IDangerEntry,
+  GOAPActionDef,    // plain-object action definition for registerAction()
+  WorldStateValue,  // string | number | boolean
 } from '@alife-sdk/core/ai';
 ```
 
@@ -62,9 +64,10 @@ import type {
 | `Condition` | BT leaf — wraps a boolean predicate |
 | `MemoryBank` | Per-NPC multi-channel memory with confidence decay and eviction |
 | `DangerManager` | Spatial danger zones with TTL, threat scoring, and safe-direction computation |
-| `WorldState` | GOAP key-value map with `satisfies()`, `applyEffects()`, and A* heuristic |
-| `GOAPAction` | Abstract base class for GOAP actions (preconditions / effects / execute) |
-| `GOAPPlanner` | A\*-based optimal action sequence solver with binary min-heap and bitmask fingerprinting |
+| `WorldState` | GOAP key-value map with `satisfies()`, `applyEffects()`, A* heuristic, and `WorldState.from(record)` factory |
+| `GOAPAction` | Abstract base class for GOAP actions — extend for complex multi-frame logic |
+| `GOAPActionDef` | Plain-object action definition — preferred for simple actions; pass directly to `registerAction()` |
+| `GOAPPlanner` | A\*-based optimal action sequence solver; `registerAction()` accepts both class instances and plain `GOAPActionDef` objects |
 
 ---
 
@@ -226,25 +229,58 @@ if (dangers.isDangerous({ x: npc.x, y: npc.y })) {
 
 ## Quick start — GOAP planner
 
+Use `registerAction` with a plain object — no subclassing required:
+
+```ts
+import { GOAPPlanner, WorldState } from '@alife-sdk/core/ai';
+import type { GOAPActionDef } from '@alife-sdk/core/ai';
+
+const planner = new GOAPPlanner();
+
+// Plain-object action definition — preferred API
+planner.registerAction({
+  id:   'find_medkit',
+  cost: 3,
+  preconditions: { hasMedkit: false },
+  effects:       { hasMedkit: true },
+});
+
+planner.registerAction({
+  id:   'heal_self',
+  cost: 2,
+  preconditions: { hasMedkit: true,  isHealthy: false },
+  effects:       { hasMedkit: false, isHealthy: true },
+  isValid:  (entity) => (entity.metadata?.get('medkitCount') as number ?? 0) > 0,
+  execute:  (_entity, _delta) => 'success',
+});
+
+// WorldState.from() — compact factory instead of chained .set() calls
+const current = WorldState.from({ isHealthy: false, hasMedkit: false });
+const goal    = WorldState.from({ isHealthy: true });
+
+const plan = planner.plan(current, goal); // ['find_medkit', 'heal_self']
+```
+
+You can still extend `GOAPAction` for complex logic that doesn't fit a plain object,
+and mix both styles in the same planner.
+
 ```ts
 import { GOAPPlanner, GOAPAction, ActionStatus, WorldState } from '@alife-sdk/core/ai';
 
-class HealSelf extends GOAPAction {
-  readonly id = 'heal_self';
-  readonly cost = 2;
-  getPreconditions() { const p = new WorldState(); p.set('hasMedkit', true); return p; }
-  getEffects()       { const e = new WorldState(); e.set('isHealthy', true); e.set('hasMedkit', false); return e; }
-  isValid(entity) { return (entity.metadata?.get('medkitCount') as number ?? 0) > 0; }
-  execute(entity, delta) { return ActionStatus.SUCCESS; }
+class PatrolAction extends GOAPAction {
+  readonly id = 'patrol';
+  readonly cost = 1;
+  getPreconditions() { return WorldState.from({ isIdle: true }); }
+  getEffects()       { return WorldState.from({ isPatrolling: true }); }
+  execute(entity, delta) {
+    // complex multi-frame logic here
+    return ActionStatus.RUNNING;
+  }
 }
 
 const planner = new GOAPPlanner();
-planner.registerAction(new HealSelf());
-
-const current = new WorldState(); current.set('isHealthy', false); current.set('hasMedkit', false);
-const goal    = new WorldState(); goal.set('isHealthy', true);
-
-const plan = planner.plan(current, goal); // [FindMedkit, HealSelf]
+planner.registerAction(new PatrolAction()); // class instance
+planner.registerAction({ id: 'rest', cost: 1, preconditions: { isPatrolling: true }, effects: { isIdle: true } }); // plain object
 ```
 
 ---

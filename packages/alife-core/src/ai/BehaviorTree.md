@@ -61,12 +61,20 @@ const bb = new Blackboard<{ hp: number; inCover: boolean }>({
   inCover: false,
 });
 
-bb.get('hp');          // 100
+bb.get('hp');           // 100 | undefined
+bb.getOr('hp', 0);     // 100  — returns defaultValue if key is unset
 bb.set('hp', 80);
-bb.has('inCover');     // true
+bb.has('inCover');      // true
 bb.delete('inCover');
-bb.clear();
 ```
+
+| Method | Returns | Notes |
+|--------|---------|-------|
+| `get(key)` | `T[K] \| undefined` | `undefined` if key was never set |
+| `getOr(key, default)` | `NonNullable<T[K]>` | Returns `default` when key is unset or null — eliminates `?? 0` boilerplate |
+| `set(key, value)` | `void` | |
+| `has(key)` | `boolean` | |
+| `delete(key)` | `void` | |
 
 The type parameter `T` enforces valid keys at compile time.
 
@@ -93,7 +101,7 @@ Wraps a boolean predicate. Returns `'success'` if true, `'failure'` if false.
 
 ```ts
 const canSeeTarget = new Condition<MyBB>((bb) => !!bb.get('hasLineOfSight'));
-const hasAmmo      = new Condition<MyBB>((bb) => (bb.get('ammo') ?? 0) > 0);
+const hasAmmo      = new Condition<MyBB>((bb) => bb.getOr('ammo', 0) > 0);
 ```
 
 ---

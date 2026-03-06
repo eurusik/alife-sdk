@@ -1,5 +1,6 @@
 import { GOAPPlanner } from './GOAPPlanner';
 import { GOAPAction, ActionStatus } from './GOAPAction';
+import type { GOAPActionDef } from './GOAPAction';
 import { WorldState } from './WorldState';
 import type { IEntity } from '../entity/IEntity';
 
@@ -329,6 +330,144 @@ describe('GOAPPlanner', () => {
       expect(plan).not.toBeNull();
       // Should prefer cheaper pathA (cost 2) over pathB (cost 20)
       expect(plan!.map((a) => a.id)).toEqual(['pathA_step1', 'pathA_step2']);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Default max depth
+  // -------------------------------------------------------------------------
+
+  // -------------------------------------------------------------------------
+  // registerAction with GOAPActionDef (plain-object actions)
+  // -------------------------------------------------------------------------
+
+  describe('registerAction with GOAPActionDef', () => {
+    it('registers a plain-object action and plans a trivial 1-step plan', () => {
+      const planner = new GOAPPlanner();
+
+      const def: GOAPActionDef = {
+        id: 'finish',
+        cost: 1,
+        preconditions: {},
+        effects: { done: true },
+      };
+      planner.registerAction(def);
+
+      const current = makeState({});
+      const goal = makeState({ done: true });
+
+      const plan = planner.plan(current, goal);
+      expect(plan).not.toBeNull();
+      expect(plan).toHaveLength(1);
+      expect(plan![0].id).toBe('finish');
+    });
+
+    it('registers multiple plain-object actions and plans a multi-step plan', () => {
+      const planner = new GOAPPlanner();
+
+      planner.registerAction({
+        id: 'step1',
+        cost: 1,
+        preconditions: {},
+        effects: { ready: true },
+      });
+      planner.registerAction({
+        id: 'step2',
+        cost: 1,
+        preconditions: { ready: true },
+        effects: { done: true },
+      });
+
+      const current = makeState({});
+      const goal = makeState({ done: true });
+
+      const plan = planner.plan(current, goal);
+      expect(plan).not.toBeNull();
+      expect(plan).toHaveLength(2);
+      expect(plan!.map((a) => a.id)).toEqual(['step1', 'step2']);
+    });
+
+    it('isValid callback is invoked on the planned action and its return value is honoured', () => {
+      const planner = new GOAPPlanner();
+
+      const calls: string[] = [];
+      const def: GOAPActionDef = {
+        id: 'act',
+        cost: 1,
+        preconditions: {},
+        effects: { done: true },
+        isValid: (_entity: IEntity) => {
+          calls.push('isValid');
+          return false;
+        },
+      };
+      planner.registerAction(def);
+
+      const current = makeState({});
+      const goal = makeState({ done: true });
+
+      // The planner builds the plan (isValid is not checked at plan time).
+      const plan = planner.plan(current, goal);
+      expect(plan).not.toBeNull();
+
+      // Callers check isValid before execution — verify callback is invoked.
+      const mockEntity = {} as IEntity;
+      const valid = plan![0].isValid(mockEntity);
+      expect(calls).toEqual(['isValid']);
+      expect(valid).toBe(false);
+    });
+
+    it('execute callback is invoked on the planned action and returns its value', () => {
+      const planner = new GOAPPlanner();
+
+      const calls: string[] = [];
+      const def: GOAPActionDef = {
+        id: 'act',
+        cost: 1,
+        preconditions: {},
+        effects: { done: true },
+        execute: (_entity: IEntity, _delta: number) => {
+          calls.push('execute');
+          return ActionStatus.SUCCESS;
+        },
+      };
+      planner.registerAction(def);
+
+      const current = makeState({});
+      const goal = makeState({ done: true });
+
+      const plan = planner.plan(current, goal);
+      expect(plan).not.toBeNull();
+
+      const mockEntity = {} as IEntity;
+      const status = plan![0].execute(mockEntity, 16);
+      expect(calls).toEqual(['execute']);
+      expect(status).toBe(ActionStatus.SUCCESS);
+    });
+
+    it('mix of class-based GOAPAction and plain GOAPActionDef in the same planner', () => {
+      const planner = new GOAPPlanner();
+
+      // Class-based action
+      planner.registerAction(
+        new TestAction('classStep', 1, {}, { classReady: true }),
+      );
+
+      // Plain-object action
+      planner.registerAction({
+        id: 'defStep',
+        cost: 1,
+        preconditions: { classReady: true },
+        effects: { done: true },
+      });
+
+      const current = makeState({});
+      const goal = makeState({ done: true });
+
+      const plan = planner.plan(current, goal);
+      expect(plan).not.toBeNull();
+      expect(plan).toHaveLength(2);
+      expect(plan!.map((a) => a.id)).toEqual(['classStep', 'defStep']);
     });
   });
 

@@ -27,6 +27,21 @@ export class WorldState {
     this.properties.set(key, value);
   }
 
+  /**
+   * Create a WorldState from a plain object.
+   * Equivalent to calling set() for each key-value pair.
+   *
+   * @example
+   * const ws = WorldState.from({ hasAmmo: true, underFire: false, ammoCount: 3 });
+   */
+  static from(props: Record<string, WorldStateValue>): WorldState {
+    const state = new WorldState();
+    for (const [key, value] of Object.entries(props)) {
+      state.set(key, value);
+    }
+    return state;
+  }
+
   // -----------------------------------------------------------------------
   // Accessors
   // -----------------------------------------------------------------------

@@ -76,50 +76,58 @@ const npc = createMockEntity('guard_001');
 
 const idleHandler: IStateHandler = {
   enter(entity) {
+    const e = entity as NpcEntity;
     console.log(`  [IDLE.enter]  guard is now idle`);
-    (entity as NpcEntity).setTag('alertTimer', 0);
+    e.setTag('alertTimer', 0);
   },
   update(_entity, _delta) {
     // In a real game: look around, play idle animation, etc.
   },
   exit(entity) {
+    const e = entity as NpcEntity;
     console.log(`  [IDLE.exit]   guard is leaving idle`);
-    (entity as NpcEntity).setTag('seenEnemy', false);
+    e.setTag('seenEnemy', false);
   },
 };
 
 const alertHandler: IStateHandler = {
   enter(entity) {
+    const e = entity as NpcEntity;
     console.log(`  [ALERT.enter] guard is now alert — starting 3s timer`);
-    (entity as NpcEntity).setTag('alertTimer', 3); // seconds
+    e.setTag('alertTimer', 3); // seconds
   },
   update(entity, delta) {
-    const t = (entity as NpcEntity).getTag('alertTimer') as number;
-    (entity as NpcEntity).setTag('alertTimer', t - delta);
+    const e = entity as NpcEntity;
+    const t = e.getTag('alertTimer') as number;
+    e.setTag('alertTimer', t - delta);
   },
   exit(entity) {
+    const e = entity as NpcEntity;
     console.log(`  [ALERT.exit]  guard is leaving alert`);
-    (entity as NpcEntity).setTag('threatGone', false);
+    e.setTag('threatGone', false);
   },
 };
 
 const combatHandler: IStateHandler = {
   enter(entity) {
+    const e = entity as NpcEntity;
     console.log(`  [COMBAT.enter] guard engages — play combat_anim`);
-    (entity as NpcEntity).setTag('seenEnemy', false); // reset so we don't loop
+    e.setTag('seenEnemy', false); // reset so we don't loop
   },
   update(_entity, _delta) {
     // In a real game: attack nearest enemy, track target, etc.
   },
   exit(entity) {
+    const e = entity as NpcEntity;
     console.log(`  [COMBAT.exit]  guard leaving combat`);
-    (entity as NpcEntity).setTag('threatGone', false);
+    e.setTag('threatGone', false);
   },
 };
 
 const retreatHandler: IStateHandler = {
   enter(entity) {
-    const hp = (entity as NpcEntity).getTag('hp') as number;
+    const e = entity as NpcEntity;
+    const hp = e.getTag('hp') as number;
     console.log(`  [RETREAT.enter] guard is retreating! hp=${hp}`);
   },
   update(_entity, _delta) {
@@ -176,7 +184,7 @@ registry
       },
     ],
     // Guard: can't enter ALERT if HP is already critical
-    canEnter: (entity, _from) => ((entity as NpcEntity).getTag('hp') as number) > 20,
+    canEnter: (entity, _from) => ((entity as NpcEntity).getTag('hp') as number ?? 0) > 20,
   } satisfies IAIStateDefinition)
 
   .register('COMBAT', {

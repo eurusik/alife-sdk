@@ -32,7 +32,7 @@ import { AIStateRegistry } from '@alife-sdk/core/registry';
 import type { IStateHandler, IAIStateDefinition } from '@alife-sdk/core/ai';
 import { MemoryBank, MemoryChannel } from '@alife-sdk/core/ai';
 import { DangerManager, DangerType } from '@alife-sdk/core/ai';
-import { GOAPPlanner, GOAPAction, ActionStatus, WorldState } from '@alife-sdk/core/ai';
+import { GOAPPlanner, ActionStatus, WorldState } from '@alife-sdk/core/ai';
 import { Blackboard, Selector, Sequence, Condition, Task } from '@alife-sdk/core/ai';
 import type { IEntity } from '@alife-sdk/core/entity';
 
@@ -118,80 +118,43 @@ const dangers = new DangerManager(0.4);   // veteran threshold — not easily sp
 // SUCCESS immediately so the example stays short and readable.
 // ---------------------------------------------------------------------------
 
-// Helpers -------------------------------------------------------------------
-
-function makeState(props: Record<string, boolean | number | string>): WorldState {
-  const ws = new WorldState();
-  for (const [k, v] of Object.entries(props)) ws.set(k, v);
-  return ws;
-}
-
 // FindCover — always available; gets Kozak to safety first ----------------
-class FindCover extends GOAPAction {
-  readonly id   = 'FindCover';
-  readonly cost = 2;   // not free — costs time to move to cover
-
-  getPreconditions() { return makeState({}); }
-  getEffects()       { return makeState({ inCover: true }); }
-  isValid(_e: IEntity) { return true; }
-
-  execute(_e: IEntity, _dt: number): ActionStatus {
-    // In a real game: navigate to the nearest cover point via pathfinder.
-    return ActionStatus.SUCCESS;
-  }
-}
 
 // HealSelf — only available when carrying a medkit -----------------------
-class HealSelf extends GOAPAction {
-  readonly id   = 'HealSelf';
-  readonly cost = 1;   // cheap: just pop the medkit
-
-  getPreconditions() { return makeState({ hasMedkit: true }); }
-  getEffects()       { return makeState({ isHealthy: true }); }
-  isValid(_e: IEntity) { return true; }
-
-  execute(_e: IEntity, _dt: number): ActionStatus {
-    return ActionStatus.SUCCESS;
-  }
-}
 
 // FindMedkit — scavenge the area when Kozak has no medkit ----------------
-class FindMedkit extends GOAPAction {
-  readonly id   = 'FindMedkit';
-  readonly cost = 3;   // higher cost — takes time to search
-
-  getPreconditions() { return makeState({}); }
-  getEffects()       { return makeState({ hasMedkit: true }); }
-  isValid(_e: IEntity) { return true; }
-
-  execute(_e: IEntity, _dt: number): ActionStatus {
-    return ActionStatus.SUCCESS;
-  }
-}
 
 // Attack — the goal action; requires health, cover, and a loaded weapon --
-class Attack extends GOAPAction {
-  readonly id   = 'Attack';
-  readonly cost = 1;   // final step is cheap once all conditions are met
-
-  getPreconditions() { return makeState({ isHealthy: true, inCover: true }); }
-  getEffects()       { return makeState({ targetEliminated: true }); }
-  isValid(_e: IEntity) { return true; }
-
-  execute(_e: IEntity, _dt: number): ActionStatus {
-    return ActionStatus.SUCCESS;
-  }
-}
 
 // Planner — stateless; shared across all Kozak-type NPCs -----------------
 const planner = new GOAPPlanner();
-planner.registerAction(new FindCover());
-planner.registerAction(new HealSelf());
-planner.registerAction(new FindMedkit());
-planner.registerAction(new Attack());
+planner.registerAction({
+  id: 'FindCover',
+  cost: 2,   // not free — costs time to move to cover
+  preconditions: {},
+  effects:       { inCover: true },
+});
+planner.registerAction({
+  id: 'HealSelf',
+  cost: 1,   // cheap: just pop the medkit
+  preconditions: { hasMedkit: true },
+  effects:       { isHealthy: true },
+});
+planner.registerAction({
+  id: 'FindMedkit',
+  cost: 3,   // higher cost — takes time to search
+  preconditions: {},
+  effects:       { hasMedkit: true },
+});
+planner.registerAction({
+  id: 'Attack',
+  cost: 1,   // final step is cheap once all conditions are met
+  preconditions: { isHealthy: true, inCover: true },
+  effects:       { targetEliminated: true },
+});
 
 // Goal stays the same for every GOAP call: eliminate the target.
-const combatGoal = makeState({ targetEliminated: true });
+const combatGoal = WorldState.from({ targetEliminated: true });
 
 // ---------------------------------------------------------------------------
 // BehaviorTree + Blackboard — executes one step of the current GOAP plan
@@ -222,9 +185,9 @@ const bb = new Blackboard<CombatBB>({
 // Sequence = AND gate: both conditions must hold or the branch fails.
 const shootBranch = new Sequence<CombatBB>([
   new Condition<CombatBB>((b) => !!b.get('canSeeEnemy')),
-  new Condition<CombatBB>((b) => (b.get('ammo') ?? 0) > 0),
+  new Condition<CombatBB>((b) => b.getOr('ammo', 0) > 0),
   new Task<CombatBB>((b) => {
-    const remaining = (b.get('ammo') ?? 1) - 1;
+    const remaining = b.getOr('ammo', 1) - 1;
     b.set('ammo', remaining);
     console.log(`  [BT] Kozak fires! Ammo remaining: ${remaining}`);
     return 'success';
@@ -264,16 +227,21 @@ const WAYPOINTS = [
 
 const patrolHandler: IStateHandler = {
   enter(entity) {
+    const e = entity as KozakEntity; // widen once; IEntity doesn't expose NPC-specific fields
+    if (!e.isAlive) return;
     console.log(`  [PATROL.enter] Kozak begins patrol`);
-    (entity as KozakEntity).waypointIdx = 0;
+    e.waypointIdx = 0;
     // Clear memory on return to patrol — the threat has been neutralised.
     // This prevents the PATROL→ALERT transition from firing again immediately
     // because of the still-live bandit_north record from the previous fight.
+    // NOTE: if you add states between COMBAT and PATROL, override this in
+    // that state's enter() too — patrol.enter() is the only place that clears it.
     memory.clear();
   },
 
   update(entity, _delta) {
     const e  = entity as KozakEntity;
+    if (!e.isAlive) return;
     const wp = WAYPOINTS[e.waypointIdx % WAYPOINTS.length];
     e.setPosition(wp.x, wp.y);
     console.log(`  [PATROL.update] Kozak at waypoint ${e.waypointIdx} (${wp.x}, ${wp.y})`);
@@ -288,11 +256,13 @@ const patrolHandler: IStateHandler = {
 
 const alertHandler: IStateHandler = {
   enter(entity) {
+    const e = entity as KozakEntity;
+    if (!e.isAlive) return;
     console.log(`  [ALERT.enter] Kozak heard something — going alert`);
     // Decay memory every frame while alert so confidence naturally drops if
     // Kozak stops getting new information.
     memory.update(0); // synchronise the bank timestamp on entry
-    (entity as KozakEntity).targetEliminated = false;
+    e.targetEliminated = false;
   },
 
   update(_entity, _delta) {
@@ -316,13 +286,15 @@ const alertHandler: IStateHandler = {
 
 const combatHandler: IStateHandler = {
   enter(entity) {
+    const e = entity as KozakEntity;
+    if (!e.isAlive) return;
     console.log(`  [COMBAT.enter] Kozak engages`);
     // Move Kozak to the combat area — near the bandit's last known position.
     // In a real game the NavMesh pathfinder would route him here; we set it
     // directly so the danger-zone check works correctly in tick 6.
-    entity.setPosition(130, 110);
+    e.setPosition(130, 110);
     // Sync the BT blackboard with the entity's inventory on combat entry.
-    bb.set('ammo', (entity as KozakEntity).ammo);
+    bb.set('ammo', e.ammo);
     bb.set('inCover', false);
     bb.set('canSeeEnemy', true);    // assume line of sight on entry
   },
@@ -352,10 +324,13 @@ const combatHandler: IStateHandler = {
     //    Build world state from entity + blackboard so the planner has
     //    accurate information. Re-plan each tick so Kozak adapts if he
     //    uses his medkit or loses cover.
-    const worldState = makeState({
+    //    NOTE: re-planning every tick is fine for a single NPC in an example.
+    //    In a real game with many NPCs, cache the plan and replan every 3-5 s
+    //    or when world state changes materially — see GOAP.md "Performance notes".
+    const worldState = WorldState.from({
       isHealthy:  e.hp >= 50,         // "healthy" means above half HP
       hasMedkit:  e.hasMedkit,
-      inCover:    bb.get('inCover') ?? false,
+      inCover:    bb.getOr('inCover', false),
     });
 
     const plan = planner.plan(worldState, combatGoal);
@@ -367,9 +342,11 @@ const combatHandler: IStateHandler = {
     console.log(`  [COMBAT.update] GOAP plan: ${plan.map(a => a.id).join(' → ')}`);
 
     // 3. Tick BehaviorTree to execute the first plan step.
-    //    The BT handles moment-to-moment decisions (shoot vs. cover) within
-    //    the overall strategy the planner produced.
-    //    GOAP provides "what to do next"; BT provides "how exactly to do it".
+    //    GOAP provides strategy ("what to do next") — plan[0] is the current action.
+    //    BT provides tactics ("how exactly to do it this frame").
+    //    The contract: BT fires the weapon; we check plan[0].id === 'Attack' to
+    //    confirm the strategy also says "attack now" before marking target eliminated.
+    //    If BT succeeds on any other plan step (e.g. FindCover), we just continue.
     const btResult = combatTree.tick(bb);
     console.log(`  [COMBAT.update] BT result: ${btResult}`);
 
@@ -385,9 +362,10 @@ const combatHandler: IStateHandler = {
   },
 
   exit(entity) {
+    const e = entity as KozakEntity;
     console.log(`  [COMBAT.exit] Kozak disengages`);
     // Reset combat flags so a future COMBAT entry starts fresh.
-    (entity as KozakEntity).targetEliminated = false;
+    e.targetEliminated = false;
   },
 };
 

@@ -1,6 +1,47 @@
-import { getRankMultiplier, RANK_MULTIPLIERS, isNPCRecordAlive } from './INPCRecord';
-import type { INPCRecord } from './INPCRecord';
+import { getRankMultiplier, RANK_MULTIPLIERS, isNPCRecordAlive, createDefaultBehaviorConfig } from './INPCRecord';
+import type { INPCRecord, INPCBehaviorConfig } from './INPCRecord';
 import type { IEntityQuery } from '@alife-sdk/core';
+
+describe('createDefaultBehaviorConfig', () => {
+  it('returns all 5 defaults when called with no arguments', () => {
+    const config = createDefaultBehaviorConfig();
+    expect(config.retreatThreshold).toBe(0.1);
+    expect(config.panicThreshold).toBe(-0.7);
+    expect(config.searchIntervalMs).toBe(5_000);
+    expect(config.dangerTolerance).toBe(3);
+    expect(config.aggression).toBe(0.5);
+  });
+
+  it('overrides only aggression, leaving the rest as defaults', () => {
+    const config = createDefaultBehaviorConfig({ aggression: 0.9 });
+    expect(config.aggression).toBe(0.9);
+    expect(config.retreatThreshold).toBe(0.1);
+    expect(config.panicThreshold).toBe(-0.7);
+    expect(config.searchIntervalMs).toBe(5_000);
+    expect(config.dangerTolerance).toBe(3);
+  });
+
+  it('overrides all 5 fields simultaneously', () => {
+    const config = createDefaultBehaviorConfig({
+      retreatThreshold: 0.3,
+      panicThreshold: -0.5,
+      searchIntervalMs: 2_000,
+      dangerTolerance: 5,
+      aggression: 0.8,
+    });
+    expect(config.retreatThreshold).toBe(0.3);
+    expect(config.panicThreshold).toBe(-0.5);
+    expect(config.searchIntervalMs).toBe(2_000);
+    expect(config.dangerTolerance).toBe(5);
+    expect(config.aggression).toBe(0.8);
+  });
+
+  it('return type satisfies INPCBehaviorConfig', () => {
+    // TypeScript compile-time check: assignment must not error.
+    const config: INPCBehaviorConfig = createDefaultBehaviorConfig();
+    expect(config).toBeDefined();
+  });
+});
 
 describe('getRankMultiplier', () => {
   it('returns correct multiplier for ranks 1-5', () => {

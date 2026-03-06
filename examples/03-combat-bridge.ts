@@ -28,13 +28,11 @@
 // Imports
 // ---------------------------------------------------------------------------
 
-import { ALifeKernel, Ports, FactionBuilder, ALifeEvents } from '@alife-sdk/core';
-import type {
-  IEntityAdapter,
-  IEntityFactory,
-  IPlayerPositionProvider,
-  Vec2,
+import {
+  ALifeKernel, Ports, FactionBuilder, ALifeEvents,
+  createNoOpEntityAdapter, createNoOpEntityFactory,
 } from '@alife-sdk/core';
+import type { Vec2 } from '@alife-sdk/core';
 import { FactionsPlugin } from '@alife-sdk/core';
 import { SimulationPlugin, SimulationPorts } from '@alife-sdk/simulation';
 import type { ISimulationBridge } from '@alife-sdk/simulation';
@@ -117,49 +115,16 @@ class InMemoryBridge implements ISimulationBridge {
 }
 
 // ---------------------------------------------------------------------------
-// Step 2: Minimal port stubs (same as examples 01/02)
-// ---------------------------------------------------------------------------
-
-const stubEntityAdapter: IEntityAdapter = {
-  getPosition:       (_id)         => null,
-  isAlive:           (_id)         => true,
-  hasComponent:      (_id, _name)  => false,
-  getComponentValue: (_id, _name)  => null,
-  setPosition:       (_id, _pos)   => {},
-  setActive:         (_id, _v)     => {},
-  setVisible:        (_id, _v)     => {},
-  setVelocity:       (_id, _v)     => {},
-  getVelocity:       (_id)         => ({ x: 0, y: 0 }),
-  setRotation:       (_id, _v)     => {},
-  teleport:          (_id, _pos)   => {},
-  disablePhysics:    (_id)         => {},
-  setAlpha:          (_id, _v)     => {},
-  playAnimation:     (_id, _key)   => {},
-  hasAnimation:      (_id, _key)   => false,
-};
-
-let _counter = 0;
-const stubEntityFactory: IEntityFactory = {
-  createNPC:     (_req) => `npc_${++_counter}`,
-  createMonster: (_req) => `monster_${++_counter}`,
-  destroyEntity: (_id)  => {},
-};
-
-const stubPlayerPosition: IPlayerPositionProvider = {
-  // Player is far away — all NPCs stay offline, driven by the tick pipeline.
-  getPlayerPosition: (): Vec2 => ({ x: 9999, y: 9999 }),
-};
-
-// ---------------------------------------------------------------------------
-// Step 3: Build the kernel with the InMemoryBridge
+// Step 2: Build the kernel with the InMemoryBridge
 // ---------------------------------------------------------------------------
 
 const bridge = new InMemoryBridge();
 
 const kernel = new ALifeKernel();
-kernel.provide(Ports.EntityAdapter,  stubEntityAdapter);
-kernel.provide(Ports.EntityFactory,  stubEntityFactory);
-kernel.provide(Ports.PlayerPosition, stubPlayerPosition);
+kernel.provide(Ports.EntityAdapter,  createNoOpEntityAdapter());
+kernel.provide(Ports.EntityFactory,  createNoOpEntityFactory());
+// Player is far away — all NPCs stay offline, driven by the tick pipeline.
+kernel.provide(Ports.PlayerPosition, { getPlayerPosition: (): Vec2 => ({ x: 9999, y: 9999 }) });
 kernel.provide(SimulationPorts.SimulationBridge, bridge); // ← real bridge, not noOp
 
 // ---------------------------------------------------------------------------
@@ -325,14 +290,8 @@ for (let step = 0; step < MAX_TICKS; step++) {
   }
 
   // Early exit: check if one faction has no surviving NPCs.
-  const stalkerAlive = npcs.filter(s => s.factionId === 'stalker').some(s => {
-    const r = sim.getNPCRecord(s.entityId);
-    return r != null && r.currentHp > 0;
-  });
-  const banditAlive = npcs.filter(s => s.factionId === 'bandit').some(s => {
-    const r = sim.getNPCRecord(s.entityId);
-    return r != null && r.currentHp > 0;
-  });
+  const stalkerAlive = npcs.some(s => s.factionId === 'stalker' && (sim.getNPCRecord(s.entityId)?.currentHp ?? 0) > 0);
+  const banditAlive  = npcs.some(s => s.factionId === 'bandit'  && (sim.getNPCRecord(s.entityId)?.currentHp ?? 0) > 0);
 
   if (!stalkerAlive || !banditAlive) {
     console.log('');

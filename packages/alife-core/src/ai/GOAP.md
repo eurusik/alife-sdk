@@ -5,6 +5,7 @@ sequence of actions that transforms the current world state into a desired goal.
 
 ```ts
 import { GOAPPlanner, GOAPAction, ActionStatus, WorldState } from '@alife-sdk/core/ai';
+import type { GOAPActionDef } from '@alife-sdk/core/ai';
 ```
 
 ---
@@ -67,12 +68,23 @@ import { WorldState } from '@alife-sdk/core/ai';
 
 ### Building a state
 
+Use `WorldState.from()` to construct a state from a plain record — no chained `.set()` calls needed:
+
 ```ts
-const state = new WorldState();
-state.set('hasAmmo',  true);
-state.set('inCover',  false);
-state.set('ammoCount', 5);   // numeric values are supported
-state.set('stance',  'prone'); // string values too
+// Preferred — compact factory
+const state = WorldState.from({
+  hasAmmo:   true,
+  inCover:   false,
+  ammoCount: 5,       // numeric values are supported
+  stance:    'prone', // string values too
+});
+
+// Equivalent — manual set()
+const state2 = new WorldState();
+state2.set('hasAmmo',  true);
+state2.set('inCover',  false);
+state2.set('ammoCount', 5);
+state2.set('stance',  'prone');
 ```
 
 ### `state.get(key)` / `state.has(key)`
@@ -88,12 +100,8 @@ Returns `true` if every property in `goal` has the same value in `state`.
 Properties in `state` that are not in `goal` are irrelevant.
 
 ```ts
-const current = new WorldState();
-current.set('hasAmmo', true);
-current.set('inCover', false);
-
-const goal = new WorldState();
-goal.set('hasAmmo', true);
+const current = WorldState.from({ hasAmmo: true, inCover: false });
+const goal    = WorldState.from({ hasAmmo: true });
 
 current.satisfies(goal); // true — inCover is not part of the goal
 ```
@@ -117,9 +125,35 @@ heuristic by the planner.
 
 ---
 
+## `GOAPActionDef` — plain-object actions (preferred)
+
+For most actions you don't need a class. Pass a plain object to `registerAction()`:
+
+```ts
+planner.registerAction({
+  id:   'take_cover',
+  cost: 1,
+  preconditions: {},
+  effects:       { inCover: true },
+  isValid:  (entity) => entity.metadata?.get('coverNearby') === true,
+  execute:  (_entity, _delta) => 'success',
+});
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | yes | Unique name |
+| `cost` | yes | Planner cost — lower = preferred |
+| `preconditions` | yes | `Record<string, WorldStateValue>` — must all hold before action runs |
+| `effects` | yes | `Record<string, WorldStateValue>` — produced when action succeeds |
+| `isValid` | no | `(entity) => boolean` — real-time guard |
+| `execute` | no | `(entity, delta) => ActionStatus` |
+
+---
+
 ## `GOAPAction`
 
-Abstract base class. Subclass it for each action your NPC can take.
+Abstract base class for actions requiring complex multi-frame logic. Subclass when a plain `GOAPActionDef` isn't enough.
 
 ```ts
 import { GOAPAction, ActionStatus } from '@alife-sdk/core/ai';
@@ -202,14 +236,19 @@ const planner = new GOAPPlanner(maxDepth?: number);
 
 ### `planner.registerAction(action)`
 
-Add an action to the planner's repertoire. Call once per action type, not once
-per NPC.
+Add an action to the planner's repertoire. Accepts either a plain `GOAPActionDef` object
+or a `GOAPAction` class instance. Call once per action type, not once per NPC.
 
 ```ts
-planner.registerAction(new FindAmmoAction());
-planner.registerAction(new TakeCoverAction());
+// Plain-object (preferred for simple actions)
+planner.registerAction({ id: 'find_ammo', cost: 3, preconditions: {}, effects: { hasAmmo: true } });
+planner.registerAction({ id: 'take_cover', cost: 1, preconditions: {}, effects: { inCover: true } });
+
+// Class instance (for complex multi-frame logic)
 planner.registerAction(new ShootAction());
 planner.registerAction(new HealSelfAction());
+
+// Both styles work together in the same planner
 ```
 
 ### `planner.plan(currentState, goal, maxDepth?)`
@@ -243,9 +282,9 @@ import { AIStateRegistry } from '@alife-sdk/core/registry';
 import { GOAPPlanner, ActionStatus, WorldState } from '@alife-sdk/core/ai';
 
 const planner = new GOAPPlanner();
-planner.registerAction(new FindAmmoAction());
-planner.registerAction(new TakeCoverAction());
-planner.registerAction(new ShootAction());
+planner.registerAction({ id: 'find_ammo', cost: 3, preconditions: {}, effects: { hasAmmo: true } });
+planner.registerAction({ id: 'take_cover', cost: 1, preconditions: {}, effects: { inCover: true } });
+planner.registerAction(new ShootAction()); // complex multi-frame action
 
 let currentPlan: GOAPAction[] | null = null;
 let planIndex = 0;
@@ -316,77 +355,57 @@ const goapHandler: IStateHandler = {
 import { GOAPPlanner, GOAPAction, ActionStatus, WorldState } from '@alife-sdk/core/ai';
 import type { IEntity } from '@alife-sdk/core/entity';
 
-// --- Actions ---
+// --- Planner setup (once per archetype) ---
 
-class FindAmmo extends GOAPAction {
-  readonly id = 'find_ammo';
-  readonly cost = 3;
+const elitePlanner = new GOAPPlanner(8); // max plan depth 8
 
-  getPreconditions() { return new WorldState(); }
+// Simple actions — plain-object style (preferred)
+elitePlanner.registerAction({
+  id:   'find_ammo',
+  cost: 3,
+  preconditions: {},
+  effects:       { hasAmmo: true },
+  isValid: (e) => e.getTag('ammoPickupNearby') === true,
+});
 
-  getEffects() {
-    const e = new WorldState();
-    e.set('hasAmmo', true);
-    return e;
-  }
+elitePlanner.registerAction({
+  id:   'take_cover',
+  cost: 1,
+  preconditions: {},
+  effects:       { inCover: true },
+  isValid: (e) => e.getTag('coverNearby') === true,
+});
 
-  isValid(e: IEntity) { return e.getTag('ammoPickupNearby') === true; }
-
-  execute(e: IEntity, delta: number) {
-    const pickup = e.getTag('ammoPickup') as { x: number; y: number };
-    if (Math.hypot(pickup.x - e.x, pickup.y - e.y) < 15) return ActionStatus.SUCCESS;
-    e.moveToward(pickup.x, pickup.y, delta);
-    return ActionStatus.RUNNING;
-  }
-}
-
-class Shoot extends GOAPAction {
+// Complex multi-frame action — class style
+class ShootAction extends GOAPAction {
   readonly id = 'shoot';
   readonly cost = 1;
 
-  getPreconditions() {
-    const p = new WorldState();
-    p.set('hasAmmo', true);
-    p.set('inCover', true);
-    return p;
-  }
-
-  getEffects() {
-    const e = new WorldState();
-    e.set('enemyDead', true);
-    return e;
-  }
-
+  getPreconditions() { return WorldState.from({ hasAmmo: true, inCover: true }); }
+  getEffects()       { return WorldState.from({ enemyDead: true }); }
   isValid(e: IEntity) { return e.getTag('targetVisible') === true; }
 
-  execute(e: IEntity, _delta: number) {
+  execute(e: IEntity, _delta: number): ActionStatus {
     e.fireWeapon();
     return e.getTag('enemyDead') ? ActionStatus.SUCCESS : ActionStatus.RUNNING;
   }
 }
 
-// --- Planner setup (once per archetype) ---
-
-const elitePlanner = new GOAPPlanner(8); // max plan depth 8
-elitePlanner.registerAction(new FindAmmo());
-elitePlanner.registerAction(new TakeCoverAction());
-elitePlanner.registerAction(new Shoot());
+elitePlanner.registerAction(new ShootAction());
 
 // --- Per-NPC use ---
 
 function buildCurrentState(npc: MyNPC): WorldState {
-  const s = new WorldState();
-  s.set('hasAmmo',  npc.ammo > 0);
-  s.set('inCover',  npc.isInCover);
-  s.set('enemyDead', npc.target === null);
-  return s;
+  return WorldState.from({
+    hasAmmo:   npc.ammo > 0,
+    inCover:   npc.isInCover,
+    enemyDead: npc.target === null,
+  });
 }
 
-const goal = new WorldState();
-goal.set('enemyDead', true);
-
+const goal = WorldState.from({ enemyDead: true });
 const plan = elitePlanner.plan(buildCurrentState(npc), goal);
-// plan = [FindAmmo, TakeCoverAction, Shoot]
+// plan = ['find_ammo', 'take_cover', ShootAction]
 ```
 
 ---

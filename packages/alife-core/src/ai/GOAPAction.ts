@@ -13,7 +13,7 @@
  *   3. abort()    -- called when the action is interrupted (default no-op)
  */
 
-import type { WorldState } from './WorldState';
+import type { WorldState, WorldStateValue } from './WorldState';
 import type { IEntity } from '../entity/IEntity';
 
 // ---------------------------------------------------------------------------
@@ -61,4 +61,29 @@ export abstract class GOAPAction {
   abort(_entity: IEntity): void {
     // Default no-op. Concrete actions override for cleanup.
   }
+}
+
+// ---------------------------------------------------------------------------
+// Plain-object action descriptor
+// ---------------------------------------------------------------------------
+
+/**
+ * Plain-object descriptor for a GOAP action.
+ * Alternative to subclassing {@link GOAPAction} for simple cases.
+ *
+ * @example
+ * planner.registerAction({
+ *   id: 'TakePosition',
+ *   cost: 1,
+ *   preconditions: { inPosition: false },
+ *   effects:       { inPosition: true },
+ * });
+ */
+export interface GOAPActionDef {
+  readonly id: string;
+  readonly cost: number;
+  readonly preconditions: Record<string, WorldStateValue>;
+  readonly effects:       Record<string, WorldStateValue>;
+  isValid?(entity: IEntity): boolean;
+  execute?(entity: IEntity, delta: number): ActionStatus;
 }

@@ -60,6 +60,12 @@ export class Blackboard<T extends Record<string, unknown> = Record<string, unkno
     return this.data.get(key) as T[K] | undefined;
   }
 
+  /** Return the value for `key`, or `defaultValue` if the key is unset. */
+  getOr<K extends keyof T>(key: K, defaultValue: NonNullable<T[K]>): NonNullable<T[K]> {
+    const v = this.data.get(key);
+    return (v !== undefined && v !== null ? v : defaultValue) as NonNullable<T[K]>;
+  }
+
   set<K extends keyof T>(key: K, value: T[K]): void {
     this.data.set(key, value);
   }

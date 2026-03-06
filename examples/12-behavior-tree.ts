@@ -82,18 +82,16 @@ const bb = new Blackboard<NpcBB>({
 
 // --- Perception conditions ---
 const canSeeTarget  = new Condition<NpcBB>((b) => !!b.get('canSeeTarget'));
-const hasAmmo       = new Condition<NpcBB>((b) => (b.get('ammo') ?? 0) > 0);
-const isArmed       = new Condition<NpcBB>((b) => (b.get('ammo') ?? 0) > 0);
+const hasAmmo       = new Condition<NpcBB>((b) => b.getOr('ammo', 0) > 0);
+const isArmed       = new Condition<NpcBB>((b) => b.getOr('ammo', 0) > 0);
 const isNotInCover  = new Inverter(new Condition<NpcBB>((b) => !!b.get('inCover')));
 const isHealthy     = new Condition<NpcBB>((b) => {
-  const hp = b.get('hp') ?? 0;
-  const max = b.get('maxHp') ?? 100;
-  return hp / max >= 0.5;
+  return b.getOr('hp', 0) / b.getOr('maxHp', 100) >= 0.5;
 });
 
 // --- Action tasks ---
 const shootAtTarget = new Task<NpcBB>((b) => {
-  const ammo = (b.get('ammo') ?? 0) - 1;
+  const ammo = b.getOr('ammo', 0) - 1;
   b.set('ammo', ammo);
   console.log(`    [Task] Shoot! Ammo remaining: ${ammo}`);
   return 'success';
@@ -107,7 +105,7 @@ const moveToCover = new Task<NpcBB>((b) => {
 
 const useMedkit = new Task<NpcBB>((b) => {
   if (!b.get('hasMedkit')) return 'failure';
-  b.set('hp', b.get('maxHp') ?? 100);
+  b.set('hp', b.getOr('maxHp', 100));
   b.set('hasMedkit', false);
   console.log(`    [Task] Used medkit — HP restored to ${b.get('hp')}`);
   return 'success';
@@ -120,19 +118,19 @@ const reloadWeapon = new Task<NpcBB>((b) => {
 });
 
 const moveToWaypoint = new Task<NpcBB>((b) => {
-  const idx = b.get('waypointIdx') ?? 0;
+  const idx = b.getOr('waypointIdx', 0);
   console.log(`    [Task] Moving to waypoint ${idx}...`);
   return 'running';
 });
 
 const waitAtWaypoint = new Task<NpcBB>((b) => {
-  const idx = b.get('waypointIdx') ?? 0;
+  const idx = b.getOr('waypointIdx', 0);
   console.log(`    [Task] Waiting at waypoint ${idx}`);
   return 'success';
 });
 
 const advanceWaypoint = new Task<NpcBB>((b) => {
-  const next = ((b.get('waypointIdx') ?? 0) + 1) % (b.get('waypointCount') ?? 1);
+  const next = (b.getOr('waypointIdx', 0) + 1) % b.getOr('waypointCount', 1);
   b.set('waypointIdx', next);
   console.log(`    [Task] Advanced to waypoint ${next}`);
   return 'success';
@@ -301,7 +299,7 @@ console.log('');
 type ScoutBB = { scanCooldown: number; patrolDone: boolean };
 
 const scanTask = new Task<ScoutBB>((b) => {
-  const cd = (b.get('scanCooldown') ?? 0) - 16;
+  const cd = b.getOr('scanCooldown', 0) - 16;
   b.set('scanCooldown', Math.max(0, cd));
   if (cd <= 0) {
     console.log(`    [Parallel] Scan complete — area clear`);

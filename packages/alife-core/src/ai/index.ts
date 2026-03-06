@@ -6,7 +6,9 @@ export type { MemoryRecord, IMemoryBankConfig, IMemoryInput } from './MemorySyst
 export { DangerManager, DangerType } from './DangerManager';
 export type { IDangerEntry } from './DangerManager';
 export { WorldState } from './WorldState';
+export type { WorldStateValue } from './WorldState';
 export { GOAPPlanner } from './GOAPPlanner';
 export { GOAPAction, ActionStatus } from './GOAPAction';
+export type { GOAPActionDef } from './GOAPAction';
 export { Blackboard, Task, Condition, Sequence, Selector, Parallel, Inverter, AlwaysSucceed, AlwaysFail, Repeater, Cooldown } from './BehaviorTree';
 export type { TaskStatus, ITreeNode, ParallelPolicy } from './BehaviorTree';

@@ -60,6 +60,24 @@ without touching any SDK code.
 > `new ALifeKernel().init()` works with zero configuration, which is
 > ideal for offline simulation, persistence, and unit tests.
 
+### No-op factory helpers
+
+For Node.js examples, tests, and rapid prototyping you can also call the
+factories explicitly — useful when you need to provide the port but have no
+engine adapter ready yet:
+
+```ts
+import {
+  createNoOpEntityAdapter,   // getPosition→null, isAlive→true, all writes→no-op
+  createNoOpEntityFactory,   // createNPC→"noop-npc-<n>", createMonster→"noop-monster-<n>", destroyEntity→no-op
+  createNoOpPlayerPosition,  // getPlayerPosition→{x:0,y:0}
+} from '@alife-sdk/core';
+
+kernel.provide(Ports.EntityAdapter,  createNoOpEntityAdapter());
+kernel.provide(Ports.EntityFactory,  createNoOpEntityFactory());
+kernel.provide(Ports.PlayerPosition, createNoOpPlayerPosition());
+```
+
 ---
 
 ## `IEntityAdapter`
