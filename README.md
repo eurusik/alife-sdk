@@ -9,7 +9,19 @@
 
 A modular TypeScript SDK for building living game worlds: offline NPC simulation, online combat AI, factions, social systems, economy, hazards, and save/load.
 
+Inspired by the emergent A-Life simulation systems popularized by the S.T.A.L.K.E.R. series.
+
+Features:
+
+- GOAP-driven decision making
+- Autonomous NPCs with online/offline handoff
+- Living world simulation for off-screen progression
+- Faction, social, economy, and hazard systems
+- Emergent gameplay through modular runtime packages
+
 Works with **Phaser 3** out of the box and stays engine-agnostic everywhere else through ports. ESM-only. Zero external dependencies in core.
+
+Independent project. Not affiliated with or endorsed by GSC Game World.
 
 ---
 

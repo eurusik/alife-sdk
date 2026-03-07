@@ -5,7 +5,7 @@ export const SEO_REPOSITORY_URL = "https://github.com/eurusik/alife-sdk";
 export const SEO_DEFAULT_SITE_URL = "https://www.alife-sdk.org";
 export const SEO_DEFAULT_IMAGE_PATH = "/og-image.svg";
 export const SEO_DEFAULT_DESCRIPTION =
-  "Engine-agnostic TypeScript SDK for living game worlds with offline NPC simulation, online behavior, Phaser integration, and modular package docs.";
+  "Engine-agnostic TypeScript A-Life SDK for living game worlds, inspired by the simulation style popularized by the S.T.A.L.K.E.R. series, with offline NPC simulation, online behavior, Phaser integration, and modular package docs.";
 export const SEO_DEFAULT_ROBOTS = "index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1";
 
 type JsonLdValue = Record<string, unknown> | Array<Record<string, unknown>>;
@@ -111,6 +111,7 @@ export const buildHomeSeo = (path: string): SeoMetadata => ({
     "A-Life SDK",
     "living world simulation",
     "NPC AI",
+    "STALKER-inspired A-Life",
     "TypeScript game SDK",
     "Phaser 3 integration",
     "game engine ports",

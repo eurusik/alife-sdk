@@ -1,37 +1,25 @@
 # Quick Start
 
-This page helps you do two things:
-
-- help you decide whether the SDK fits your game at all
-- run one small living-world check before you scale the integration
+Use this page to decide whether A-Life SDK fits your game and to verify one minimal living-world loop before full integration.
 
 ## Start here
 
-Choose the path that matches your situation right now:
+Choose one route:
 
-1. If you are still qualifying the SDK, open [Is This For Me?](/guides/is-this-for-me)
-2. If you want the smallest evaluation flow, follow **Path A: Evaluate the SDK first**
-3. If you already know you are integrating, jump to **Path B: Phaser 3** or **Path C: Custom engine**
+1. Still evaluating the SDK: open [Is This For Me?](/guides/is-this-for-me)
+2. Need the smallest proof first: follow **Path A: Evaluate the runtime**
+3. Integrating into Phaser 3: jump to **Path B: Phaser 3**
+4. Integrating into another engine: jump to **Path C: Custom engine**
 
-## Path A: Evaluate the SDK first
+## Path A: Evaluate the runtime
 
-Start here if you want to evaluate the runtime before wiring scene code.
+Use this route to prove one living-world loop before wiring scene code.
 
-You are not trying to finish the whole integration here. You are trying to answer one question:
+### Goal
 
-**Can this runtime produce one working living-world loop before I wire my game around it?**
+Confirm that the runtime can advance one world state update cleanly enough to justify deeper integration.
 
-### What you should verify
-
-Before you touch scene code, you should be able to confirm that:
-
-- one terrain exists in world state
-- one NPC registers without setup errors
-- one tick advances the runtime
-- one event appears in observable output
-- the SDK model is clear enough to wire into your scene
-
-### Run the headless check
+### Run
 
 ```bash
 pnpm install
@@ -44,29 +32,34 @@ Then open:
 - [`examples/18-full-npc.ts`](https://github.com/eurusik/alife-sdk/blob/main/examples/18-full-npc.ts)
 - [Examples guide](/examples/)
 
-### What to look for
+### Verify
 
-- the script runs without bootstrapping errors
-- you can follow the NPC lifecycle in code and console output
-- the event stream is detailed enough to debug runtime state
-- the package split makes sense for your integration
+- one terrain exists in world state
+- one NPC registers without setup errors
+- one tick advances the runtime
+- at least one kernel event appears in the console or event log
+- you understand which runtime ports your scene will need to provide
 
-If this is still too much at once, step down to [First Living World](/guides/first-living-world) and verify one smaller in-memory loop first.
+### Next
+
+If this route still feels too large, step down to [First Living World](/guides/first-living-world) and verify the smallest in-memory loop first.
 
 ## Path B: I use Phaser 3
 
-Use this path when you already know the SDK fits and you want a minimal path into a scene.
+Use this route when you already know the SDK fits and you want the smallest scene-level integration.
 
-### Install the minimum stack
+### Goal
+
+Boot one Phaser scene where the kernel starts, one NPC is registered, and one visible runtime signal confirms the scene is alive.
+
+### Install
 
 ```bash
 npm install @alife-sdk/core @alife-sdk/simulation @alife-sdk/ai @alife-sdk/social @alife-sdk/phaser
 npm install phaser@^3.60.0
 ```
 
-### First scene goal
-
-Your first scene only needs to confirm:
+### Verify
 
 - `kernel.init()` succeeds
 - `kernel.start()` succeeds
@@ -105,13 +98,19 @@ kernel.init();
 kernel.start();
 ```
 
+### Next
+
 Then move directly to [Phaser Integration](/guides/phaser-integration).
 
 ## Path C: I use a custom engine
 
-Use this route when Phaser is not part of your stack and you want a direct engine boundary.
+Use this route when Phaser is not part of your stack and you want a direct engine boundary through ports.
 
-### Start with the smallest package set
+### Goal
+
+Prove the runtime headlessly first, then map the required ports to your engine with the smallest possible surface area.
+
+### Install
 
 ```bash
 npm install @alife-sdk/core @alife-sdk/simulation
@@ -119,15 +118,15 @@ npm install @alife-sdk/core @alife-sdk/simulation
 
 Add `@alife-sdk/ai` only after the online/offline loop is already stable.
 
-### Prove the runtime before the ports
+### Run
 
-A low-risk custom-engine flow is:
+A low-risk custom-engine sequence is:
 
 1. run the headless evaluation path first
 2. verify one in-memory world with [First Living World](/guides/first-living-world)
 3. only then implement your real ports and bridges
 
-### Minimal engine boundary
+### Minimal setup
 
 ```ts
 import { ALifeKernel, Ports } from "@alife-sdk/core";
@@ -146,11 +145,20 @@ function update(deltaMs: number): void {
 }
 ```
 
+### Verify
+
+- the kernel starts without validation errors
+- the required runtime ports are clear enough to map to your engine
+- your update loop can call `kernel.update(deltaMs)` reliably
+- you know where online/offline ownership will be decided
+
+### Next
+
 Then open [Custom Engine](/guides/custom-engine) for the real contract details.
 
 ## Before you add more systems
 
-Stop and verify these signals first:
+Before adding hazards, social, economy, or save/load, verify these signals:
 
 - the kernel starts without validation errors
 - one terrain exists
@@ -160,11 +168,13 @@ Stop and verify these signals first:
 
 If one of these is missing, do not add hazards, social, economy, or save/load yet.
 
-## If you are still unsure
+## Next
 
-- Need a fit check first: [Is This For Me?](/guides/is-this-for-me)
+- Evaluating fit: [Is This For Me?](/guides/is-this-for-me)
 - Need package selection help: [Choose Your Stack](/guides/choose-your-stack)
-- Need the smallest runtime check: [First Living World](/guides/first-living-world)
+- Need the smallest runtime proof: [First Living World](/guides/first-living-world)
+- Using Phaser 3: [Phaser Integration](/guides/phaser-integration)
+- Using another engine: [Custom Engine](/guides/custom-engine)
 - Need symptom-based debugging: [Troubleshooting](/guides/troubleshooting)
 
 ## Docs commands

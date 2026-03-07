@@ -282,8 +282,8 @@ const Index = () => {
                 </SheetClose>
               </div>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                Living-world SDK for 2D JavaScript and TypeScript games with off-screen simulation, online NPC
-                behavior, and ports-based integration for Phaser or custom engines.
+                Living-world SDK for 2D JavaScript and TypeScript games, inspired by the emergent A-Life simulation
+                systems popularized by the S.T.A.L.K.E.R. series.
               </p>
             </SheetHeader>
 
@@ -346,12 +346,14 @@ const Index = () => {
 
             <div className="relative min-w-0 p-6 md:p-8 lg:flex lg:h-full lg:items-center xl:p-10">
               <div className="min-w-0 max-w-[1120px]">
-                <p className="landing-kicker">Engine-agnostic SDK for 2D games</p>
+                <p className="landing-kicker">Engine-agnostic A-Life SDK for 2D games</p>
                 <h1 className="mt-4 max-w-[16ch] font-display text-4xl font-bold leading-[0.95] tracking-wide text-foreground md:max-w-[18ch] md:text-6xl xl:max-w-[20ch] xl:text-7xl">
-                  A-Life for 2D games: offline simulation, online NPC behavior.
+                  Build living game worlds in TypeScript.
                 </h1>
                 <p className="mt-5 max-w-[62ch] text-base leading-8 text-muted-foreground md:max-w-[70ch] md:text-lg md:leading-9 xl:max-w-[78ch]">
-                  Simulate the world off-screen and drive nearby NPCs in real time.
+                  An A-Life SDK inspired by the emergent simulation systems popularized by the S.T.A.L.K.E.R. series.
+                  Simulate the world off-screen and drive nearby NPCs in real time with modular packages for AI,
+                  simulation, factions, hazards, economy, and persistence.
                 </p>
 
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -383,6 +385,10 @@ const Index = () => {
                     </span>
                   ))}
                 </div>
+
+                <p className="mt-5 max-w-[74ch] text-[11px] font-mono uppercase tracking-[0.14em] text-muted-foreground/80">
+                  Independent project. Not affiliated with or endorsed by GSC Game World.
+                </p>
               </div>
             </div>
           </div>
