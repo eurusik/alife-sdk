@@ -108,19 +108,6 @@ Add packages only when you need their runtime:
 | [`@alife-sdk/persistence`](packages/alife-persistence/README.md) | Save/load pipeline — pluggable storage backends (localStorage, file, memory) |
 | [`@alife-sdk/phaser`](packages/alife-phaser/README.md) | Phaser 3 adapter layer — ready-to-use port implementations, `createPhaserKernel` factory |
 
-```text
-@alife-sdk/core
-    ├── @alife-sdk/simulation
-    ├── @alife-sdk/ai
-    ├── @alife-sdk/social
-    ├── @alife-sdk/economy
-    ├── @alife-sdk/hazards
-    ├── @alife-sdk/persistence
-    └── @alife-sdk/phaser
-```
-
-Each package is independently installable.
-
 ---
 
 ## Installation
