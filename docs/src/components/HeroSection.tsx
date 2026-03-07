@@ -25,9 +25,6 @@ export function HeroSection() {
           popularized by the S.T.A.L.K.E.R. series. Explore Quick Start, Concepts, Guides, Packages, Examples, and
           the Glossary from this repository.
         </p>
-        <p className="mt-3 text-xs font-mono leading-relaxed uppercase tracking-[0.14em] text-muted-foreground/80">
-          Independent project. Not affiliated with or endorsed by GSC Game World.
-        </p>
       </div>
 
       <a

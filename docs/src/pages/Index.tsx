@@ -348,7 +348,7 @@ const Index = () => {
               <div className="min-w-0 max-w-[1120px]">
                 <p className="landing-kicker">Engine-agnostic A-Life SDK for 2D games</p>
                 <h1 className="mt-4 max-w-[16ch] font-display text-4xl font-bold leading-[0.95] tracking-wide text-foreground md:max-w-[18ch] md:text-6xl xl:max-w-[20ch] xl:text-7xl">
-                  Build living game worlds in TypeScript.
+                  A-Life for 2D games: offline simulation, online NPC behavior.
                 </h1>
                 <p className="mt-5 max-w-[62ch] text-base leading-8 text-muted-foreground md:max-w-[70ch] md:text-lg md:leading-9 xl:max-w-[78ch]">
                   An A-Life SDK inspired by the emergent simulation systems popularized by the S.T.A.L.K.E.R. series.
@@ -385,10 +385,6 @@ const Index = () => {
                     </span>
                   ))}
                 </div>
-
-                <p className="mt-5 max-w-[74ch] text-[11px] font-mono uppercase tracking-[0.14em] text-muted-foreground/80">
-                  Independent project. Not affiliated with or endorsed by GSC Game World.
-                </p>
               </div>
             </div>
           </div>
