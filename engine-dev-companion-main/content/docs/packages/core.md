@@ -8,27 +8,16 @@ This is the foundation package. Every other package builds on top of it.
 npm install @alife-sdk/core
 ```
 
-## What it gives you
+## Add it when
 
-| Area | What you get |
-|---|---|
-| Runtime shell | `ALifeKernel`, lifecycle, plugin host |
-| Engine boundary | ports, tokens, adapter contracts |
-| Shared world model | factions, smart terrains, events, time, navigation |
-| AI primitives | state machine, memory bank, GOAP planner, danger tracking |
-| Infrastructure | registries, schema helpers, logger, diagnostics |
+- you need the kernel and typed event system
+- you want factions, smart terrains, or ports before adding heavier runtime layers
+- you are building on a custom engine and want engine-agnostic contracts
 
-## Use it when
-
-- you want the kernel and event system
-- you need factions, smart terrains, or typed events even before adding simulation
-- you want to build on a custom engine without dragging in renderer-specific code
-- you want AI utilities like FSM or GOAP even outside the full living-world stack
-
-## A minimal kernel setup
+## Minimal kernel setup
 
 ```ts
-import { ALifeKernel, Ports } from '@alife-sdk/core';
+import { ALifeKernel, Ports } from "@alife-sdk/core";
 
 const kernel = new ALifeKernel();
 
@@ -44,61 +33,38 @@ function update(deltaMs: number): void {
 }
 ```
 
+## Start here
+
+1. [Core Reference](/docs/reference/core/index)
+2. [Kernel](/docs/concepts/kernel)
+3. [Ports](/docs/concepts/ports)
+
+## Most used
+
+- [Core Events Reference](/docs/reference/core/events)
+- [Core Plugins Reference](/docs/reference/core/plugins)
+- [Core Entities Reference](/docs/reference/core/entities)
+
+## Debug this package
+
+- Event delivery feels wrong -> [Core Events Reference](/docs/reference/core/events)
+- Runtime ownership is blurry -> [Core Plugins Reference](/docs/reference/core/plugins)
+- Scene objects do not map cleanly into the SDK -> [Core Entities Reference](/docs/reference/core/entities)
+
 ## What you usually add next
 
 | If you need... | Add... |
 |---|---|
-| Off-screen living NPCs | [`@alife-sdk/simulation`](/packages/simulation) |
-| Real-time nearby combat AI | [`@alife-sdk/ai`](/packages/ai) |
-| Phaser integration | [`@alife-sdk/phaser`](/packages/phaser) |
+| Off-screen living NPCs | [`@alife-sdk/simulation`](/docs/packages/simulation) |
+| Real-time nearby combat AI | [`@alife-sdk/ai`](/docs/packages/ai) |
+| Phaser integration | [`@alife-sdk/phaser`](/docs/packages/phaser) |
 
-## Required vs optional ports
+## Package README
 
-| Port | Typical status |
-|---|---|
-| `Ports.EntityAdapter` | Usually required in real integrations |
-| `Ports.EntityFactory` | Usually required in real integrations |
-| `Ports.PlayerPosition` | Usually required in real integrations |
-| `Ports.RuntimeClock` | Optional, SDK provides a default |
-| `Ports.Random` | Optional, SDK provides a default |
-
-If you only want to explore the model first, the simulation package's `createInMemoryKernel()` is a better learning entry point than wiring all ports on day one.
-
-## Most useful subpaths
-
-| Import path | Reach for it when |
-|---|---|
-| `@alife-sdk/core` | Kernel, ports, runtime types |
-| `@alife-sdk/core/ai` | FSM, memory, GOAP, danger helpers |
-| `@alife-sdk/core/events` | Typed event definitions |
-| `@alife-sdk/core/terrain` | Smart terrains and zones |
-| `@alife-sdk/core/faction` | Faction setup |
-| `@alife-sdk/core/plugins` | Built-in and custom plugins |
-
-## What `core` does not do by itself
-
-- It does not run the off-screen NPC world loop
-- It does not provide the ready-to-use online AI driver layer
-- It does not know about Phaser
-
-That separation is intentional. Many games need the kernel, events, factions, or AI primitives before they need the full runtime stack.
-
-## What to verify early
-
-- kernel initializes cleanly
-- update loop is running
-- events can be subscribed to
-- factions or terrains can be registered without engine-specific code leaking into the runtime layer
-
-## Common first-time mistakes
-
-- treating the kernel like a giant service locator instead of a runtime coordinator
-- pushing scene/UI logic into plugins that should stay in game code
-- wiring engine behavior directly into core logic instead of isolating it in adapters
-
-## Read next
-
-- [Kernel](/concepts/kernel)
-- [Ports](/concepts/ports)
-- [Simulation package](/packages/simulation)
 - [Package README](https://github.com/eurusik/alife-sdk/blob/main/packages/alife-core/README.md)
+
+## Related pages
+
+- [Core Reference](/docs/reference/core/index)
+- [Simulation package](/docs/packages/simulation)
+- [Ports](/docs/concepts/ports)

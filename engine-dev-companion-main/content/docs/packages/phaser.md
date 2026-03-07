@@ -9,120 +9,49 @@ npm install @alife-sdk/phaser @alife-sdk/core @alife-sdk/simulation @alife-sdk/a
 npm install phaser@^3.60.0
 ```
 
-## What it gives you
-
-- `createPhaserKernel()`
-- `PhaserEntityAdapter`
-- `PhaserEntityFactory`
-- `PhaserSimulationBridge`
-- `PhaserPlayerPosition`
-- `OnlineOfflineManager`
-
-## Use it when
+## Add it when
 
 - you are building on Phaser 3
 - you want a batteries-included adapter layer
 - you would rather wire one scene cleanly than build every port from scratch
 
-## A minimal useful scene
-
-```ts
-import { createDefaultBehaviorConfig } from '@alife-sdk/simulation';
-
-const result = createPhaserKernel({
-  ports: {
-    entityAdapter: adapter,
-    entityFactory: factory,
-    playerPosition: new PhaserPlayerPosition(player),
-    simulationBridge: bridge,
-  },
-  data: {
-    factions: [{ id: 'stalker', displayName: 'Stalker' }],
-    terrains: [campTerrain],
-  },
-  config: { preset: 'simulation' },
-});
-
-const { kernel, simulation } = result;
-kernel.init();
-kernel.start();
-
-simulation!.registerNPC({
-  entityId: 'stalker_1',
-  factionId: 'stalker',
-  position: { x: 300, y: 280 },
-  rank: 2,
-  combatPower: 40,
-  currentHp: 100,
-  behaviorConfig: createDefaultBehaviorConfig({
-    retreatThreshold: 0.3,
-    panicThreshold: -0.6,
-  }),
-  options: { type: 'human' },
-});
-```
-
-## Presets
-
-| Preset | Includes | Use it when |
-|---|---|---|
-| `minimal` | Basic kernel-side setup | You are still assembling the shell |
-| `simulation` | Adds simulation | Best first preset for most teams |
-| `full` | Adds AI and social plugins | You want a richer playable slice |
-
 ## Typical scene setup
 
-1. Create the player sprite
-2. Instantiate the adapters
-3. Call `createPhaserKernel()`
-4. Register terrains, factions, and NPCs
-5. Call `kernel.update(delta)` every frame
-6. Evaluate online/offline transitions on a cadence that fits your scene
+1. create the player sprite
+2. instantiate the adapters
+3. call `createPhaserKernel()`
+4. register terrains, factions, and NPCs
+5. call `kernel.update(delta)` every frame
+6. evaluate online/offline transitions on a cadence that fits the scene
 
-## What each adapter is for
+## Start here
 
-| Adapter | Purpose |
-|---|---|
-| `PhaserEntityAdapter` | Sprite registry and entity mutation bridge |
-| `PhaserEntityFactory` | Spawn/destroy entities through callbacks |
-| `PhaserSimulationBridge` | HP and offline-damage bridge |
-| `PhaserPlayerPosition` | Live player world position |
-| `OnlineOfflineManager` | Pure online/offline transition decisions |
+1. [Phaser Reference](/docs/reference/phaser/index)
+2. [createPhaserKernel](/docs/reference/phaser/create-phaser-kernel)
+3. [Phaser Adapters](/docs/reference/phaser/adapters)
 
-## Required habits in your scene
+## Most used
 
-### Always drive the kernel
+- [OnlineOfflineManager](/docs/reference/phaser/online-offline-manager)
+- [Phaser Integration](/docs/guides/phaser-integration)
+- [Examples](/docs/examples/index)
 
-```ts
-update(_time: number, delta: number): void {
-  kernel.update(delta);
-}
-```
+## Debug this package
 
-### Evaluate online/offline transitions explicitly
-
-```ts
-const { goOnline, goOffline } = onlineOffline.evaluate(player.x, player.y, records);
-
-for (const id of goOnline) simulation!.setNPCOnline(id, true);
-for (const id of goOffline) simulation!.setNPCOnline(id, false);
-```
-
-## Common mistakes
-
-- forgetting `kernel.update(delta)` in `Scene.update()`
-- passing Phaser's `time` instead of `delta`
-- never calling `OnlineOfflineManager.evaluate()`
-- registering an NPC before the sprite is known to the adapter
-- omitting `behaviorConfig` in `registerNPC(...)`
-- starting with `preset: 'full'` before the scene shell is stable
+- Scene shell is not wiring cleanly -> [createPhaserKernel](/docs/reference/phaser/create-phaser-kernel)
+- Sprites or HP records are desynced -> [Phaser Adapters](/docs/reference/phaser/adapters)
+- NPCs never switch ownership correctly -> [OnlineOfflineManager](/docs/reference/phaser/online-offline-manager)
 
 ## Recommended starting preset
 
-`preset: 'simulation'` is the most practical default for first-time adoption. It proves the world loop without forcing the full stack immediately.
+`preset: "simulation"` is the most practical default for first-time adoption. It proves the world loop without forcing the full stack immediately.
 
-## Read next
+## Package README
 
-- [Phaser Integration](/guides/phaser-integration)
-- [Examples](/examples/)
 - [Package README](https://github.com/eurusik/alife-sdk/blob/main/packages/alife-phaser/README.md)
+
+## Related pages
+
+- [Phaser Reference](/docs/reference/phaser/index)
+- [Phaser Integration](/docs/guides/phaser-integration)
+- [AI package](/docs/packages/ai)

@@ -5,7 +5,15 @@ export type DocEntry = {
   source: string;
   content: string;
   sectionId: string;
+  groupId: string | null;
   searchText: string;
+};
+
+export type DocGroup = {
+  id: string;
+  title: string;
+  summary: string;
+  docs: DocEntry[];
 };
 
 export type DocSection = {
@@ -13,6 +21,8 @@ export type DocSection = {
   title: string;
   summary: string;
   docs: DocEntry[];
+  groups: DocGroup[];
+  ungroupedDocs: DocEntry[];
 };
 
 export type DocHeading = {
@@ -43,6 +53,11 @@ const SECTION_META = [
     summary: "Package-level документація по модулях SDK і їх ролях.",
   },
   {
+    id: "reference",
+    title: "Reference",
+    summary: "Модульний reference-шар: контракти, subsystem docs, lifecycle і integration seams.",
+  },
+  {
     id: "examples",
     title: "Examples",
     summary: "Робочі приклади для швидкого підтвердження поведінки runtime.",
@@ -55,6 +70,51 @@ const SECTION_META = [
 ] as const;
 
 type SectionId = (typeof SECTION_META)[number]["id"];
+
+const REFERENCE_GROUP_META = [
+  {
+    id: "core",
+    title: "Core",
+    summary: "Kernel seams, entities, plugins, events, and other runtime shell contracts.",
+  },
+  {
+    id: "simulation",
+    title: "Simulation",
+    summary: "Offline brain model, terrains, and background world progression.",
+  },
+  {
+    id: "ai",
+    title: "AI",
+    summary: "Online driver, perception, cover, and observed NPC behavior seams.",
+  },
+  {
+    id: "social",
+    title: "Social",
+    summary: "Ambient social systems, content pools, and group storytelling.",
+  },
+  {
+    id: "economy",
+    title: "Economy",
+    summary: "Inventory, trader rules, and quest progression contracts.",
+  },
+  {
+    id: "hazards",
+    title: "Hazards",
+    summary: "Hazard zones, environmental damage, and artefact reward loops.",
+  },
+  {
+    id: "persistence",
+    title: "Persistence",
+    summary: "Save/load orchestration and storage backend boundaries.",
+  },
+  {
+    id: "phaser",
+    title: "Phaser",
+    summary: "Scene-level adapters, one-call kernel wiring, and ownership handoff.",
+  },
+] as const;
+
+type ReferenceGroupId = (typeof REFERENCE_GROUP_META)[number]["id"];
 
 const markdownModules = import.meta.glob("/content/docs/**/*.md", {
   eager: true,
@@ -97,6 +157,21 @@ const parseDescription = (content: string): string => {
   return cleanInlineMarkdown(lines[0] ?? "");
 };
 
+const detectGroupId = (sectionId: SectionId, relativePath: string): string | null => {
+  if (sectionId !== "reference") {
+    return null;
+  }
+
+  const rest = relativePath.slice("reference/".length);
+  const [groupId] = rest.split("/");
+
+  if (!groupId || groupId === "index.md") {
+    return null;
+  }
+
+  return groupId;
+};
+
 const detectSectionId = (relativePath: string): SectionId => {
   if (relativePath.startsWith("concepts/")) {
     return "concepts";
@@ -106,6 +181,9 @@ const detectSectionId = (relativePath: string): SectionId => {
   }
   if (relativePath.startsWith("packages/")) {
     return "packages";
+  }
+  if (relativePath.startsWith("reference/")) {
+    return "reference";
   }
   if (relativePath.startsWith("examples/")) {
     return "examples";
@@ -120,11 +198,14 @@ const getSectionDocRank = (sectionId: SectionId, relativePath: string): number =
   if (sectionId === "quickstart" && relativePath === "quick-start.md") {
     return 0;
   }
-  if (relativePath === "index.md") {
-    return 1;
+  if (relativePath === `${sectionId}/index.md`) {
+    return 0;
   }
   if (relativePath.endsWith("/index.md")) {
-    return 0;
+    return 1;
+  }
+  if (relativePath === "index.md") {
+    return 2;
   }
   return 10;
 };
@@ -185,6 +266,7 @@ const docs: DocEntry[] = Object.entries(markdownModules)
     const filename = slug.split("/").at(-1) ?? slug;
     const content = stripFrontmatter(rawContent);
     const sectionId = detectSectionId(relativePath);
+    const groupId = detectGroupId(sectionId, relativePath);
     const title = parseTitle(content, toTitleCase(filename));
     const description = parseDescription(content) || `Documentation page: ${title}`;
 
@@ -195,6 +277,7 @@ const docs: DocEntry[] = Object.entries(markdownModules)
       source: `content/docs/${relativePath}`,
       content,
       sectionId,
+      groupId,
       searchText: `${title}\n${description}\n${content}`.toLowerCase(),
     } satisfies DocEntry;
   })
@@ -217,12 +300,28 @@ const docs: DocEntry[] = Object.entries(markdownModules)
 
 export const docsSections: DocSection[] = SECTION_META.map((section) => {
   const sectionDocs = docs.filter((doc) => doc.sectionId === section.id);
+  const ungroupedDocs = sectionDocs.filter((doc) => !doc.groupId);
+  const groups =
+    section.id === "reference"
+      ? REFERENCE_GROUP_META.map((group) => {
+          const docsInGroup = sectionDocs.filter((doc) => doc.groupId === group.id);
+
+          return {
+            id: group.id,
+            title: group.title,
+            summary: group.summary,
+            docs: docsInGroup,
+          } satisfies DocGroup;
+        }).filter((group) => group.docs.length > 0)
+      : [];
 
   return {
     id: section.id,
     title: section.title,
     summary: section.summary,
     docs: sectionDocs,
+    groups,
+    ungroupedDocs,
   };
 }).filter((section) => section.docs.length > 0);
 

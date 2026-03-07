@@ -10,6 +10,7 @@ import {
   getDocBySlug,
   topNavDocItems,
   type DocHeading,
+  type DocGroup,
   type DocSection,
 } from "@/content/docsRegistry";
 import { scanHeadingsFromDom } from "@/pages/docToc";
@@ -29,9 +30,13 @@ type DocsTreeProps = {
 
 function DocsTree({ sections, activeSlug, query, onOpenDoc, onAfterClick }: DocsTreeProps) {
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const activeSectionId = sections.find((section) => section.docs.some((doc) => doc.slug === activeSlug))?.id;
+    const activeGroupKey = sections
+      .flatMap((section) => section.groups.map((group) => ({ sectionId: section.id, group })))
+      .find(({ group }) => group.docs.some((doc) => doc.slug === activeSlug));
 
     setCollapsedSections((prev) => {
       const next: Record<string, boolean> = {};
@@ -52,6 +57,29 @@ function DocsTree({ sections, activeSlug, query, onOpenDoc, onAfterClick }: Docs
 
       return next;
     });
+    setCollapsedGroups((prev) => {
+      const next: Record<string, boolean> = {};
+
+      for (const section of sections) {
+        for (const group of section.groups) {
+          const key = `${section.id}:${group.id}`;
+
+          if (query.trim()) {
+            next[key] = false;
+            continue;
+          }
+
+          if (activeGroupKey?.sectionId === section.id && activeGroupKey.group.id === group.id) {
+            next[key] = false;
+            continue;
+          }
+
+          next[key] = prev[key] ?? true;
+        }
+      }
+
+      return next;
+    });
   }, [activeSlug, query, sections]);
 
   const toggleSection = (sectionId: string) => {
@@ -59,6 +87,53 @@ function DocsTree({ sections, activeSlug, query, onOpenDoc, onAfterClick }: Docs
       ...prev,
       [sectionId]: !prev[sectionId],
     }));
+  };
+
+  const toggleGroup = (sectionId: string, groupId: string) => {
+    const key = `${sectionId}:${groupId}`;
+
+    setCollapsedGroups((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const renderDocButton = (docSlug: string, docTitle: string) => {
+    const active = docSlug === activeSlug;
+
+    return (
+      <button
+        key={docSlug}
+        type="button"
+        onClick={() => {
+          onOpenDoc(docSlug);
+          onAfterClick?.();
+        }}
+        className={`docs-nav-item ${active ? "docs-nav-item-active" : ""}`}
+      >
+        {docTitle}
+      </button>
+    );
+  };
+
+  const renderGroupedDocs = (section: DocSection, group: DocGroup) => {
+    const key = `${section.id}:${group.id}`;
+    const collapsed = collapsedGroups[key] ?? false;
+
+    return (
+      <div key={group.id} className="mt-3">
+        <button
+          type="button"
+          onClick={() => toggleGroup(section.id, group.id)}
+          className="flex w-full items-center gap-2 px-2 py-1 text-left text-[11px] font-mono uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          <span>{group.title}</span>
+          <span className="ml-auto text-[10px] text-muted-foreground/80">{group.docs.length}</span>
+        </button>
+        {!collapsed && <div className="mt-1 space-y-1">{group.docs.map((doc) => renderDocButton(doc.slug, doc.title))}</div>}
+      </div>
+    );
   };
 
   return (
@@ -77,24 +152,11 @@ function DocsTree({ sections, activeSlug, query, onOpenDoc, onAfterClick }: Docs
               <span>{section.title}</span>
             </button>
             {!collapsed && (
-              <div className="mt-1 space-y-1">
-                {section.docs.map((doc) => {
-                  const active = doc.slug === activeSlug;
-
-                  return (
-                    <button
-                      key={doc.slug}
-                      type="button"
-                      onClick={() => {
-                        onOpenDoc(doc.slug);
-                        onAfterClick?.();
-                      }}
-                      className={`docs-nav-item ${active ? "docs-nav-item-active" : ""}`}
-                    >
-                      {doc.title}
-                    </button>
-                  );
-                })}
+              <div className="mt-1">
+                {section.ungroupedDocs.length > 0 && (
+                  <div className="space-y-1">{section.ungroupedDocs.map((doc) => renderDocButton(doc.slug, doc.title))}</div>
+                )}
+                {section.groups.map((group) => renderGroupedDocs(section, group))}
               </div>
             )}
           </section>
@@ -124,6 +186,13 @@ const filterSections = (sections: DocSection[], query: string): DocSection[] => 
       return {
         ...section,
         docs,
+        ungroupedDocs: docs.filter((doc) => !doc.groupId),
+        groups: section.groups
+          .map((group) => ({
+            ...group,
+            docs: group.docs.filter((doc) => docs.some((visibleDoc) => visibleDoc.slug === doc.slug)),
+          }))
+          .filter((group) => group.docs.length > 0),
       };
     })
     .filter((section): section is DocSection => Boolean(section));
@@ -183,6 +252,10 @@ const DocPage = () => {
   const currentSection = useMemo(
     () => docsSections.find((section) => section.id === currentDoc?.sectionId) ?? null,
     [currentDoc?.sectionId],
+  );
+  const currentGroup = useMemo(
+    () => currentSection?.groups.find((group) => group.id === currentDoc?.groupId) ?? null,
+    [currentDoc?.groupId, currentSection],
   );
   const activeHeadingText = useMemo(() => {
     const activeHeading = headings.find((heading) => heading.id === activeHeadingId);
@@ -384,7 +457,19 @@ const DocPage = () => {
         activeSectionId={currentDoc.sectionId}
         query={queryInput}
         navItems={topNavDocItems}
-        quickstartHref="/docs/quick-start"
+        contextItems={[
+          {
+            label: currentSection?.title ?? currentDoc.sectionId,
+            href: currentSection ? `/docs/${currentSection.docs[0]?.slug ?? currentDoc.slug}` : undefined,
+          },
+          currentGroup
+            ? {
+                label: currentGroup.title,
+                href: `/docs/${currentGroup.docs[0]?.slug ?? currentDoc.slug}`,
+              }
+            : null,
+          { label: currentDoc.title },
+        ].filter((item): item is { label: string; href?: string } => Boolean(item))}
         onQueryChange={setQueryInput}
         onOpenMenu={() => setMobileMenuOpen(true)}
       />

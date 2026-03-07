@@ -329,7 +329,7 @@ const Index = () => {
         activeSectionId={activeSectionId}
         query=""
         navItems={LANDING_NAV_ITEMS}
-        quickstartHref="/docs/quick-start"
+        contextItems={[{ label: activeSection.title, href: `#${activeSectionId}` }]}
         showSearch={false}
         compactMobileNav
         onQueryChange={() => {}}

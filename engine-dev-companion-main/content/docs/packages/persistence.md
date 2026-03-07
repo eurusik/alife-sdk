@@ -2,20 +2,11 @@
 
 This package gives you kernel-level save and load with pluggable storage.
 
-It is the cleanest way to say: “the world can stop here and come back later in the same state.”
-
 ## Install
 
 ```bash
 npm install @alife-sdk/persistence @alife-sdk/core
 ```
-
-## What it gives you
-
-- `PersistencePlugin`
-- a small synchronous backend interface
-- typed save/load result objects
-- support for multiple save slots through different keys
 
 ## Add it when
 
@@ -23,7 +14,7 @@ npm install @alife-sdk/persistence @alife-sdk/core
 - you need browser, desktop, or memory-backed saves behind one API
 - you want save/load behavior at the kernel level instead of inventing your own snapshot pipeline
 
-## The backend contract
+## Core contract
 
 You implement `IStorageBackend` once:
 
@@ -36,74 +27,33 @@ interface IStorageBackend {
 }
 ```
 
-## A minimal setup
+## Start here
 
-```ts
-class LocalStorageBackend implements IStorageBackend {
-  save(key: string, data: string): void { localStorage.setItem(key, data); }
-  load(key: string): string | null { return localStorage.getItem(key); }
-  has(key: string): boolean { return localStorage.getItem(key) !== null; }
-  remove(key: string): void { localStorage.removeItem(key); }
-}
+1. [Persistence Reference](/docs/reference/persistence/index)
+2. [Persistence Plugin](/docs/reference/persistence/plugin)
+3. [Storage Backend](/docs/reference/persistence/storage-backend)
 
-const persistence = new PersistencePlugin(
-  createDefaultPersistenceConfig(new LocalStorageBackend()),
-);
+## Most used
 
-kernel.use(persistence);
-kernel.init();
+- [Providers](/docs/reference/persistence/providers)
+- [Save / Load guide](/docs/guides/save-load)
 
-const save = persistence.save();
-const load = persistence.load();
-```
+## Debug this package
 
-## Why the interface is synchronous
+- Save/load lifecycle feels wrong -> [Persistence Plugin](/docs/reference/persistence/plugin)
+- Platform backend is behaving strangely -> [Storage Backend](/docs/reference/persistence/storage-backend)
+- You need a quick test backend -> [Providers](/docs/reference/persistence/providers)
 
-The plugin is designed for deterministic save/load calls inside a single frame.
+## Important rule
 
-If your real storage is asynchronous, place a synchronous cache in front of it or manage that persistence layer separately.
+The plugin is intentionally synchronous. If your real storage is async, put a synchronous cache in front of it or manage that persistence flow separately.
 
-## Failure model
+## Package README
 
-`save()` and `load()` return typed result objects instead of throwing on ordinary failures.
-
-That makes it easier to show useful UI for cases like:
-
-- storage full
-- corrupted save
-- incompatible runtime state
-
-## Save slots
-
-If you want manual saves and autosaves, use different keys:
-
-```ts
-const manual = new PersistencePlugin({ backend, saveKey: 'save_manual' });
-const autosave = new PersistencePlugin({ backend, saveKey: 'save_auto' });
-```
-
-## What your game still owns
-
-- save UI
-- slot management UX
-- autosave policy
-- player-facing recovery flow when load fails
-
-## Common first-time mistakes
-
-### Adding persistence too early
-
-If the runtime model is still changing every day, your save story becomes harder to stabilize.
-
-### Expecting async backends to fit directly
-
-This plugin is intentionally synchronous.
-
-### Ignoring typed failure reasons
-
-The result objects exist so you can handle failure modes explicitly instead of treating every load problem as the same.
-
-## Read next
-
-- [Save / Load guide](/guides/save-load)
 - [Package README](https://github.com/eurusik/alife-sdk/blob/main/packages/alife-persistence/README.md)
+
+## Related pages
+
+- [Persistence Reference](/docs/reference/persistence/index)
+- [Save / Load guide](/docs/guides/save-load)
+- [Economy package](/docs/packages/economy)

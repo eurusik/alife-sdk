@@ -12,6 +12,26 @@ type DocReaderProps = {
   onSelectDoc: (slug: string) => void;
 };
 
+type RelatedLink = {
+  label: string;
+  href: string;
+  slug: string | null;
+};
+
+type ActionSectionTitle = "Start here" | "Browse by task" | "Most used" | "Debug this package";
+
+type ActionItem = {
+  label: string;
+  href: string;
+  slug: string | null;
+  note: string;
+};
+
+type ActionSection = {
+  title: ActionSectionTitle;
+  items: ActionItem[];
+};
+
 const toPlainText = (children: ReactNode): string =>
   Children.toArray(children)
     .map((child) => {
@@ -55,6 +75,126 @@ const hasHighlightableCodeBlocks = (content: string): boolean => {
   return false;
 };
 
+const ACTION_SECTION_TITLES = new Set<ActionSectionTitle>([
+  "Start here",
+  "Browse by task",
+  "Most used",
+  "Debug this package",
+]);
+
+const extractDocExtras = (content: string): {
+  bodyContent: string;
+  relatedLinks: RelatedLink[];
+  actionSections: ActionSection[];
+} => {
+  const lines = content.split("\n");
+  const relatedLinks: RelatedLink[] = [];
+  const actionSections: ActionSection[] = [];
+  const bodyLines: string[] = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index];
+    const headingMatch = line.trim().match(/^##\s+(.+)$/);
+    const headingTitle = headingMatch?.[1]?.trim() as ActionSectionTitle | undefined;
+
+    if (headingTitle && ACTION_SECTION_TITLES.has(headingTitle)) {
+      index += 1;
+      const items: ActionItem[] = [];
+
+      while (index < lines.length) {
+        const sectionLine = lines[index];
+
+        if (/^##\s+/.test(sectionLine.trim())) {
+          break;
+        }
+
+        const linkMatch = sectionLine.match(/^\s*(?:[-*]|\d+\.)\s+(.*)$/);
+
+        if (linkMatch) {
+          const itemText = linkMatch[1].trim();
+          const markdownLink = itemText.match(/\[([^\]]+)\]\(([^)]+)\)/);
+
+          if (markdownLink) {
+            const href = markdownLink[2].trim();
+            const beforeLink = itemText.slice(0, markdownLink.index ?? 0).replace(/->\s*$/, "").trim();
+            const afterLink = itemText
+              .slice((markdownLink.index ?? 0) + markdownLink[0].length)
+              .replace(/^->\s*/, "")
+              .trim();
+
+            items.push({
+              label: markdownLink[1].trim(),
+              href,
+              slug: resolveDocSlug(href),
+              note: cleanInlineText([beforeLink, afterLink].filter(Boolean).join(" ")),
+            });
+          }
+        }
+
+        index += 1;
+      }
+
+      if (items.length > 0) {
+        actionSections.push({ title: headingTitle, items });
+      }
+
+      while (bodyLines.length > 0 && bodyLines[bodyLines.length - 1].trim() === "") {
+        bodyLines.pop();
+      }
+
+      continue;
+    }
+
+    if (line.trim() !== "## Related pages") {
+      bodyLines.push(line);
+      index += 1;
+      continue;
+    }
+
+    index += 1;
+
+    while (index < lines.length) {
+      const sectionLine = lines[index];
+
+      if (/^##\s+/.test(sectionLine.trim())) {
+        break;
+      }
+
+      const linkMatch = sectionLine.match(/^\s*(?:[-*]|\d+\.)\s+\[([^\]]+)\]\(([^)]+)\)/);
+
+      if (linkMatch) {
+        const href = linkMatch[2].trim();
+        relatedLinks.push({
+          label: linkMatch[1].trim(),
+          href,
+          slug: resolveDocSlug(href),
+        });
+      }
+
+      index += 1;
+    }
+
+    while (bodyLines.length > 0 && bodyLines[bodyLines.length - 1].trim() === "") {
+      bodyLines.pop();
+    }
+  }
+
+  return {
+    bodyContent: bodyLines.join("\n").trim(),
+    relatedLinks,
+    actionSections,
+  };
+};
+
+const cleanInlineText = (value: string): string =>
+  value
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[*_~"]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
 type PlainCodeBlockProps = {
   className?: string;
   codeText: string;
@@ -77,6 +217,7 @@ export function DocReader({ doc, docs, onSelectDoc }: DocReaderProps) {
   const getOutlineHeadingId = createHeadingAnchorFactory();
   const getOtherHeadingId = createHeadingAnchorFactory();
   const docContent = doc?.content ?? "";
+  const { bodyContent, relatedLinks, actionSections } = useMemo(() => extractDocExtras(docContent), [docContent]);
   const shouldPrefetchHighlightedCode = useMemo(() => hasHighlightableCodeBlocks(docContent), [docContent]);
 
   useEffect(() => {
@@ -168,6 +309,63 @@ export function DocReader({ doc, docs, onSelectDoc }: DocReaderProps) {
       </div>
 
       <div className="md-content">
+        {actionSections.length > 0 && (
+          <div className="mb-8 space-y-4">
+            {actionSections.map((section) => (
+              <div key={section.title} className="rounded-none border-2 border-border bg-card/55 p-4 md:p-5">
+                <div className="mb-3">
+                  <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-muted-foreground md:text-xs">
+                    {section.title}
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {section.items.map((item) => {
+                    const linkedDoc = item.slug ? docs.find((entry) => entry.slug === item.slug) ?? null : null;
+                    const title = linkedDoc?.title ?? item.label;
+                    const description = linkedDoc?.description ?? "";
+                    const note = item.note;
+
+                    if (item.slug) {
+                      return (
+                        <button
+                          key={`${section.title}:${item.href}:${title}`}
+                          type="button"
+                          onClick={() => onSelectDoc(item.slug!)}
+                          className="group rounded-none border-2 border-border bg-background/65 p-4 text-left transition-colors hover:border-primary/60 hover:bg-background"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <h3 className="font-display text-lg font-semibold text-foreground">{title}</h3>
+                            <CornerDownRight className="mt-1 h-4 w-4 shrink-0 text-primary/80 transition-transform group-hover:translate-x-0.5 group-hover:translate-y-0.5" />
+                          </div>
+                          {note && <p className="mt-2 text-sm leading-6 text-primary/85">{note}</p>}
+                          {description && <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>}
+                        </button>
+                      );
+                    }
+
+                    return (
+                      <a
+                        key={`${section.title}:${item.href}:${title}`}
+                        href={item.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="group rounded-none border-2 border-border bg-background/65 p-4 text-left transition-colors hover:border-primary/60 hover:bg-background"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <h3 className="font-display text-lg font-semibold text-foreground">{title}</h3>
+                          <ExternalLink className="mt-1 h-4 w-4 shrink-0 text-primary/80 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                        </div>
+                        {note && <p className="mt-2 text-sm leading-6 text-primary/85">{note}</p>}
+                        {description && <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>}
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeRaw]}
@@ -277,9 +475,67 @@ export function DocReader({ doc, docs, onSelectDoc }: DocReaderProps) {
             },
           }}
         >
-          {doc.content}
+          {bodyContent}
         </ReactMarkdown>
       </div>
+
+      {relatedLinks.length > 0 && (
+        <div className="mt-8 border-t border-border pt-6">
+          <div className="mb-4">
+            <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-muted-foreground md:text-xs">
+              Related Pages
+            </p>
+            <h2 className="mt-1 font-display text-xl font-bold tracking-wide text-foreground">Keep Reading</h2>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {relatedLinks.map((link) => {
+              const relatedDoc = link.slug ? docs.find((entry) => entry.slug === link.slug) ?? null : null;
+              const title = relatedDoc?.title ?? link.label;
+              const description = relatedDoc?.description ?? "";
+
+              if (link.slug) {
+                return (
+                  <button
+                    key={`${link.href}:${title}`}
+                    type="button"
+                    onClick={() => onSelectDoc(link.slug!)}
+                    className="group rounded-none border-2 border-border bg-card/75 p-4 text-left transition-colors hover:border-primary/60 hover:bg-card"
+                  >
+                    <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-muted-foreground">
+                      Internal doc
+                    </p>
+                    <div className="mt-2 flex items-start justify-between gap-3">
+                      <h3 className="font-display text-lg font-semibold text-foreground">{title}</h3>
+                      <CornerDownRight className="mt-1 h-4 w-4 shrink-0 text-primary/80 transition-transform group-hover:translate-x-0.5 group-hover:translate-y-0.5" />
+                    </div>
+                    {description && <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>}
+                  </button>
+                );
+              }
+
+              return (
+                <a
+                  key={`${link.href}:${title}`}
+                  href={link.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group rounded-none border-2 border-border bg-card/75 p-4 text-left transition-colors hover:border-primary/60 hover:bg-card"
+                >
+                  <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-muted-foreground">
+                    External link
+                  </p>
+                  <div className="mt-2 flex items-start justify-between gap-3">
+                    <h3 className="font-display text-lg font-semibold text-foreground">{title}</h3>
+                    <ExternalLink className="mt-1 h-4 w-4 shrink-0 text-primary/80 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                  </div>
+                  {description && <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>}
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
