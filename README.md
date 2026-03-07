@@ -5,7 +5,7 @@
 [![npm scope](https://img.shields.io/badge/npm-%40alife--sdk-blue)](https://www.npmjs.com/search?q=%40alife-sdk)
 [![Node.js >=20](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](package.json)
 
-**Docs:** [Glossary](docs/glossary.md) · [Changelog](CHANGELOG.md) · [Examples](examples/README.md) · [Contributing](CONTRIBUTING.md)
+**Links:** [Website](https://www.alife-sdk.org) · [Documentation](https://www.alife-sdk.org/docs/quick-start) · [Glossary](docs/glossary.md) · [Changelog](CHANGELOG.md) · [Examples](examples/README.md) · [Contributing](CONTRIBUTING.md)
 
 A modular TypeScript SDK for building living game worlds: offline NPC simulation, online combat AI, factions, social systems, economy, hazards, and save/load.
 
