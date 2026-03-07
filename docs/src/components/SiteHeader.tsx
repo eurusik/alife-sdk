@@ -23,6 +23,25 @@ type SiteHeaderProps = {
   onOpenMenu: () => void;
 };
 
+function HeaderLogo() {
+  return (
+    <span className="inline-flex h-8 w-8 items-center justify-center border border-primary/55 bg-[linear-gradient(135deg,rgba(23,17,14,0.96),rgba(47,31,21,0.96))] shadow-[inset_0_0_0_1px_rgba(245,158,11,0.08)]">
+      <svg
+        viewBox="0 0 64 64"
+        aria-hidden="true"
+        className="h-5 w-5"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path d="M32 11L48 53H40.8L37.2 43.2H26.8L23.2 53H16L32 11Z" fill="#FFF5DB" />
+        <path d="M29.9 35.2H34.1L32 29.3L29.9 35.2Z" fill="#17110E" />
+        <circle cx="45.5" cy="18.5" r="6.5" fill="#F59E0B" />
+        <circle cx="45.5" cy="18.5" r="2.4" fill="#17110E" />
+      </svg>
+    </span>
+  );
+}
+
 export function SiteHeader({
   activeSectionId,
   query,
@@ -55,18 +74,16 @@ export function SiteHeader({
                 </button>
 
                 <Link
-                  to="/docs/index"
-                  className="inline-flex shrink-0 items-center border border-primary/60 bg-primary/8 px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.18em] text-primary transition-colors hover:bg-primary/14"
+                  to="/"
+                  className="inline-flex shrink-0 items-center gap-2 transition-colors hover:text-foreground"
+                  aria-label="A-Life home"
                 >
-                  Docs
+                  <HeaderLogo />
+                  <span className="font-display text-sm font-bold uppercase tracking-[0.16em] text-foreground md:text-base">
+                    A-Life
+                  </span>
                 </Link>
 
-                <Link
-                  to="/"
-                  className="hidden shrink-0 text-[11px] font-mono uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground md:inline-flex"
-                >
-                  Site
-                </Link>
               </div>
 
               <div className="min-w-0 border-l border-border/60 pl-3">

@@ -4,10 +4,12 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
-const DOCS_SITE_URL = (process.env.DOCS_SITE_URL || process.env.VITE_SITE_URL || "https://eurusik.github.io/alife-sdk").replace(
-  /\/+$/,
-  "",
-);
+const RAW_DOCS_SITE_URL = process.env.DOCS_SITE_URL || process.env.VITE_SITE_URL || "https://eurusik.github.io/alife-sdk";
+const DOCS_SITE_URL = RAW_DOCS_SITE_URL.replace(/\/+$/, "");
+const DOCS_DEFAULT_BASE_PATH = (() => {
+  const pathname = new URL(DOCS_SITE_URL).pathname.replace(/\/+$/, "");
+  return pathname ? `${pathname}/` : "/";
+})();
 
 const DOCS_CONTENT_DIR = path.resolve(__dirname, "./content/docs");
 
@@ -72,8 +74,54 @@ const seoAssetsPlugin = () => ({
   },
 });
 
+const githubPagesSpaFallbackPlugin = () => ({
+  name: "alife-docs-github-pages-spa-fallback",
+  apply: "build" as const,
+  closeBundle() {
+    const distDir = path.resolve(__dirname, "./dist");
+    const indexHtmlPath = path.join(distDir, "index.html");
+    const notFoundHtmlPath = path.join(distDir, "404.html");
+
+    if (!fs.existsSync(indexHtmlPath)) {
+      return;
+    }
+
+    fs.copyFileSync(indexHtmlPath, notFoundHtmlPath);
+  },
+});
+
+const createManualChunks = (id: string): string | undefined => {
+  if (!id.includes("node_modules")) {
+    return undefined;
+  }
+
+  if (
+    id.includes("/react-syntax-highlighter/") ||
+    id.includes("/prismjs/") ||
+    id.includes("/highlight.js/")
+  ) {
+    return "syntax-highlighter";
+  }
+
+  if (
+    id.includes("/react-markdown/") ||
+    id.includes("/remark-gfm/") ||
+    id.includes("/rehype-raw/") ||
+    id.includes("/mdast-") ||
+    id.includes("/micromark") ||
+    id.includes("/hast-") ||
+    id.includes("/unist-") ||
+    id.includes("/vfile")
+  ) {
+    return "markdown";
+  }
+
+  return undefined;
+};
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  base: mode === "production" ? process.env.DOCS_BASE_PATH || DOCS_DEFAULT_BASE_PATH : "/",
   server: {
     host: "::",
     port: 8080,
@@ -81,7 +129,16 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
-  plugins: [react(), seoAssetsPlugin(), mode === "development" && componentTagger()].filter(Boolean),
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: createManualChunks,
+      },
+    },
+  },
+  plugins: [react(), seoAssetsPlugin(), githubPagesSpaFallbackPlugin(), mode === "development" && componentTagger()].filter(
+    Boolean,
+  ),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
