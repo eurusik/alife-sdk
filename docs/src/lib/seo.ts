@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 export const SEO_SITE_NAME = "A-Life SDK Docs";
 export const SEO_REPOSITORY_URL = "https://github.com/eurusik/alife-sdk";
-export const SEO_DEFAULT_SITE_URL = "https://eurusik.github.io/alife-sdk";
+export const SEO_DEFAULT_SITE_URL = "https://www.alife-sdk.org";
 export const SEO_DEFAULT_IMAGE_PATH = "/og-image.svg";
 export const SEO_DEFAULT_DESCRIPTION =
   "Engine-agnostic TypeScript SDK for living game worlds with offline NPC simulation, online behavior, Phaser integration, and modular package docs.";

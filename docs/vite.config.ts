@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
-const RAW_DOCS_SITE_URL = process.env.DOCS_SITE_URL || process.env.VITE_SITE_URL || "https://eurusik.github.io/alife-sdk";
+const RAW_DOCS_SITE_URL = process.env.DOCS_SITE_URL || process.env.VITE_SITE_URL || "https://www.alife-sdk.org";
 const DOCS_SITE_URL = RAW_DOCS_SITE_URL.replace(/\/+$/, "");
 const DOCS_DEFAULT_BASE_PATH = (() => {
   const pathname = new URL(DOCS_SITE_URL).pathname.replace(/\/+$/, "");
