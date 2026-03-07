@@ -143,9 +143,7 @@ export class IdleState implements IOnlineStateHandler {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   exit(_ctx: INPCContext): void {
     // Nothing to clean up.
   }
 }
-

@@ -22,7 +22,6 @@ export class DeadState implements IOnlineStateHandler {
   // IStateConfig and IStateTransitionMap are accepted but not used in this
   // terminal state — kept for constructor signature consistency with all other
   // handlers.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   constructor(_cfg: IStateConfig, _tr?: Partial<IStateTransitionMap>) {}
 
   enter(ctx: INPCContext): void {
@@ -30,12 +29,10 @@ export class DeadState implements IOnlineStateHandler {
     ctx.disablePhysics();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   update(_ctx: INPCContext, _deltaMs: number): void {
     // Intentional no-op — dead entities do nothing each frame.
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   exit(_ctx: INPCContext): void {
     // The FSM should not exit DEAD under normal operation.
     // No cleanup required — this is a safety no-op.

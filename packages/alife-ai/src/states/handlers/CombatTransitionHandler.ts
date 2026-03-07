@@ -44,7 +44,6 @@ export class CombatTransitionHandler implements IOnlineStateHandler {
     private readonly cfg: IStateConfig,
     transitionCfgOverrides?: Partial<ICombatTransitionConfig>,
     rules?: readonly ITransitionRule[],
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _tr?: Partial<IStateTransitionMap>,
   ) {
     this.transitionCfg = createDefaultCombatTransitionConfig({
