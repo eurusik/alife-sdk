@@ -1,35 +1,50 @@
-# A-Life SDK Docs Site
+# A-Life SDK Docs
 
-This app is the React-based docs and landing site for the A-Life SDK.
+This directory contains the React docs and landing site for the A-Life SDK.
 
-It is not the SDK workspace itself. The SDK packages, examples, and monorepo tooling live in the repository root.
+The SDK packages, examples, and release tooling live in the repository root. This app only renders the public docs experience.
 
-## Run locally
+## Install
 
 ```bash
 pnpm --dir docs install
-pnpm --dir docs dev
 ```
 
-## Build
+## Run
+
+From the repository root:
 
 ```bash
+pnpm docs:dev
+pnpm docs:build
+pnpm docs:preview
+```
+
+Or run the site directly:
+
+```bash
+pnpm --dir docs dev
 pnpm --dir docs build
 pnpm --dir docs test
 ```
 
-## Site structure
+## What to edit
 
-- `src/pages/Index.tsx` -> landing page
-- `src/pages/DocPage.tsx` -> docs reader shell
-- `content/docs/` -> markdown source for guides, concepts, packages, examples, and reference pages
-- `src/content/docsRegistry.ts` -> doc discovery, grouping, and slug resolution
+- `src/pages/Index.tsx` - landing page
+- `src/pages/DocPage.tsx` - docs reader shell
+- `content/docs/` - markdown source for guides, concepts, packages, examples, and reference pages
+- `src/content/docsRegistry.ts` - doc discovery, grouping, and slug resolution
 
-## Content model
+## Content layout
 
-The docs site loads markdown files from `content/docs/` at build time and turns them into the sidebar, top navigation, search index, and doc routes.
+Markdown under `content/docs/` is turned into:
 
-Add a new doc by placing a markdown file in the correct folder:
+- sidebar groups
+- top-level doc routes
+- search data
+- previous/next navigation
+
+Add docs to the relevant folder:
 
 - `content/docs/guides/`
 - `content/docs/concepts/`
@@ -37,10 +52,9 @@ Add a new doc by placing a markdown file in the correct folder:
 - `content/docs/examples/`
 - `content/docs/reference/`
 
-## Design intent
+## Editing rules
 
-The site is optimized for three developer questions:
-
-1. Does this SDK fit my game?
-2. What is the shortest path to one honest proof?
-3. Where are the real integration seams once I decide to adopt it?
+- Keep landing copy direct and developer-facing.
+- Prefer runnable proofs over abstract marketing text.
+- Put integration details in docs pages, not in the hero.
+- Treat `Quick Start` as the shortest honest path to one working loop.

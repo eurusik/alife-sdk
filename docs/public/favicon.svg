@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">A-Life SDK favicon</title>
+  <desc id="desc">Dark square badge with a stylized amber A and a signal dot.</desc>
+  <defs>
+    <linearGradient id="bg" x1="12%" y1="8%" x2="88%" y2="92%">
+      <stop offset="0%" stop-color="#17110e" />
+      <stop offset="100%" stop-color="#2f1f15" />
+    </linearGradient>
+    <linearGradient id="accent" x1="18%" y1="18%" x2="82%" y2="82%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#f97316" />
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#bg)" />
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="none" stroke="#f59e0b" stroke-width="2.5" />
+  <path
+    d="M32 13 47 49H39.8l-3.1-7.8H27.2L24.1 49H17L32 13Zm1.9 21.6-1.9-4.9-1.9 4.9h3.8Z"
+    fill="#fff5db"
+  />
+  <circle cx="45.5" cy="19.5" r="5.2" fill="url(#accent)" />
+  <circle cx="45.5" cy="19.5" r="2" fill="#17110e" />
+</svg>

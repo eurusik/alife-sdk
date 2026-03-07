@@ -15,7 +15,7 @@ import {
   Orbit,
   RadioTower,
 } from "lucide-react";
-import heroWasteland from "@/assets/hero-wasteland.jpg";
+import heroAlife from "@/assets/hero-alife.webp";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { docsFlat } from "@/content/docsRegistry";
@@ -339,7 +339,7 @@ const Index = () => {
         <section id="hero" className="scroll-mt-28 pt-8 md:pt-12">
           <div className="pixel-card relative min-h-[420px] overflow-hidden md:min-h-[500px] lg:min-h-0 lg:aspect-[1360/520]">
             <div className="absolute inset-0 opacity-45">
-              <img src={heroWasteland} alt="" className="h-full w-full object-cover object-center" />
+              <img src={heroAlife} alt="" className="h-full w-full object-cover object-bottom" />
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(255,179,71,0.18),transparent_32%),linear-gradient(135deg,rgba(8,4,3,0.88),rgba(12,7,5,0.58),rgba(8,4,3,0.94))]" />
               <div className="absolute inset-0 scanline" />
             </div>
