@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">A-Life SDK Docs</title>
+  <desc id="desc">Living world simulation and NPC AI documentation for TypeScript and Phaser games.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#100d0c" />
+      <stop offset="55%" stop-color="#1c1613" />
+      <stop offset="100%" stop-color="#312117" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#f97316" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)" />
+  <g opacity="0.18">
+    <circle cx="195" cy="150" r="120" fill="#f59e0b" />
+    <circle cx="970" cy="120" r="180" fill="#fb923c" />
+    <circle cx="1080" cy="480" r="220" fill="#f97316" />
+  </g>
+  <g fill="none" opacity="0.32" stroke="#fbbf24" stroke-width="2">
+    <path d="M84 474h350l66-65h237l80-80h296" />
+    <path d="M84 512h210l95-94h202l84-84h441" />
+    <path d="M84 550h284l72-72h275l70-70h331" />
+  </g>
+  <rect x="84" y="88" width="228" height="42" rx="6" fill="#181311" stroke="#f59e0b" stroke-width="2" />
+  <text x="105" y="115" fill="#fcd34d" font-family="'IBM Plex Mono', monospace" font-size="22" letter-spacing="3">
+    DOCUMENTATION
+  </text>
+  <text x="84" y="246" fill="#f8fafc" font-family="'Space Grotesk', 'Segoe UI', sans-serif" font-size="78" font-weight="700">
+    A-Life SDK
+  </text>
+  <text x="84" y="330" fill="#fed7aa" font-family="'Space Grotesk', 'Segoe UI', sans-serif" font-size="44" font-weight="600">
+    Living world simulation for 2D games
+  </text>
+  <text x="84" y="404" fill="#e2e8f0" font-family="'IBM Plex Mono', monospace" font-size="28">
+    Offline NPC simulation. Online behavior. Phaser and custom engine integration.
+  </text>
+  <g transform="translate(808 180)">
+    <rect width="292" height="188" rx="14" fill="#15100e" stroke="url(#accent)" stroke-width="3" />
+    <rect x="28" y="28" width="236" height="20" fill="#2d1f16" />
+    <rect x="28" y="66" width="176" height="18" fill="#4b3527" />
+    <rect x="28" y="102" width="212" height="18" fill="#2d1f16" />
+    <rect x="28" y="138" width="144" height="18" fill="#4b3527" />
+    <circle cx="242" cy="132" r="24" fill="#f59e0b" opacity="0.9" />
+    <circle cx="242" cy="132" r="10" fill="#111827" />
+  </g>
+</svg>

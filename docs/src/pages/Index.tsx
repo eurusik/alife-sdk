@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
@@ -19,6 +19,7 @@ import heroWasteland from "@/assets/hero-wasteland.jpg";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { docsFlat } from "@/content/docsRegistry";
+import { buildHomeSeo, useSeo } from "@/lib/seo";
 
 const LANDING_SECTIONS = [
   {
@@ -181,10 +182,14 @@ const ROUTE_CARDS: Array<{
 ];
 
 const Index = () => {
+  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const sectionIds = useMemo(() => LANDING_SECTIONS.map((section) => section.id), []);
   const [activeSectionId, setActiveSectionId] = useState(sectionIds[0] ?? "hero");
+  const seo = useMemo(() => buildHomeSeo(location.pathname), [location.pathname]);
+
+  useSeo(seo);
 
   useEffect(() => {
     const targets = sectionIds
@@ -332,14 +337,14 @@ const Index = () => {
 
       <main className="mx-auto w-full max-w-[1360px] px-4 pb-20 md:px-6">
         <section id="hero" className="scroll-mt-28 pt-8 md:pt-12">
-          <div className="pixel-card relative overflow-hidden">
+          <div className="pixel-card relative min-h-[420px] overflow-hidden md:min-h-[500px] lg:min-h-0 lg:aspect-[1360/520]">
             <div className="absolute inset-0 opacity-45">
               <img src={heroWasteland} alt="" className="h-full w-full object-cover object-center" />
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(255,179,71,0.18),transparent_32%),linear-gradient(135deg,rgba(8,4,3,0.88),rgba(12,7,5,0.58),rgba(8,4,3,0.94))]" />
               <div className="absolute inset-0 scanline" />
             </div>
 
-            <div className="relative min-w-0 p-6 md:p-8 xl:p-10">
+            <div className="relative min-w-0 p-6 md:p-8 lg:flex lg:h-full lg:items-center xl:p-10">
               <div className="min-w-0 max-w-[1120px]">
                 <p className="landing-kicker">Engine-agnostic SDK for 2D games</p>
                 <h1 className="mt-4 max-w-[16ch] font-display text-4xl font-bold leading-[0.95] tracking-wide text-foreground md:max-w-[18ch] md:text-6xl xl:max-w-[20ch] xl:text-7xl">

@@ -13,6 +13,7 @@ import {
   type DocGroup,
   type DocSection,
 } from "@/content/docsRegistry";
+import { buildDocSeo, buildNotFoundSeo, useSeo } from "@/lib/seo";
 import { scanHeadingsFromDom } from "@/pages/docToc";
 
 const SEARCH_DEBOUNCE_MS = 180;
@@ -257,10 +258,25 @@ const DocPage = () => {
     () => currentSection?.groups.find((group) => group.id === currentDoc?.groupId) ?? null,
     [currentDoc?.groupId, currentSection],
   );
+  const seo = useMemo(
+    () =>
+      currentDoc
+        ? buildDocSeo({
+            title: currentDoc.title,
+            description: currentDoc.description,
+            path: location.pathname,
+            sectionTitle: currentSection?.title,
+            groupTitle: currentGroup?.title,
+          })
+        : buildNotFoundSeo(location.pathname),
+    [currentDoc, currentGroup?.title, currentSection?.title, location.pathname],
+  );
   const activeHeadingText = useMemo(() => {
     const activeHeading = headings.find((heading) => heading.id === activeHeadingId);
     return activeHeading?.text.replace(/^\d+\.\s+/, "") ?? "";
   }, [activeHeadingId, headings]);
+
+  useSeo(seo);
 
   useEffect(() => {
     let frame = 0;
