@@ -24,12 +24,12 @@ const LANDING_SECTIONS = [
   {
     id: "hero",
     title: "Overview",
-    summary: "What the SDK is, what problem it solves, and what the runtime loop looks like.",
+    summary: "What the SDK is, which problem it addresses, and how to read the page.",
   },
   {
     id: "proof",
-    title: "Why Use It",
-    summary: "Why developers use it and what you can validate in one small scene.",
+    title: "What It Solves",
+    summary: "What changes when you add the SDK and what you can validate in one small scene.",
   },
   {
     id: "architecture",
@@ -39,12 +39,12 @@ const LANDING_SECTIONS = [
   {
     id: "start",
     title: "First Proof",
-    summary: "The shortest path from first tick to the first working living-world proof.",
+    summary: "The shortest path from the first tick to a minimal working proof.",
   },
   {
     id: "routes",
     title: "Entry Points",
-    summary: "Quick paths into the docs based on how you want to evaluate the SDK.",
+    summary: "Direct paths into the docs based on the next integration question.",
   },
 ] as const;
 
@@ -65,17 +65,17 @@ const VALUE_PILLARS: Array<{
     icon: RadioTower,
   },
   {
-    title: "Rich behavior where it matters",
+    title: "Observed NPC behavior",
     description: "Nearby NPCs can switch to more expensive behavior only when the player can actually observe them.",
     icon: Gamepad2,
   },
   {
-    title: "Your engine stays in charge",
+    title: "Engine ownership stays in your game",
     description: "Rendering, physics, scene graph, entities, and animation remain inside your game code.",
     icon: Layers3,
   },
   {
-    title: "Add layers gradually",
+    title: "Add packages only when needed",
     description: "Start with core and simulation, then add AI, hazards, economy, persistence, or engine adapters only when needed.",
     icon: Orbit,
   },
@@ -133,32 +133,32 @@ const ADOPTION_STEPS = [
 ];
 
 const codeSnippet = `import { createInMemoryKernel } from "@alife-sdk/simulation";
-import { Ports } from "@alife-sdk/core";
+import { FactionBuilder, SmartTerrain } from "@alife-sdk/core";
 
-const { kernel, sim } = createInMemoryKernel();
+const { kernel, sim, factions } = createInMemoryKernel();
 
-kernel.provide(Ports.EntityAdapter, entityAdapter);
-kernel.provide(Ports.PlayerPosition, playerPositionProvider);
+factions.factions.register("stalker", new FactionBuilder("stalker").build());
 
-kernel.init();
-kernel.start();
-kernel.update(16.6);`;
+sim.addTerrain(new SmartTerrain({ id: "camp", ... }));
+sim.registerNPC({ entityId: "wolf", factionId: "stalker", ... });
+
+kernel.update(5_001);`;
 
 const ENTRY_SEQUENCE = [
   {
     step: "01",
     title: "Start with Quick Start",
-    detail: "Use it to boot the kernel, register the minimum ports, and run the first tick.",
+    detail: "Boot the kernel, register the minimum ports, and run the first tick.",
   },
   {
     step: "02",
     title: "Prove one living world",
-    detail: "Move to First Living World when you want one terrain, one faction, one NPC, and one visible handoff.",
+    detail: "Open First Living World when you want one terrain, one faction, one NPC, and one visible handoff.",
   },
   {
     step: "03",
     title: "Go deeper only when needed",
-    detail: "Open Phaser Integration for engine fit, or Packages when you care about boundaries and adoption order.",
+    detail: "Open Phaser Integration for renderer fit, or Packages when you need package boundaries and adoption order.",
   },
 ];
 
@@ -184,7 +184,7 @@ const ROUTE_CARDS: Array<{
   doc: { slug: string; title: string; description: string; href: string };
 }> = [
   {
-    eyebrow: "Fastest setup",
+    eyebrow: "Start here",
     label: "Quick Start",
     detail: "Boot the kernel, register the minimum ports, and run the first tick.",
     icon: Flame,
@@ -194,7 +194,7 @@ const ROUTE_CARDS: Array<{
     }),
   },
   {
-    eyebrow: "Smallest proof",
+    eyebrow: "Minimal proof",
     label: "First Living World",
     detail: "Build the smallest living-world proof with one terrain, one faction, one NPC, and one event.",
     icon: Gamepad2,
@@ -204,9 +204,9 @@ const ROUTE_CARDS: Array<{
     }),
   },
   {
-    eyebrow: "Renderer path",
+    eyebrow: "Renderer integration",
     label: "Phaser Integration",
-    detail: "See how the SDK sits on top of a real renderer without owning your entities or scenes.",
+    detail: "See how the SDK integrates with a renderer without owning your entities or scenes.",
     icon: Gamepad2,
     doc: resolveDoc("guides/phaser-integration", {
       title: "Phaser Integration",
@@ -214,9 +214,9 @@ const ROUTE_CARDS: Array<{
     }),
   },
   {
-    eyebrow: "Package map",
+    eyebrow: "Package boundaries",
     label: "Packages",
-    detail: "Inspect what lives in core, simulation, AI, and phaser before you integrate deeper.",
+    detail: "Inspect what lives in core, simulation, AI, and phaser before you integrate further.",
     icon: Boxes,
     doc: resolveDoc("packages/index", {
       title: "Packages",
@@ -434,10 +434,10 @@ const Index = () => {
               <div className="min-w-0 max-w-[1120px]">
                 <p className="landing-kicker">Engine-agnostic TypeScript SDK for 2D games</p>
                 <h1 className="mt-4 max-w-[16ch] font-display text-4xl font-bold leading-[0.95] tracking-wide text-foreground md:max-w-[18ch] md:text-6xl xl:max-w-[20ch] xl:text-7xl">
-                  Online/offline NPC simulation that keeps the world moving.
+                  Online/offline NPC simulation for 2D games.
                 </h1>
                 <p className="mt-5 max-w-[62ch] text-base leading-8 text-muted-foreground md:max-w-[70ch] md:text-lg md:leading-9 xl:max-w-[78ch]">
-                  Built for developers making 2D games who want living-world NPC simulation without replacing their
+                  For 2D JavaScript and TypeScript games that need living-world NPC simulation without replacing the
                   renderer, entities, or physics.
                 </p>
 
@@ -465,14 +465,14 @@ const Index = () => {
         <section id="proof" className="scroll-mt-28 pt-10 md:pt-16">
           <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="landing-kicker">Core value</p>
+              <p className="landing-kicker">What it solves</p>
               <h2 className="mt-3 text-3xl font-display font-bold tracking-wide text-foreground md:text-5xl">
-                Why developers use it
+                What the SDK adds
               </h2>
             </div>
             <p className="max-w-[52ch] text-sm leading-7 text-muted-foreground md:text-base">
-              A-Life SDK solves one specific problem cleanly: the world keeps progressing when the player is not
-              looking, without forcing you into a custom engine runtime.
+              The SDK addresses one specific problem: off-screen world progression without forcing you into a custom
+              engine runtime.
             </p>
           </div>
 
@@ -490,7 +490,7 @@ const Index = () => {
             <div className="landing-panel p-5 md:p-6">
               <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">First proof</p>
               <h3 className="mt-3 text-3xl font-display font-bold text-foreground">
-                A working prototype in one small scene
+                The smallest useful proof
               </h3>
               <div className="mt-5 space-y-3">
                 {[
@@ -503,7 +503,7 @@ const Index = () => {
                     text: "The same NPC can exist as off-screen simulation and become an observable actor when the player arrives.",
                   },
                   {
-                    title: "One stable integration seam",
+                    title: "One integration boundary",
                     text: "Ports let your game answer narrow runtime questions without exposing your whole engine internals.",
                   },
                 ].map((item, index) => (
@@ -589,9 +589,9 @@ const Index = () => {
         <section id="start" className="scroll-mt-28 pt-10 md:pt-16">
           <div className="grid gap-5 xl:grid-cols-[0.85fr,1.15fr]">
             <div className="landing-panel p-5 md:p-6">
-              <p className="landing-kicker">First proof path</p>
+              <p className="landing-kicker">First proof</p>
               <h2 className="mt-3 text-3xl font-display font-bold tracking-wide text-foreground md:text-5xl">
-                Get to the first living world fast
+                From first tick to first proof
               </h2>
               <div className="mt-6 space-y-4">
                 {ADOPTION_STEPS.map((step, index) => (
@@ -608,12 +608,12 @@ const Index = () => {
               </div>
             </div>
 
-            <div className="landing-panel md-code-block overflow-hidden">
+            <div className="landing-panel md-code-block landing-code-block overflow-hidden">
               <div className="md-code-meta">
                 <div>
                   <p className="md-code-lang uppercase tracking-[0.16em]">Minimal setup</p>
                   <p className="mt-1 text-sm font-display font-semibold text-foreground">
-                    The smallest loop worth showing your team
+                    The smallest working loop
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -647,13 +647,12 @@ const Index = () => {
         <section id="routes" className="scroll-mt-28 pt-10 md:pt-16">
           <div className="grid gap-5 xl:grid-cols-[0.82fr,1.18fr]">
             <div className="landing-panel p-5 md:p-6">
-              <p className="landing-kicker">Docs entry points</p>
+              <p className="landing-kicker">Entry points</p>
               <h2 className="mt-3 text-3xl font-display font-bold tracking-wide text-foreground md:text-5xl">
                 Choose where to start
               </h2>
               <p className="mt-4 max-w-[56ch] text-sm leading-7 text-muted-foreground md:text-base">
-                Most teams do not need the whole docs tree on day one. Start with the smallest proof, then open deeper
-                pages only when the next question appears.
+                Start with the smallest proof. Open deeper docs only when the next integration question appears.
               </p>
 
               <div className="mt-6 space-y-3">

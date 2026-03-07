@@ -469,6 +469,19 @@
     scrollbar-color: hsl(30 34% 30%) hsl(20 14% 10%);
   }
 
+  .landing-code-block pre {
+    flex: 1;
+    max-height: 32rem;
+    overflow: auto;
+  }
+
+  .landing-code-block {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    margin: 0;
+  }
+
   .md-code-block pre code {
     background: transparent;
     padding: 0;
