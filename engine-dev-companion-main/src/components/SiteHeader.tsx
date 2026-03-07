@@ -12,6 +12,8 @@ type SiteHeaderProps = {
   query: string;
   navItems: NavItem[];
   quickstartHref?: string;
+  showSearch?: boolean;
+  compactMobileNav?: boolean;
   onQueryChange: (value: string) => void;
   onOpenMenu: () => void;
 };
@@ -21,6 +23,8 @@ export function SiteHeader({
   query,
   navItems,
   quickstartHref = "#quickstart",
+  showSearch = true,
+  compactMobileNav = false,
   onQueryChange,
   onOpenMenu,
 }: SiteHeaderProps) {
@@ -62,15 +66,17 @@ export function SiteHeader({
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="flex min-w-0 flex-1 items-center gap-2 border-2 border-border bg-secondary px-3 py-1.5 pixel-inset md:min-w-[220px] md:flex-none">
-              <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              <input
-                value={query}
-                onChange={(event) => onQueryChange(event.target.value)}
-                placeholder="Search docs..."
-                className="w-full min-w-0 bg-transparent text-xs font-mono text-foreground outline-none placeholder:text-muted-foreground md:w-52"
-              />
-            </label>
+            {showSearch && (
+              <label className="flex min-w-0 flex-1 items-center gap-2 border-2 border-border bg-secondary px-3 py-1.5 pixel-inset md:min-w-[220px] md:flex-none">
+                <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <input
+                  value={query}
+                  onChange={(event) => onQueryChange(event.target.value)}
+                  placeholder="Search docs..."
+                  className="w-full min-w-0 bg-transparent text-xs font-mono text-foreground outline-none placeholder:text-muted-foreground md:w-52"
+                />
+              </label>
+            )}
 
             <div className="inline-flex items-center gap-1.5 border-2 border-border bg-secondary/60 px-2.5 py-2 md:hidden pixel-inset">
               <span className="text-[9px] font-mono uppercase tracking-[0.16em] text-muted-foreground">Section</span>
@@ -86,7 +92,7 @@ export function SiteHeader({
           </div>
         </div>
 
-        <div className="mt-3 border-t border-border/70 pt-2">
+        <div className={`mt-3 border-t border-border/70 pt-2 ${compactMobileNav ? "hidden md:block" : ""}`}>
           <nav className="flex items-center gap-1.5 overflow-x-auto pb-2 pr-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {navItems.map((item) => {
               const active = item.id === activeSectionId;
