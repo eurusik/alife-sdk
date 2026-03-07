@@ -14,6 +14,13 @@ npm install @alife-sdk/core
 - you want factions, smart terrains, or ports before adding heavier runtime layers
 - you are building on a custom engine and want engine-agnostic contracts
 
+## What this package does not do
+
+- it does not give you off-screen living NPC simulation by itself
+- it does not render sprites or own your scene graph
+- it does not replace your engine adapters
+- it does not give you full online combat AI without the higher packages
+
 ## Minimal kernel setup
 
 ```ts

@@ -98,7 +98,7 @@ export function SiteHeader({
                   <input
                     value={query}
                     onChange={(event) => onQueryChange(event.target.value)}
-                    placeholder="Search docs or API..."
+                    placeholder="Search docs, guides, examples..."
                     className="w-full min-w-0 bg-transparent text-xs font-mono text-foreground outline-none placeholder:text-muted-foreground md:w-64"
                     aria-label="Search docs"
                   />

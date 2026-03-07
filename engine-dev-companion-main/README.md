@@ -1,73 +1,48 @@
-# Welcome to your Lovable project
+# A-Life SDK Docs Site
 
-## Project info
+This app is the React-based docs and landing site for the A-Life SDK.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+It is not the SDK workspace itself. The SDK packages, examples, and monorepo tooling live in the repository root.
 
-## How can I edit this code?
+## Run locally
 
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
+cd engine-dev-companion-main
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Build
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+cd engine-dev-companion-main
+npm run build
+npm test
+```
 
-**Use GitHub Codespaces**
+## Site structure
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- `src/pages/Index.tsx` -> landing page
+- `src/pages/DocPage.tsx` -> docs reader shell
+- `content/docs/` -> markdown source for guides, concepts, packages, examples, and reference pages
+- `src/content/docsRegistry.ts` -> doc discovery, grouping, and slug resolution
 
-## What technologies are used for this project?
+## Content model
 
-This project is built with:
+The docs site loads markdown files from `content/docs/` at build time and turns them into the sidebar, top navigation, search index, and doc routes.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Add a new doc by placing a markdown file in the correct folder:
 
-## How can I deploy this project?
+- `content/docs/guides/`
+- `content/docs/concepts/`
+- `content/docs/packages/`
+- `content/docs/examples/`
+- `content/docs/reference/`
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## Design intent
 
-## Can I connect a custom domain to my Lovable project?
+The site is optimized for three developer questions:
 
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+1. Does this SDK fit my game?
+2. What is the shortest path to one honest proof?
+3. Where are the real integration seams once I decide to adopt it?

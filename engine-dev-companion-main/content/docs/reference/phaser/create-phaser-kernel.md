@@ -47,6 +47,16 @@ You still decide:
 - when to run `kernel.update(delta)`
 - when to run `onlineOffline.evaluate(...)`
 
+## Required ports
+
+At minimum, a useful scene setup needs:
+
+- `entityAdapter`
+- `entityFactory`
+- `playerPosition`
+
+Add `simulationBridge` whenever you expect simulation or full presets to own offline HP and damage behavior.
+
 ## Minimal working example
 
 ```ts
@@ -114,6 +124,29 @@ The config has four logical groups:
 The most important runtime rule is:
 
 `simulationBridge` is required if you expect simulation/full presets to own offline HP and damage behavior.
+
+## Minimal valid config
+
+```ts
+createPhaserKernel({
+  ports: {
+    entityAdapter,
+    entityFactory,
+    playerPosition,
+    simulationBridge,
+  },
+  config: {
+    preset: "simulation",
+  },
+});
+```
+
+## Common invalid config
+
+- `preset: "simulation"` without `simulationBridge` when you expect offline HP
+- calling `kernel.update(time)` instead of `kernel.update(delta)`
+- assuming `createPhaserKernel()` will call `init()` or `start()` for you
+- registering NPCs before the adapter can resolve their sprites
 
 ## `IPhaserKernelResult` in practice
 

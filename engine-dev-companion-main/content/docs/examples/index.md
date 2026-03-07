@@ -4,6 +4,14 @@ The examples are the most honest way to understand how this SDK behaves.
 
 Most top-level examples run in Node.js, which makes them a much better learning surface than a game scene when you are still trying to understand the world model.
 
+## Recommended first routes
+
+If you want the shortest path, start with one of these:
+
+1. **Understand the loop** -> run `18-full-npc.ts`
+2. **See Phaser integration** -> open the Phaser demo route below
+3. **See save/load and systems** -> jump to the gameplay systems examples
+
 ## If you only open one example first
 
 Run the capstone example:
@@ -20,6 +28,12 @@ Then open:
 - [Examples README](https://github.com/eurusik/alife-sdk/blob/main/examples/README.md)
 
 Open the file beside the console output. That is the quickest way to see how the major systems fit into one NPC lifecycle.
+
+### Expected output
+
+- console events that show the runtime is alive
+- readable transitions in the NPC lifecycle
+- enough signal to decide whether the model fits your game
 
 ## What runs where
 
@@ -119,6 +133,7 @@ Open the local Vite URL shown in the terminal.
 - blue and red NPC factions sharing one world
 - smart terrain movement and conflict
 - event log proving the background simulation is alive
+- one runtime handoff instead of two separate NPC systems
 
 ## Related pages
 

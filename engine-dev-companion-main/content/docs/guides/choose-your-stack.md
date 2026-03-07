@@ -64,6 +64,32 @@ npm install @alife-sdk/core @alife-sdk/simulation @alife-sdk/ai @alife-sdk/socia
 npm install @alife-sdk/core @alife-sdk/simulation @alife-sdk/economy @alife-sdk/persistence
 ```
 
+## Best-fit genre bundles
+
+### Stalker-like survival sandbox
+
+```bash
+npm install @alife-sdk/core @alife-sdk/simulation @alife-sdk/ai @alife-sdk/social @alife-sdk/hazards @alife-sdk/persistence
+```
+
+Use this when camps, patrols, anomalies, and continuity outside the camera matter more than tightly scripted encounters.
+
+### Action game with ambient NPC pressure
+
+```bash
+npm install @alife-sdk/core @alife-sdk/simulation @alife-sdk/ai @alife-sdk/phaser
+```
+
+Use this when you mainly need nearby NPC reactivity and off-screen continuity, but not a deep economy or narrative layer yet.
+
+### RPG with economy and save/load
+
+```bash
+npm install @alife-sdk/core @alife-sdk/simulation @alife-sdk/economy @alife-sdk/persistence @alife-sdk/social
+```
+
+Use this when player-facing progression, inventory, and durable world state matter more than combat-heavy online AI.
+
 ## What each optional package really adds
 
 | Package | Adds | Do not add it first if... |

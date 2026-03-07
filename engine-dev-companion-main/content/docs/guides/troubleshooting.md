@@ -1,75 +1,122 @@
 # Troubleshooting
 
-These are the problems teams usually hit in the first integration pass.
+Use this page when the runtime boots, but the behavior still feels wrong.
 
-## `kernel.init()` throws validation errors
+## Start here
 
-Usually a required port or plugin dependency is missing.
+Before chasing package-specific bugs, verify the five base signals:
 
-Checklist:
+- `kernel.init()` succeeds
+- `kernel.start()` succeeds
+- `kernel.update(deltaMs)` is actually running
+- one terrain exists
+- one NPC exists
 
-- `Ports.EntityAdapter`
-- `Ports.EntityFactory`
-- `Ports.PlayerPosition`
-- `SimulationPorts.SimulationBridge` if you use `@alife-sdk/simulation`
-
-If you want a zero-wiring sandbox first, use `createInMemoryKernel()`.
+If any of these is missing, fix that first.
 
 ## NPC does not move
 
-The likely causes:
+The common causes:
 
 - the kernel never started
 - `kernel.update(deltaMs)` is not running
 - no terrains were registered
 - the NPC is online but nothing is driving online AI
+- the NPC was never registered into the simulation cleanly
 
-## NPC freezes after going online
+Open next:
 
-That usually means the host flipped `isOnline` to `true`, but there is no online AI driver or engine-side movement controller active for that NPC.
+- [First Living World](/guides/first-living-world)
+- [Simulation package](/packages/simulation)
 
-## Phaser scene shows nothing happening
+## Ticks run but nothing changes
+
+This usually means the runtime loop exists, but the world model is still empty or blocked.
 
 Check these first:
 
-- `kernel.update(delta)` is called every frame
-- you passed `delta`, not `time`
-- the sprite was registered with the adapter before `registerNPC()`
-- `OnlineOfflineManager.evaluate()` actually runs
+- at least one `SmartTerrain` exists
+- at least one NPC belongs to a valid faction
+- the NPC is not stuck in an invalid online/offline state
+- you are observing events, not only visuals
 
-## AI transitions never fire
+Open next:
 
-For `@alife-sdk/ai`, transitions happen inside state-handler `enter()` and `update()` logic. If your state never calls `ctx.transition(...)`, the driver will stay there forever.
+- [Quick Start](/quick-start)
+- [Events](/concepts/events)
 
-## Cover system always returns `null`
+## Phaser sprite does not sync with the runtime
+
+The likely causes:
+
+- the sprite was not registered with `PhaserEntityAdapter` before `registerNPC(...)`
+- `kernel.update(delta)` is missing from `Scene.update`
+- you passed Phaser `time` instead of `delta`
+- the scene-side creation and cleanup path is incomplete
+
+Open next:
+
+- [Phaser Integration](/guides/phaser-integration)
+- [Phaser package](/packages/phaser)
+
+## Online/offline never switches
+
+That usually means the runtime itself is alive, but the handoff logic is not being applied.
+
+Check these first:
+
+- `OnlineOfflineManager.evaluate(...)` actually runs
+- you apply `goOnline` and `goOffline`
+- the player position provider returns live coordinates
+- the records you pass into the evaluator are the ones you expect
+
+Open next:
+
+- [Online vs Offline](/concepts/online-offline)
+- [Phaser Integration](/guides/phaser-integration)
+
+## Offline damage or HP never updates
 
 The usual reasons:
 
-- no cover points were registered
-- search radius is too small
-- cover locks never expire
-- score threshold is too strict
+- no simulation bridge exists
+- the bridge exists but the entity was never registered in it
+- you expect offline damage while running a setup that only owns online behavior
 
-## Save/load fails
+Open next:
 
-Look at the typed reason:
+- [Simulation package](/packages/simulation)
+- [createPhaserKernel](/docs/reference/phaser/create-phaser-kernel)
 
-- `write_failed`: storage or permissions problem
-- `parse_failed`: corrupted save data
-- `restore_failed`: incompatible or rejected runtime state
+## Save/load restore fails
+
+Look at the typed reason first:
+
+- `write_failed`
+- `parse_failed`
+- `restore_failed`
+
+Then verify that the runtime state you are restoring still matches the package versions and data assumptions you saved.
+
+Open next:
+
+- [Save / Load](/guides/save-load)
+- [Persistence package](/packages/persistence)
 
 ## Large worlds are too expensive
 
-Do not try to solve that by forcing everything online. Tune the offline budgets instead:
+Do not solve that by forcing everything online.
+
+Tune the background runtime first:
 
 - raise `tickIntervalMs`
-- adjust `maxBrainUpdatesPerTick`
-- reduce offline combat resolution budgets
-- re-evaluate terrains less often
+- reduce offline work budgets
+- evaluate online/offline transitions less often
+- prove one healthy population size before you scale up further
 
-## Related references
+## Related pages
 
+- [Is This For Me?](/guides/is-this-for-me)
+- [Choose Your Stack](/guides/choose-your-stack)
 - [Custom Engine](/guides/custom-engine)
 - [Phaser Integration](/guides/phaser-integration)
-- [Simulation package](/packages/simulation)
-- [AI package](/packages/ai)
