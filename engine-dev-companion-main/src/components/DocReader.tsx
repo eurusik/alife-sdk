@@ -1,9 +1,10 @@
-import { Children, type ReactNode, useState } from "react";
+import { Children, lazy, Suspense, type ReactNode, useEffect, useMemo, useState } from "react";
 import { CornerDownRight, Copy, ExternalLink } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import { createHeadingAnchorFactory, resolveDocSlug, type DocEntry } from "@/content/docsRegistry";
+import { normalizeCodeLanguage } from "@/lib/codeHighlight";
 
 type DocReaderProps = {
   doc: DocEntry | null;
@@ -37,11 +38,80 @@ const extractCodeLanguage = (className?: string): string => {
   return match?.[1] ?? "plain/text";
 };
 
+const preloadHighlightedCodeBlock = () => import("@/components/HighlightedCodeBlock");
+const HighlightedCodeBlock = lazy(preloadHighlightedCodeBlock);
+
+const hasHighlightableCodeBlocks = (content: string): boolean => {
+  const fencePattern = /```([^\n`]*)/g;
+
+  for (const match of content.matchAll(fencePattern)) {
+    const languageHint = (match[1] ?? "").trim().split(/\s+/)[0] ?? "";
+
+    if (languageHint && normalizeCodeLanguage(languageHint)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+type PlainCodeBlockProps = {
+  className?: string;
+  codeText: string;
+  codeProps?: Record<string, unknown>;
+};
+
+function PlainCodeBlock({ className, codeText, codeProps }: PlainCodeBlockProps) {
+  return (
+    <pre>
+      <code className={className} {...codeProps}>
+        {codeText}
+      </code>
+    </pre>
+  );
+}
+
 export function DocReader({ doc, docs, onSelectDoc }: DocReaderProps) {
   const [copiedBlockKey, setCopiedBlockKey] = useState<string | null>(null);
 
   const getOutlineHeadingId = createHeadingAnchorFactory();
   const getOtherHeadingId = createHeadingAnchorFactory();
+  const docContent = doc?.content ?? "";
+  const shouldPrefetchHighlightedCode = useMemo(() => hasHighlightableCodeBlocks(docContent), [docContent]);
+
+  useEffect(() => {
+    if (!doc || !shouldPrefetchHighlightedCode) {
+      return;
+    }
+
+    let timeoutId: number | null = null;
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+
+    const preload = () => {
+      void preloadHighlightedCodeBlock();
+    };
+
+    if (typeof idleWindow.requestIdleCallback === "function") {
+      const idleId = idleWindow.requestIdleCallback(() => preload(), { timeout: 1200 });
+
+      return () => {
+        if (typeof idleWindow.cancelIdleCallback === "function") {
+          idleWindow.cancelIdleCallback(idleId);
+        }
+      };
+    }
+
+    timeoutId = window.setTimeout(preload, 180);
+
+    return () => {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [doc, shouldPrefetchHighlightedCode]);
 
   if (!doc) {
     return null;
@@ -62,19 +132,21 @@ export function DocReader({ doc, docs, onSelectDoc }: DocReaderProps) {
   };
 
   return (
-    <section id="reader" className="pixel-card p-5 md:p-6 scroll-mt-24">
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3 border-b border-border pb-3">
-        <div>
+    <section id="reader" className="pixel-card min-w-0 p-4 md:p-6 scroll-mt-24">
+      <div className="mb-4 flex flex-col gap-4 border-b border-border pb-4 md:mb-5 md:flex-row md:flex-wrap md:items-start md:justify-between md:gap-3 md:pb-3">
+        <div className="min-w-0">
           <p className="text-xs font-mono uppercase tracking-wide text-muted-foreground">Markdown Reader</p>
-          <h1 className="text-3xl font-display font-bold tracking-wide text-foreground">{doc.title}</h1>
-          <code className="text-xs text-primary/85">{doc.source}</code>
+          <h1 className="text-2xl font-display font-bold tracking-wide text-foreground md:text-3xl">{doc.title}</h1>
+          <code className="block break-all text-[11px] text-primary/85 md:text-xs">{doc.source}</code>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div
+          className={`grid w-full min-w-0 gap-2 ${prevDoc && nextDoc ? "grid-cols-2" : "grid-cols-1"} md:flex md:w-auto md:flex-wrap md:items-center`}
+        >
           {prevDoc && (
             <button
               type="button"
               onClick={() => onSelectDoc(prevDoc.slug)}
-              className="doc-nav-btn"
+              className="doc-nav-btn min-w-0 w-full md:w-auto"
               title={prevDoc.title}
             >
               <span className="doc-nav-kicker">Prev</span>
@@ -85,7 +157,7 @@ export function DocReader({ doc, docs, onSelectDoc }: DocReaderProps) {
             <button
               type="button"
               onClick={() => onSelectDoc(nextDoc.slug)}
-              className="doc-nav-btn"
+              className="doc-nav-btn min-w-0 w-full md:w-auto"
               title={nextDoc.title}
             >
               <span className="doc-nav-kicker">Next</span>
@@ -168,6 +240,7 @@ export function DocReader({ doc, docs, onSelectDoc }: DocReaderProps) {
               }
 
               const language = extractCodeLanguage(className);
+              const normalizedLanguage = normalizeCodeLanguage(language);
               const blockKey = `${language}:${codeText.slice(0, 120)}`;
               const copied = copiedBlockKey === blockKey;
 
@@ -179,16 +252,26 @@ export function DocReader({ doc, docs, onSelectDoc }: DocReaderProps) {
                       type="button"
                       onClick={() => void copyCode(codeText, blockKey)}
                       className="md-code-copy"
+                      data-copied={copied ? "true" : "false"}
                     >
                       <Copy className="h-3.5 w-3.5" />
                       {copied ? "Copied" : "Copy"}
                     </button>
                   </div>
-                  <pre>
-                    <code className={className} {...props}>
-                      {codeText}
-                    </code>
-                  </pre>
+                  {normalizedLanguage ? (
+                    <Suspense
+                      fallback={<PlainCodeBlock className={className} codeProps={props} codeText={codeText} />}
+                    >
+                      <HighlightedCodeBlock
+                        className={className}
+                        codeProps={props}
+                        codeText={codeText}
+                        language={normalizedLanguage}
+                      />
+                    </Suspense>
+                  ) : (
+                    <PlainCodeBlock className={className} codeProps={props} codeText={codeText} />
+                  )}
                 </div>
               );
             },

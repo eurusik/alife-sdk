@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { ChevronDown, ChevronRight, Menu, X } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { DocReader } from "@/components/DocReader";
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   docsFlat,
   docsSections,
@@ -152,6 +153,7 @@ const DocPage = () => {
   const [queryInput, setQueryInput] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileTocOpen, setMobileTocOpen] = useState(false);
   const [headings, setHeadings] = useState<DocHeading[]>([]);
   const [activeHeadingId, setActiveHeadingId] = useState<string>("");
 
@@ -178,6 +180,14 @@ const DocPage = () => {
   }, [currentDoc, navigate, rawSlug]);
 
   const visibleSections = useMemo(() => filterSections(docsSections, debouncedQuery), [debouncedQuery]);
+  const currentSection = useMemo(
+    () => docsSections.find((section) => section.id === currentDoc?.sectionId) ?? null,
+    [currentDoc?.sectionId],
+  );
+  const activeHeadingText = useMemo(() => {
+    const activeHeading = headings.find((heading) => heading.id === activeHeadingId);
+    return activeHeading?.text.replace(/^\d+\.\s+/, "") ?? "";
+  }, [activeHeadingId, headings]);
 
   useEffect(() => {
     let frame = 0;
@@ -352,6 +362,11 @@ const DocPage = () => {
     navigate(`/docs/${slug}`);
   };
 
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setMobileTocOpen(false);
+  }, [currentDoc?.slug]);
+
   if (!currentDoc) {
     return (
       <div className="min-h-screen bg-background px-6 py-12 text-center">
@@ -374,52 +389,155 @@ const DocPage = () => {
         onOpenMenu={() => setMobileMenuOpen(true)}
       />
 
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-[60] lg:hidden">
-          <button
-            type="button"
-            aria-label="Close navigation"
-            onClick={() => setMobileMenuOpen(false)}
-            className="absolute inset-0 bg-black/60"
-          />
-          <aside className="relative h-full w-80 max-w-[90vw] border-r-2 border-border bg-background p-4">
-            <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
-              <p className="text-sm font-display font-bold uppercase tracking-wide text-foreground">Docs Navigation</p>
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(false)}
-                className="inline-flex items-center justify-center border-2 border-border bg-secondary p-1.5 text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </button>
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent
+          side="left"
+          hideClose
+          className="w-[88vw] max-w-[360px] border-r-2 border-border bg-background p-0 text-foreground sm:max-w-[360px]"
+        >
+          <div className="flex h-full flex-col">
+            <SheetHeader className="border-b border-border px-4 py-4 text-left">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <SheetTitle className="text-sm font-display font-bold uppercase tracking-wide text-foreground">
+                    Docs Navigation
+                  </SheetTitle>
+                  <SheetDescription className="mt-1 text-[11px] font-mono uppercase tracking-[0.16em] text-muted-foreground">
+                    {currentSection?.title ?? currentDoc.sectionId} • {currentSection?.docs.length ?? 0} docs
+                  </SheetDescription>
+                </div>
+                <SheetClose asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center border-2 border-border bg-secondary px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                  >
+                    Close
+                  </button>
+                </SheetClose>
+              </div>
+              {currentSection?.summary && (
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">{currentSection.summary}</p>
+              )}
+            </SheetHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+              <DocsTree
+                sections={visibleSections}
+                activeSlug={currentDoc.slug}
+                query={debouncedQuery}
+                onOpenDoc={openDoc}
+                onAfterClick={() => setMobileMenuOpen(false)}
+              />
             </div>
-            <DocsTree
-              sections={visibleSections}
-              activeSlug={currentDoc.slug}
-              query={debouncedQuery}
-              onOpenDoc={openDoc}
-              onAfterClick={() => setMobileMenuOpen(false)}
-            />
-          </aside>
-        </div>
-      )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
-      <div className="mx-auto flex w-full max-w-[1500px] px-4 md:px-6">
+      <Sheet open={mobileTocOpen} onOpenChange={setMobileTocOpen}>
+        <SheetContent
+          side="bottom"
+          hideClose
+          className="max-h-[82vh] rounded-t-[18px] border-2 border-b-0 border-border bg-background p-0 text-foreground"
+        >
+          <div className="mx-auto mt-2 h-1.5 w-16 rounded-full bg-border/80" />
+          <div className="flex max-h-[82vh] flex-col overflow-hidden">
+            <SheetHeader className="border-b border-border px-4 py-4 text-left">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <SheetTitle className="text-sm font-display font-bold uppercase tracking-wide text-foreground">
+                    On This Page
+                  </SheetTitle>
+                  <SheetDescription className="mt-1 line-clamp-2 text-sm leading-5 text-muted-foreground">
+                    {activeHeadingText || currentDoc.title}
+                  </SheetDescription>
+                </div>
+                <SheetClose asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center border-2 border-border bg-secondary px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                  >
+                    Close
+                  </button>
+                </SheetClose>
+              </div>
+            </SheetHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+              {headings.length === 0 ? (
+                <p className="text-xs font-mono text-muted-foreground">No headings</p>
+              ) : (
+                <nav className="space-y-1">
+                  {headings.map((heading) => {
+                    const active = heading.id === activeHeadingId;
+                    const displayText = heading.text.replace(/^\d+\.\s+/, "");
+
+                    return (
+                      <a
+                        key={heading.id}
+                        href={`#${heading.id}`}
+                        title={displayText}
+                        onClick={() => setMobileTocOpen(false)}
+                        className={`toc-link ${active ? "toc-link-active" : ""} ${heading.level === 3 ? "pl-4" : ""}`}
+                      >
+                        <span className="toc-link-text">{displayText}</span>
+                      </a>
+                    );
+                  })}
+                </nav>
+              )}
+            </div>
+            <div className="border-t border-border px-4 py-3">
+              <a
+                href="#reader"
+                onClick={() => setMobileTocOpen(false)}
+                className="toc-back-link inline-flex"
+              >
+                ↑ Back to top
+              </a>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <div className="mx-auto flex w-full max-w-[1500px] px-3 sm:px-4 md:px-6">
         <aside className="hidden w-72 shrink-0 border-r-2 border-border/80 bg-card/75 p-4 lg:block">
           <DocsTree sections={visibleSections} activeSlug={currentDoc.slug} query={debouncedQuery} onOpenDoc={openDoc} />
         </aside>
 
-        <main className="flex-1 py-8 lg:px-8">
-          <div className="mx-auto max-w-[780px] space-y-6">
-            <section className="pixel-card p-4">
-              <p className="text-xs font-mono uppercase tracking-wide text-muted-foreground">
+        <main className="min-w-0 flex-1 py-5 md:py-8 lg:px-8">
+          <div className="mx-auto w-full min-w-0 max-w-[780px] space-y-4 md:space-y-6">
+            <section className="pixel-card p-3 md:p-4">
+              <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-muted-foreground md:text-xs md:tracking-wide">
                 <Link to="/" className="md-link">
                   Docs
                 </Link>{" "}
-                / {currentDoc.sectionId} / {currentDoc.slug}
+                / {currentSection?.title ?? currentDoc.sectionId} / {currentDoc.title}
               </p>
             </section>
+
+            <div className="grid w-full min-w-0 gap-2 grid-cols-2 lg:grid-cols-1 xl:hidden">
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(true)}
+                className="inline-flex min-w-0 flex-col items-start justify-center border-2 border-border bg-secondary px-3 py-2.5 text-left transition-colors hover:border-primary/50 hover:text-foreground lg:hidden"
+              >
+                <span className="text-[10px] font-mono uppercase tracking-[0.16em] text-muted-foreground">Sections</span>
+                <span className="mt-1 block w-full truncate font-display text-sm font-semibold text-foreground">
+                  {currentSection?.title ?? currentDoc.sectionId}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileTocOpen(true)}
+                className="inline-flex min-w-0 flex-col items-start justify-center border-2 border-border bg-secondary px-3 py-2.5 text-left transition-colors hover:border-primary/50 hover:text-foreground"
+              >
+                <span className="text-[10px] font-mono uppercase tracking-[0.16em] text-muted-foreground">
+                  Outline <span className="ml-1 text-primary/80">{headings.length}</span>
+                </span>
+                <span className="mt-1 block w-full truncate font-display text-sm font-semibold text-foreground">
+                  {activeHeadingText || "Open page outline"}
+                </span>
+              </button>
+            </div>
+
             <DocReader doc={currentDoc} docs={docsFlat} onSelectDoc={openDoc} />
           </div>
         </main>
