@@ -351,9 +351,8 @@ const Index = () => {
                   A-Life for 2D games: offline simulation, online NPC behavior.
                 </h1>
                 <p className="mt-5 max-w-[62ch] text-base leading-8 text-muted-foreground md:max-w-[70ch] md:text-lg md:leading-9 xl:max-w-[78ch]">
-                  An A-Life SDK inspired by the emergent simulation systems popularized by the S.T.A.L.K.E.R. series.
-                  Simulate the world off-screen and drive nearby NPCs in real time with modular packages for AI,
-                  simulation, factions, hazards, economy, and persistence.
+                  An A-Life SDK inspired by the S.T.A.L.K.E.R. series, built for off-screen world simulation and
+                  real-time nearby NPC behavior with modular AI, factions, hazards, economy, and persistence.
                 </p>
 
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
