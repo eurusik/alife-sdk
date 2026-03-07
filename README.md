@@ -190,7 +190,9 @@ When an NPC comes back online its brain state (terrain, task, morale) is preserv
 
 ### Phaser 3
 
-The `@alife-sdk/phaser` package provides `createPhaserKernel`, a facade that wires the common ports and plugins in one call:
+Phaser 3 is a JavaScript/TypeScript 2D game framework.
+
+If your game uses Phaser 3, the `@alife-sdk/phaser` package provides `createPhaserKernel`, a helper that wires the common ports and plugins in one call:
 
 ```ts
 import { createPhaserKernel, PhaserEntityAdapter, PhaserEntityFactory, PhaserSimulationBridge } from '@alife-sdk/phaser';
