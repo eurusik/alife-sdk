@@ -148,20 +148,27 @@ The `@alife-sdk/phaser` package provides `createPhaserKernel` — a factory that
 all adapter ports to your Phaser scene in one call:
 
 ```ts
-import { createPhaserKernel } from '@alife-sdk/phaser/scene';
+import { createPhaserKernel, PhaserEntityAdapter, PhaserEntityFactory, PhaserSimulationBridge } from '@alife-sdk/phaser';
 import { TerrainBuilder, SmartTerrain } from '@alife-sdk/core/terrain';
-import { PhaserEntityAdapter } from '@alife-sdk/phaser/adapters';
 import { createDefaultBehaviorConfig } from '@alife-sdk/simulation';
 
 class GameScene extends Phaser.Scene {
   create() {
     const player = this.add.sprite(400, 300, 'player');
+    const adapter = new PhaserEntityAdapter();
+    const bridge = new PhaserSimulationBridge();
+    const factory = new PhaserEntityFactory({
+      createNPC: (req) => `npc_${req.npcTypeId}`,
+      createMonster: (req) => `monster_${req.monsterTypeId}`,
+      destroyEntity: (_id) => {},
+    });
 
     const { kernel, simulation } = createPhaserKernel({
       ports: {
-        entityAdapter:    new PhaserEntityAdapter(this),
+        entityAdapter:    adapter,
         playerPosition:   { getPlayerPosition: () => ({ x: player.x, y: player.y }) },
-        entityFactory:    new PhaserEntityFactory(this),
+        entityFactory:    factory,
+        simulationBridge: bridge,
       },
       data: {
         factions: [
@@ -183,6 +190,7 @@ class GameScene extends Phaser.Scene {
       config: { preset: 'simulation' },
     });
 
+    kernel.init();
     kernel.start();
 
     // Register an NPC after init
