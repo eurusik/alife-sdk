@@ -7,9 +7,97 @@
 
 **Docs:** [Glossary](docs/glossary.md) · [Changelog](CHANGELOG.md) · [Examples](examples/README.md) · [Contributing](CONTRIBUTING.md)
 
-A modular TypeScript SDK for building living game worlds — NPC state machines, GOAP planning, faction systems, offline world simulation, real-time AI behavior, social interactions, economy, hazard zones, and save/load. All opt-in, zero external dependencies in core.
+A modular TypeScript SDK for building living game worlds: offline NPC simulation, online combat AI, factions, social systems, economy, hazards, and save/load.
 
-Works with **Phaser 3** (production-ready adapter included) or any other runtime — **PixiJS, Three.js, Node.js** — by implementing four port interfaces. ESM-only.
+Works with **Phaser 3** out of the box and stays engine-agnostic everywhere else through ports. ESM-only. Zero external dependencies in core.
+
+---
+
+## Why this exists
+
+- Run hundreds of off-screen NPCs cheaply with offline ticks.
+- Switch nearby NPCs to full real-time AI only when the player is close.
+- Keep systems modular: take just `core`, or add simulation, AI, social, economy, hazards, and persistence when you need them.
+- Start fast in Phaser with [`createPhaserKernel`](packages/alife-phaser/README.md), or wire your own engine through ports.
+
+## Start Here
+
+If you want to see the SDK working before reading architecture docs, run the capstone example:
+
+```bash
+pnpm install
+pnpm build:sdk
+npx tsx --tsconfig examples/tsconfig.json examples/18-full-npc.ts
+```
+
+Then open [examples/18-full-npc.ts](examples/18-full-npc.ts) and [examples/README.md](examples/README.md).
+
+---
+
+## Visual Preview
+
+The Phaser demo shows this loop:
+
+```mermaid
+flowchart LR
+    P["Player moves"] --> R["NPC enters radius"]
+    R --> O["Online AI takes over"]
+    O --> C["Combat / search / alert"]
+    P --> F["NPC leaves radius"]
+    F --> S["Offline simulation resumes"]
+    S --> W["World keeps living off-screen"]
+```
+
+What you see in the browser demo:
+
+- White circle: player position driving online/offline switching
+- Blue and red NPCs: faction-based actors living in the same world
+- Cyan radius: threshold where offline brains hand off to online AI
+- Event log: simulation and combat events proving the systems are live
+
+Run it from the repo root with:
+
+```bash
+pnpm build:sdk
+pnpm example:phaser:install
+pnpm example:phaser:dev
+```
+
+More detail: [examples/phaser/README.md](examples/phaser/README.md)
+
+---
+
+## 30-Second Package Guide
+
+```text
+Are you building with Phaser 3?
+├─ YES → install @alife-sdk/core @alife-sdk/simulation @alife-sdk/ai @alife-sdk/social @alife-sdk/phaser
+│         Start with createPhaserKernel() and examples/09-phaser.ts
+│
+└─ NO  → Do you need NPCs to keep living off-screen?
+          ├─ YES → install @alife-sdk/core @alife-sdk/simulation
+          │         Add @alife-sdk/ai later for on-screen combat behavior
+          │
+          └─ NO  → install @alife-sdk/core
+                    Use the kernel, factions, events, and your own plugins
+```
+
+Optional add-ons:
+
+- `@alife-sdk/economy` for inventory, trade, and quests
+- `@alife-sdk/hazards` for anomaly zones, damage, and artefacts
+- `@alife-sdk/social` for greetings, ambient remarks, and campfire stories
+- `@alife-sdk/persistence` for save/load pipelines
+
+---
+
+## Why Trust It
+
+- Modular monorepo with 8 installable packages.
+- CI runs build, test, and lint on Node 20 and 22.
+- Full local workspace build passes with `pnpm build:sdk`.
+- Full local test suite passes with thousands of tests across all packages.
+- Core stays framework-free and talks to the host game only through typed ports.
 
 ---
 
@@ -26,7 +114,7 @@ Works with **Phaser 3** (production-ready adapter included) or any other runtime
 | [`@alife-sdk/persistence`](packages/alife-persistence/README.md) | Save/load pipeline — pluggable storage backends (localStorage, file, memory) |
 | [`@alife-sdk/phaser`](packages/alife-phaser/README.md) | Phaser 3 adapter layer — ready-to-use port implementations, `createPhaserKernel` factory |
 
-```
+```text
 @alife-sdk/core
     ├── @alife-sdk/simulation
     ├── @alife-sdk/ai
@@ -34,10 +122,10 @@ Works with **Phaser 3** (production-ready adapter included) or any other runtime
     ├── @alife-sdk/economy
     ├── @alife-sdk/hazards
     ├── @alife-sdk/persistence
-    └── @alife-sdk/phaser  ←  depends on core + simulation + ai + social
+    └── @alife-sdk/phaser
 ```
 
-Each package is independently installable. You only pay for what you use.
+Each package is independently installable.
 
 ---
 
@@ -53,7 +141,6 @@ npm install @alife-sdk/core @alife-sdk/simulation @alife-sdk/ai @alife-sdk/socia
 
 ```bash
 npm install @alife-sdk/core
-# add more packages as needed
 npm install @alife-sdk/simulation @alife-sdk/ai
 ```
 
@@ -61,31 +148,9 @@ See [`examples/`](examples/) for runnable Node.js examples that demonstrate the 
 
 ---
 
-## Which packages do I need?
+## Fastest Zero-Boilerplate Start
 
-```
-Are you building a game with Phaser 3?
-├─ YES → npm install @alife-sdk/core @alife-sdk/simulation @alife-sdk/ai @alife-sdk/social @alife-sdk/phaser
-│         Then use createPhaserKernel() from '@alife-sdk/phaser' — it wires everything in one call.
-│         → See examples/09-phaser.ts (browser template)
-│
-└─ NO  → Do you want NPCs to behave while off-screen (living world)?
-          ├─ YES → npm install @alife-sdk/core @alife-sdk/simulation
-          │         Start with examples/01-hello-npc.ts
-          │         Add @alife-sdk/ai for real-time AI when NPCs are on screen.
-          │
-          └─ NO  → npm install @alife-sdk/core
-                    Use just the kernel + factions + events.
-                    Start with the engine-agnostic Quick start below.
-
-Optional add-ons (install any time):
-  @alife-sdk/economy      → trade, inventory, quests
-  @alife-sdk/hazards      → anomaly zones, radiation damage
-  @alife-sdk/social       → NPC greetings, campfire stories
-  @alife-sdk/persistence  → save / load
-```
-
-**Just exploring?** Use `createInMemoryKernel()` — no adapter boilerplate needed:
+Use `createInMemoryKernel()` when you want to explore the simulation before wiring a real engine:
 
 ```ts
 import { createInMemoryKernel } from '@alife-sdk/simulation';
@@ -105,7 +170,7 @@ kernel.update(5_001); // advance one tick
 
 ## Core Concepts
 
-```
+```text
   Your game engine
        │
        │  implements Ports (IEntityAdapter, IEntityFactory, IPlayerPositionProvider)
@@ -144,8 +209,7 @@ When an NPC comes back online its brain state (terrain, task, morale) is preserv
 
 ### Phaser 3
 
-The `@alife-sdk/phaser` package provides `createPhaserKernel` — a factory that wires
-all adapter ports to your Phaser scene in one call:
+The `@alife-sdk/phaser` package provides `createPhaserKernel`, a facade that wires the common ports and plugins in one call:
 
 ```ts
 import { createPhaserKernel, PhaserEntityAdapter, PhaserEntityFactory, PhaserSimulationBridge } from '@alife-sdk/phaser';
@@ -483,13 +547,13 @@ Two likely causes:
 
 ### 3. TypeScript errors on imports
 
-The SDK uses sub-path exports. Import from the correct sub-path:
+The SDK supports both root exports and sub-path exports. Prefer sub-path imports for clarity and tree-shaking:
 
 ```ts
-// Wrong
+// Good
 import { SimulationPlugin } from '@alife-sdk/simulation';
 
-// Correct
+// Also good, and more explicit for library consumers
 import { SimulationPlugin } from '@alife-sdk/simulation/plugin';
 import { SmartTerrain, TerrainBuilder } from '@alife-sdk/core/terrain';
 import { ALifeEvents } from '@alife-sdk/core/events';
