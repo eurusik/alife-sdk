@@ -337,25 +337,27 @@ const Index = () => {
 
       <main className="mx-auto w-full max-w-[1360px] px-4 pb-20 md:px-6">
         <section id="hero" className="scroll-mt-28 pt-8 md:pt-12">
-          <div className="pixel-card relative min-h-[420px] overflow-hidden md:min-h-[500px] lg:min-h-0 lg:aspect-[1360/520]">
+          <div className="pixel-card relative min-h-[420px] overflow-hidden md:min-h-[500px] lg:min-h-[560px]">
             <div className="absolute inset-0 opacity-45">
               <img src={heroAlife} alt="" className="h-full w-full object-cover object-bottom" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(255,179,71,0.18),transparent_32%),linear-gradient(135deg,rgba(8,4,3,0.88),rgba(12,7,5,0.58),rgba(8,4,3,0.94))]" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(255,179,71,0.16),transparent_30%),linear-gradient(90deg,rgba(10,6,4,0.96)0%,rgba(11,7,5,0.86)34%,rgba(12,8,5,0.56)66%,rgba(8,4,3,0.88)100%)]" />
               <div className="absolute inset-0 scanline" />
             </div>
 
-            <div className="relative min-w-0 p-6 md:p-8 lg:flex lg:h-full lg:items-center xl:p-10">
-              <div className="min-w-0 max-w-[1120px]">
-                <p className="landing-kicker">Engine-agnostic A-Life SDK for 2D games</p>
-                <h1 className="mt-4 max-w-[16ch] font-display text-4xl font-bold leading-[0.95] tracking-wide text-foreground md:max-w-[18ch] md:text-6xl xl:max-w-[20ch] xl:text-7xl">
-                  A-Life for 2D games: offline simulation, online NPC behavior.
-                </h1>
-                <p className="mt-5 max-w-[62ch] text-base leading-8 text-muted-foreground md:max-w-[70ch] md:text-lg md:leading-9 xl:max-w-[78ch]">
-                  An A-Life SDK inspired by the S.T.A.L.K.E.R. series, built for off-screen world simulation and
-                  real-time nearby NPC behavior with modular AI, factions, hazards, economy, and persistence.
-                </p>
+            <div className="relative min-w-0 px-6 py-8 md:px-8 md:py-10 lg:flex lg:h-full lg:items-center lg:px-10 lg:py-12 xl:px-12 xl:py-14">
+              <div className="min-w-0 max-w-[900px]">
+                <div className="flex flex-col gap-6 md:gap-7">
+                  <p className="landing-kicker">Engine-agnostic A-Life SDK for 2D games</p>
+                  <h1 className="max-w-[16ch] font-display text-[3.4rem] font-bold leading-[0.92] tracking-[0.01em] text-foreground md:text-[4.75rem] xl:text-[5.5rem]">
+                    A-Life for 2D games: offline simulation, online NPC behavior.
+                  </h1>
+                  <p className="max-w-[56ch] text-base leading-8 text-muted-foreground md:text-[1.1rem] md:leading-9">
+                    An A-Life SDK inspired by the S.T.A.L.K.E.R. series, built for off-screen world simulation and
+                    real-time nearby NPC behavior with modular AI, factions, hazards, economy, and persistence.
+                  </p>
+                </div>
 
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <Link
                     to="/docs/quick-start"
                     className="inline-flex items-center justify-center gap-2 border-2 border-primary bg-primary/15 px-5 py-3 text-sm font-display font-bold uppercase tracking-wide text-primary pixel-btn"
@@ -374,7 +376,7 @@ const Index = () => {
                   </a>
                 </div>
 
-                <div className="mt-6 flex max-w-[72ch] flex-wrap gap-2">
+                <div className="mt-8 flex max-w-[52ch] flex-wrap gap-2.5">
                   {SUPPORTED_TODAY.map((item) => (
                     <span
                       key={item}
