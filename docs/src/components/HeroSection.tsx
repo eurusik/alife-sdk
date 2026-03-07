@@ -21,8 +21,12 @@ export function HeroSection() {
       <div className="mb-6 max-w-[72ch]">
         <h2 className="mb-3 text-xl font-display font-bold tracking-wide text-foreground">A-Life SDK Documentation</h2>
         <p className="text-sm font-mono leading-relaxed text-muted-foreground md:text-base">
-          Повна документація по SDK: Quick Start, Concepts, Guides, Packages, Examples та Glossary.
-          Контент змеплений з реальних файлів `docs/*` у цьому репозиторії.
+          Build living game worlds with a TypeScript A-Life SDK inspired by the emergent simulation systems
+          popularized by the S.T.A.L.K.E.R. series. Explore Quick Start, Concepts, Guides, Packages, Examples, and
+          the Glossary from this repository.
+        </p>
+        <p className="mt-3 text-xs font-mono leading-relaxed uppercase tracking-[0.14em] text-muted-foreground/80">
+          Independent project. Not affiliated with or endorsed by GSC Game World.
         </p>
       </div>
 
