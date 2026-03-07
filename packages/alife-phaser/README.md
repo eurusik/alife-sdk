@@ -105,6 +105,8 @@ export class GameScene extends Phaser.Scene {
     this.kernel     = result.kernel;
     this.simulation = result.simulation!;   // non-null when preset !== 'minimal'
 
+    this.kernel.init();
+
     // Register the NPC — call once per entity at startup.
     this.simulation.registerNPC({
       entityId: 'stalker_1', factionId: 'stalker',
@@ -116,7 +118,7 @@ export class GameScene extends Phaser.Scene {
       options: { type: 'human' },   // 'human' → schedules/equipment; 'monster' → lair-based
     });
 
-    this.kernel.start();  // runs each plugin's init hooks
+    this.kernel.start();  // enables frame-based updates
   }
 
   update(_time: number, delta: number): void {
@@ -265,6 +267,8 @@ export class GameScene extends Phaser.Scene {
     this.simulation  = result.simulation!;
     this.onlineOffline = result.onlineOffline;
 
+    this.kernel.init();
+
     // --- 4. Register NPCs — called once per NPC at scene startup ---
     const behaviorConfig = {
       retreatThreshold: 0.1,
@@ -293,7 +297,7 @@ export class GameScene extends Phaser.Scene {
       options: { type: 'human' }, // use { type: 'monster', lairTerrainId: '...' } for creatures
     });
 
-    // --- 5. Start the kernel (plugins run their init hooks) ---
+    // --- 5. Start the kernel ---
     this.kernel.start();
   }
 
@@ -390,6 +394,7 @@ const { kernel, simulation, onlineOffline } = createPhaserKernel({
   config: { preset: 'full' },
 });
 
+kernel.init();
 kernel.start();
 
 // 3. Phaser update loop
