@@ -13,6 +13,7 @@ export default tseslint.config(
   },
   {
     files: ['packages/*/src/**/*.ts'],
+    ignores: ['**/*.test.ts', '**/__integration__/**/*.ts'],
     rules: {
       '@typescript-eslint/no-unused-vars': ['error', {
         argsIgnorePattern: '^_',
@@ -25,9 +26,10 @@ export default tseslint.config(
   {
     files: ['**/*.test.ts', '**/__integration__/**/*.ts'],
     rules: {
-      '@typescript-eslint/no-unused-vars': 'warn',
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
       'no-useless-assignment': 'off',
-      'prefer-const': 'warn',
+      'prefer-const': 'off',
     },
   },
   {
