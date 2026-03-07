@@ -67,27 +67,21 @@ More detail: [examples/phaser/README.md](examples/phaser/README.md)
 
 ---
 
-## 30-Second Package Guide
+## Package Selection
 
-```text
-Are you building with Phaser 3?
-├─ YES → install @alife-sdk/core @alife-sdk/simulation @alife-sdk/ai @alife-sdk/social @alife-sdk/phaser
-│         Start with createPhaserKernel() and examples/09-phaser.ts
-│
-└─ NO  → Do you need NPCs to keep living off-screen?
-          ├─ YES → install @alife-sdk/core @alife-sdk/simulation
-          │         Add @alife-sdk/ai later for on-screen combat behavior
-          │
-          └─ NO  → install @alife-sdk/core
-                    Use the kernel, factions, events, and your own plugins
-```
+Start with the smallest package set that matches your integration:
 
-Optional add-ons:
+- Phaser 3 scene integration: `@alife-sdk/core @alife-sdk/simulation @alife-sdk/ai @alife-sdk/social @alife-sdk/phaser`
+- Engine-agnostic off-screen NPC simulation: `@alife-sdk/core @alife-sdk/simulation`
+- Engine-agnostic runtime shell only: `@alife-sdk/core`
 
+Add packages only when you need their runtime:
+
+- `@alife-sdk/ai` for online frame-based NPC behavior
+- `@alife-sdk/social` for greetings, remarks, and campfire behavior
 - `@alife-sdk/economy` for inventory, trade, and quests
 - `@alife-sdk/hazards` for anomaly zones, damage, and artefacts
-- `@alife-sdk/social` for greetings, ambient remarks, and campfire stories
-- `@alife-sdk/persistence` for save/load pipelines
+- `@alife-sdk/persistence` for save/load
 
 ---
 
