@@ -1,32 +1,126 @@
 # ALife SDK — Examples
 
-ALife SDK is a TypeScript toolkit for building living NPC worlds: offline
-simulation, online frame-based AI, factions, combat, memory, danger awareness,
-GOAP planning, economy, social interaction, and persistence — all engine-agnostic.
+This folder is the fastest way to understand how the SDK feels in practice.
+Most examples run in plain Node.js via [tsx](https://github.com/privatenumber/tsx), so you can inspect the systems without wiring a renderer first.
 
-All examples run in **Node.js** via [tsx](https://github.com/privatenumber/tsx) — no Phaser, no browser required.
+Use this README as a guided path, not just a file list.
 
 ---
 
-## Quick start
+## Start Here
 
-**New to the SDK? Run this first — it shows how all AI systems fit together:**
+If you only run one example first, run the capstone:
 
 ```bash
-pnpm install && pnpm build:sdk
+pnpm install
+pnpm build:sdk
 npx tsx --tsconfig examples/tsconfig.json examples/18-full-npc.ts
 ```
 
-Then read the output and open [18-full-npc.ts](18-full-npc.ts) alongside it.
-After that, explore the individual system examples below.
+Then open [18-full-npc.ts](18-full-npc.ts) alongside the console output.
+It shows how the major systems fit together in one NPC lifecycle.
 
 ---
 
-## Install in your own project
+## What Runs Where
+
+- Most top-level `examples/*.ts` files are **Node.js-only teaching examples**.
+- [`09-phaser.ts`](09-phaser.ts) is a **browser integration reference**, not a runnable Node script.
+- [`phaser/`](phaser/) is the **real browser demo** if you want sprites, a game loop, and movement on screen.
+
+---
+
+## Recommended Learning Paths
+
+### 1. I want to understand the SDK fast
+
+Run these in order:
+
+1. [18-full-npc.ts](18-full-npc.ts)
+2. [01-hello-npc.ts](01-hello-npc.ts)
+3. [02-online-offline.ts](02-online-offline.ts)
+4. [07-ai.ts](07-ai.ts)
+
+### 2. I want a living world with off-screen NPCs
+
+Run these in order:
+
+1. [01-hello-npc.ts](01-hello-npc.ts)
+2. [02-online-offline.ts](02-online-offline.ts)
+3. [03-combat-bridge.ts](03-combat-bridge.ts)
+4. [10-custom-pathfinder.ts](10-custom-pathfinder.ts)
+
+### 3. I want on-screen combat AI
+
+Run these in order:
+
+1. [07-ai.ts](07-ai.ts)
+2. [11-fsm-tags.ts](11-fsm-tags.ts)
+3. [12-behavior-tree.ts](12-behavior-tree.ts)
+4. [17-goap-planner.ts](17-goap-planner.ts)
+
+### 4. I want the gameplay systems
+
+Run these in order:
+
+1. [04-persistence.ts](04-persistence.ts)
+2. [05-hazards.ts](05-hazards.ts)
+3. [06-economy.ts](06-economy.ts)
+4. [08-social.ts](08-social.ts)
+
+### 5. I want Phaser integration
+
+Open in this order:
+
+1. [09-phaser.ts](09-phaser.ts)
+2. [phaser/README.md](phaser/README.md)
+3. [phaser/src/minimal/MinimalIntegrationScene.ts](phaser/src/minimal/MinimalIntegrationScene.ts)
+4. [phaser/src/GameScene.ts](phaser/src/GameScene.ts)
+5. [phaser/src/main.ts](phaser/src/main.ts)
+
+---
+
+## Running the Examples
+
+Build the workspace first:
+
+```bash
+pnpm install
+pnpm build:sdk
+```
+
+Then run any Node example from the repo root:
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/01-hello-npc.ts
+```
+
+Shortcut:
+Use `createInMemoryKernel()` from `@alife-sdk/simulation` when you want to skip port wiring and focus on system behavior.
+
+---
+
+## Browser Demo
+
+The Phaser demo lives in [`phaser/`](phaser/).
+Run it when you want a real on-screen integration instead of console output:
+
+```bash
+cd examples/phaser
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`.
+
+Controls: **WASD** or arrow keys. Press **G** to throw a grenade toward the cursor. Walk toward NPCs to bring them online.
+
+---
+
+## Install in Your Own Project
 
 ```bash
 npm install @alife-sdk/core @alife-sdk/simulation
-# optional packages:
 npm install @alife-sdk/ai       # online frame-based NPC AI
 npm install @alife-sdk/phaser   # Phaser 3 adapters
 npm install @alife-sdk/economy  # trade, inventory, quests
@@ -34,27 +128,6 @@ npm install @alife-sdk/hazards  # anomaly zones, radiation, artefacts
 npm install @alife-sdk/social   # greetings, remarks, campfire stories
 npm install @alife-sdk/persistence # save / load
 ```
-
----
-
-## Running the examples
-
-The examples live in the monorepo. Build the SDK packages first:
-
-```bash
-pnpm install
-pnpm build:sdk
-```
-
-Then run any example from the monorepo root:
-
-```bash
-npx tsx --tsconfig examples/tsconfig.json examples/01-hello-npc.ts
-```
-
-> **Shortcut:** Use `createInMemoryKernel()` from `@alife-sdk/simulation` to skip
-> all the port wiring in examples 01-02. The verbose versions are intentional —
-> they show *why* each piece exists.
 
 ---
 

@@ -7,10 +7,11 @@
 
 import Phaser from 'phaser';
 import { GameScene } from './GameScene';
+// import { MinimalIntegrationScene } from './minimal/MinimalIntegrationScene';
 
 new Phaser.Game({
   type: Phaser.AUTO,
-  backgroundColor: '#1a1a2e',
+  backgroundColor: '#0b1024',
   scale: {
     // RESIZE fills the entire browser window and stays sharp —
     // no CSS upscaling, no black bars.
@@ -23,4 +24,5 @@ new Phaser.Game({
     arcade: { gravity: { x: 0, y: 0 }, debug: false },
   },
   scene: [GameScene],
+  // scene: [MinimalIntegrationScene],
 });
