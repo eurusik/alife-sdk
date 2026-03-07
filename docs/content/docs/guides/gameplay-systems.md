@@ -4,7 +4,7 @@ Once the core world loop works, you can add the opt-in gameplay layers one by on
 
 ## Add them in this order
 
-1. `social` if you want the world to feel inhabited
+1. `social` if you need greetings, remarks, and campfire behavior
 2. `hazards` if the environment should shape movement and danger
 3. `economy` if you need inventory, trade, and quests
 4. `persistence` when the runtime state is stable enough to save
@@ -36,7 +36,7 @@ If your online NPC discovery is still unstable, wait before adding social.
 
 Use it when the map itself should matter.
 
-The mental model is simple:
+The runtime contract is:
 
 - you define hazard zones
 - each frame you call `hazards.manager.tick(deltaMs, liveEntities)`
@@ -46,7 +46,7 @@ This package stays engine-agnostic because you provide the live entities and the
 
 ## Economy
 
-Use it when your game needs actual player-facing progression systems.
+Use it when your game needs inventory, trade, or quest state.
 
 The package is three systems in one:
 
@@ -60,7 +60,7 @@ You can use the whole plugin or only the specific subsystem you need.
 
 Use it when you are ready to freeze the current runtime model into a save format.
 
-`PersistencePlugin` saves and restores the kernel state through a synchronous backend. It is a good fit for:
+`PersistencePlugin` saves and restores the kernel state through a synchronous backend. Typical backends are:
 
 - browser local storage
 - Electron or desktop file saves

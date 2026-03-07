@@ -89,7 +89,7 @@ At a high level:
 4. process any ready artefact spawn cycles
 5. batch and flush hazard events
 
-This means a hazard scene can be fully alive even if no rendering code knows anything about anomaly logic.
+This means a hazard scene can keep updating even if no rendering code knows anything about anomaly logic.
 
 ## Large delta rule
 

@@ -104,8 +104,8 @@ pool.getRandomLine(key);
 
 - high-frequency categories contain only one line
 - authored JSON leaves key categories empty and nobody notices
-- teams try to solve pacing problems by adding more text instead of tuning orchestrators
-- faction gossip exists in logic but not in content, so that branch always feels dead
+- you can end up solving pacing problems by adding more text instead of tuning orchestrators
+- faction gossip exists in logic but not in content, so that branch never produces output
 
 ## Related pages
 

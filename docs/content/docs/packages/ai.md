@@ -11,7 +11,7 @@ npm install @alife-sdk/ai @alife-sdk/core
 ## Add it when
 
 - the player can observe the NPC moment to moment
-- nearby NPCs need richer combat behavior than offline simulation alone
+- nearby NPCs need more detailed combat behavior than offline simulation alone
 - your online/offline ownership model already basically works
 
 ## Integration shape
@@ -39,7 +39,7 @@ npm install @alife-sdk/ai @alife-sdk/core
 - NPCs do not detect threats correctly -> [AI Perception](/docs/reference/ai/perception)
 - NPCs take bad cover or pile into one point -> [AI Cover](/docs/reference/ai/cover)
 
-## Good order of adoption
+## Suggested adoption order
 
 1. prove offline simulation first
 2. add online/offline switching

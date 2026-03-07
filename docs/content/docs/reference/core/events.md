@@ -67,9 +67,9 @@ If you are bringing up a game integration, these events usually pay off first:
 | `alife:npc_online` / `alife:npc_offline` | confirms ownership handoff is working |
 | `alife:task_assigned` | confirms brains are selecting work instead of stalling |
 | `alife:npc_died` | confirms high-impact lifecycle transitions |
-| `alife:terrain_state_changed` | confirms smart-terrain threat logic is alive |
-| `ai:state_changed` | best first signal for online AI debugging |
-| `time:hour_changed` | useful for schedule and ambience hooks |
+| `alife:terrain_state_changed` | confirms smart-terrain threat logic is updating |
+| `ai:state_changed` | high-signal event for online AI debugging |
+| `time:hour_changed` | useful for schedule and ambience updates |
 
 ## Event families
 
@@ -111,7 +111,7 @@ if the bus is not driven by `kernel.update()`, you must flush it yourself.
 
 ## Lifecycle
 
-The healthy pattern is:
+The recommended pattern is:
 
 1. subscribe in plugin `install()` / `init()` or scene setup
 2. react in listeners without owning the underlying runtime fact

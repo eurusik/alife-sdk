@@ -65,7 +65,7 @@ An NPC can greet only if all of these are true:
 - not on per-NPC cooldown
 - not hostile to the target
 
-That small rule set is why meet is usually the first social subsystem worth integrating.
+That small rule set makes meet a good first social subsystem to integrate.
 
 ## Greeting selection rule
 
@@ -95,10 +95,10 @@ const eligible = isMeetEligible(npc, {
 
 ## Lifecycle
 
-The healthy pattern is:
+The recommended pattern is:
 
 1. create one `MeetOrchestrator` for the social runtime
-2. keep it alive across frames so cooldowns stay stable
+2. keep it allocated across frames so cooldowns stay stable
 3. call `update()` from your social update loop
 4. feed returned bubble requests into the presenter layer
 5. call `clear()` only when you intentionally reset the social runtime

@@ -1,6 +1,6 @@
 # Choose Your Stack
 
-The SDK is modular on purpose. Most teams should start with fewer packages than they think they need.
+The SDK is modular. Most developers should start with fewer packages than they think they need.
 
 ## Start from the game you are actually making
 
@@ -8,12 +8,12 @@ The right starting stack depends less on the engine name and more on what behavi
 
 | Your current need | Start with | Why this is the right first layer |
 |---|---|---|
-| You need the architecture foundation: kernel, events, factions, terrains, ports | `@alife-sdk/core` | It gives you the shared runtime model without forcing the whole living-world stack immediately |
-| You want off-screen NPCs to keep living, moving, and reacting | `@alife-sdk/core` + `@alife-sdk/simulation` | This is the real heart of the “living world” idea |
-| You want nearby NPCs to fight and react with richer real-time behavior | add `@alife-sdk/ai` | This complements the simulation instead of replacing it |
-| You are building in Phaser 3 and want the cleanest practical setup | add `@alife-sdk/phaser` | It removes the repetitive adapter work and gives you a clean scene entry point |
+| You need the architecture foundation: kernel, events, factions, terrains, ports | `@alife-sdk/core` | It gives you the shared runtime model without requiring the rest of the stack immediately |
+| You want off-screen NPCs to keep living, moving, and reacting | `@alife-sdk/core` + `@alife-sdk/simulation` | This adds the offline world loop |
+| You want nearby NPCs to fight and react with richer real-time behavior | add `@alife-sdk/ai` | This adds online behavior on top of the simulation |
+| You are building in Phaser 3 and want prebuilt adapters | add `@alife-sdk/phaser` | It removes repetitive adapter setup and scene bootstrap code |
 
-If you are unsure, the safest default is still:
+If you are unsure, start with:
 
 1. Start with `core + simulation`
 2. Prove one living NPC loop
@@ -27,7 +27,7 @@ If you are unsure, the safest default is still:
 | Kernel, factions, events, smart terrains | `@alife-sdk/core` | The minimum engine-agnostic foundation |
 | Living world with off-screen NPCs | `@alife-sdk/core` + `@alife-sdk/simulation` | Adds brains, terrain choice, morale, and offline combat |
 | Living world + nearby combat AI | add `@alife-sdk/ai` | Gives online frame-based behavior when NPCs matter on screen |
-| Phaser 3 game | `@alife-sdk/core` + `@alife-sdk/simulation` + `@alife-sdk/ai` + `@alife-sdk/social` + `@alife-sdk/phaser` | The most direct path to a real scene |
+| Phaser 3 game | `@alife-sdk/core` + `@alife-sdk/simulation` + `@alife-sdk/ai` + `@alife-sdk/social` + `@alife-sdk/phaser` | Covers the standard scene integration path |
 | Trade, inventory, quests | add `@alife-sdk/economy` | Player-facing progression layer |
 | Anomalies and artefacts | add `@alife-sdk/hazards` | Environmental danger and reward loops |
 | Save / load | add `@alife-sdk/persistence` | Snapshot and restore kernel state |
@@ -64,7 +64,7 @@ npm install @alife-sdk/core @alife-sdk/simulation @alife-sdk/ai @alife-sdk/socia
 npm install @alife-sdk/core @alife-sdk/simulation @alife-sdk/economy @alife-sdk/persistence
 ```
 
-## Best-fit genre bundles
+## Genre bundles
 
 ### Stalker-like survival sandbox
 
@@ -74,7 +74,7 @@ npm install @alife-sdk/core @alife-sdk/simulation @alife-sdk/ai @alife-sdk/socia
 
 Use this when camps, patrols, anomalies, and continuity outside the camera matter more than tightly scripted encounters.
 
-### Action game with ambient NPC pressure
+### Action game with nearby NPC pressure
 
 ```bash
 npm install @alife-sdk/core @alife-sdk/simulation @alife-sdk/ai @alife-sdk/phaser

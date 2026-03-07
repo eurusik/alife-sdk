@@ -40,9 +40,9 @@ interface IStorageBackend {
 
 ## Debug this package
 
-- Save/load lifecycle feels wrong -> [Persistence Plugin](/docs/reference/persistence/plugin)
+- Save/load lifecycle does not match the expected flow -> [Persistence Plugin](/docs/reference/persistence/plugin)
 - Platform backend is behaving strangely -> [Storage Backend](/docs/reference/persistence/storage-backend)
-- You need a quick test backend -> [Providers](/docs/reference/persistence/providers)
+- You need a simple test backend -> [Providers](/docs/reference/persistence/providers)
 
 ## Important rule
 

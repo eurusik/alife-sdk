@@ -1,6 +1,6 @@
 # Save / Load
 
-The simplest save story is `PersistencePlugin` at the kernel level.
+The default save/load path is `PersistencePlugin` at the kernel level.
 
 ## Standard approach
 
@@ -26,7 +26,7 @@ kernel.use(persistence);
 kernel.init();
 ```
 
-## Why this plugin is useful
+## What this plugin handles
 
 Your backend only moves raw strings. The plugin handles:
 
@@ -58,11 +58,11 @@ const autosave = new PersistencePlugin({ backend, saveKey: 'save_auto' });
 
 ## When to save manually instead
 
-If you are only snapshotting a subsystem in isolation, direct `serialize()` and `restore()` on that subsystem can make sense. For most game flows, kernel-level persistence is the cleaner choice.
+If you are only snapshotting a subsystem in isolation, direct `serialize()` and `restore()` on that subsystem can make sense. For most game flows, kernel-level persistence is the simpler choice.
 
 ## Important simulation note
 
-If you bypass the kernel-level persistence flow and restore `SimulationPlugin` state manually, brain instances need to be rebuilt afterwards. That is a subsystem-level concern; the normal `PersistencePlugin` route is the safer default for most teams.
+If you bypass the kernel-level persistence flow and restore `SimulationPlugin` state manually, brain instances need to be rebuilt afterwards. That is a subsystem-level concern; the normal `PersistencePlugin` route is the safer default for most integrations.
 
 ## Related docs
 

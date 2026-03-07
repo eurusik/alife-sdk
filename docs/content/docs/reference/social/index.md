@@ -1,8 +1,8 @@
 # Social Reference
 
-Use this track when online NPC discovery is already stable and you want the world to sound inhabited.
+Use this track when online NPC discovery is already stable and you need NPC greetings, remarks, or campfire behavior.
 
-These pages explain how content, meet greetings, ambient remarks, and campfire sessions fit together as a lightweight social layer.
+These pages explain how content, meet greetings, remarks, and campfire sessions fit together as a social layer.
 
 ## Start here
 
@@ -15,14 +15,14 @@ These pages explain how content, meet greetings, ambient remarks, and campfire s
 
 - "I need to author or load the line pool" -> [Social Content](/docs/reference/social/content)
 - "I need nearby NPCs to greet the player" -> [Meet System](/docs/reference/social/meet)
-- "I need low-frequency ambient chatter" -> [Remark System](/docs/reference/social/remark)
+- "I need low-frequency NPC chatter" -> [Remark System](/docs/reference/social/remark)
 - "I need structured group downtime behavior" -> [Campfire System](/docs/reference/social/campfire)
 
 ## What this track covers
 
 - how structured social content is loaded and grouped
 - when an NPC is allowed to greet or speak
-- how cooldowns and terrain locks keep chatter believable
+- how cooldowns and terrain locks keep chatter consistent
 - how campfire sessions are coordinated as group behavior
 
 ## Related pages

@@ -35,11 +35,11 @@ npm install @alife-sdk/economy @alife-sdk/core
 
 ## Debug this package
 
-- Item ownership feels inconsistent -> [Inventory](/docs/reference/economy/inventory)
+- Item ownership does not match the expected inventory state -> [Inventory](/docs/reference/economy/inventory)
 - Buy/sell flow returns confusing results -> [Trade](/docs/reference/economy/trade)
-- Quest state or restore flow feels wrong -> [Quests](/docs/reference/economy/quests)
+- Quest state or restore flow does not match the expected progression state -> [Quests](/docs/reference/economy/quests)
 
-## Good first proof
+## First integration check
 
 1. register one trader
 2. add a few stock items

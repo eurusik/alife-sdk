@@ -1,6 +1,6 @@
 # @alife-sdk/social
 
-This package makes the world feel inhabited instead of mechanically simulated.
+This package adds greetings, remarks, and campfire behavior for online NPCs.
 
 ## Install
 
@@ -38,8 +38,8 @@ npm install @alife-sdk/social @alife-sdk/core
 ## Debug this package
 
 - NPCs never greet or speak -> [Meet System](/docs/reference/social/meet)
-- Ambient chatter feels spammy or dead -> [Remark System](/docs/reference/social/remark)
-- Group downtime behavior feels broken -> [Campfire System](/docs/reference/social/campfire)
+- Ambient chatter is too frequent or absent -> [Remark System](/docs/reference/social/remark)
+- Group downtime behavior does not trigger correctly -> [Campfire System](/docs/reference/social/campfire)
 - Content seems missing -> [Social Content](/docs/reference/social/content)
 
 ## Minimal requirement

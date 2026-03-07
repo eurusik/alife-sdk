@@ -12,7 +12,7 @@ These pages are the contracts you usually need once you stop prototyping and sta
 
 ## Browse by task
 
-- "I need to observe runtime changes cleanly" -> [Core Events Reference](/docs/reference/core/events)
+- "I need to observe runtime changes through events" -> [Core Events Reference](/docs/reference/core/events)
 - "I need to decide what belongs in the kernel" -> [Core Plugins Reference](/docs/reference/core/plugins)
 - "I need to expose scene objects through the entity contract" -> [Core Entities Reference](/docs/reference/core/entities)
 

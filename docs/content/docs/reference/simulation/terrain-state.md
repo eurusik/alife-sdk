@@ -1,6 +1,6 @@
 # Simulation Terrain State
 
-Use this page when NPCs look aimless, terrains never feel dangerous, or smart-terrain jobs are not producing believable offline life.
+Use this page when NPCs look aimless, terrains are not affecting behavior as expected, or smart-terrain jobs are not producing stable offline behavior.
 
 This module combines three runtime layers:
 
@@ -115,7 +115,7 @@ Owns where the NPC should move once a job or route is chosen.
 
 Terrain bugs often look like AI bugs.
 
-If an NPC never settles into believable behavior, check in this order:
+If an NPC never settles into stable behavior, check in this order:
 
 1. is a valid terrain being selected
 2. is the terrain in the expected threat state

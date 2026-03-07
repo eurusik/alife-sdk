@@ -92,7 +92,7 @@ If those strings drift, artefact spawning looks randomly broken when the real is
 - registry is never frozen, so artefact content mutates unexpectedly at runtime
 - zone type strings and artefact `zoneTypes` compatibility do not match
 - pickup creation works visually but collection is never reported back to the hazard manager
-- teams debug spawn chance when the real issue is that no compatible artefact exists for the zone type
+- you can end up debugging spawn chance when the real issue is that no compatible artefact exists for the zone type
 
 ## Related pages
 

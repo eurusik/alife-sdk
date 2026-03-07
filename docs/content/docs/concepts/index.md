@@ -15,7 +15,7 @@ These pages explain the mental model behind the SDK. Read them when the quick st
   </a>
   <a class="route-card" href="/concepts/online-offline">
     <strong>Online vs Offline</strong>
-    The most important idea in the whole SDK and the reason the package split exists.
+    The main runtime split in the SDK and the reason the package split exists.
   </a>
   <a class="route-card" href="/concepts/npc-lifecycle">
     <strong>NPC Lifecycle</strong>
@@ -23,7 +23,7 @@ These pages explain the mental model behind the SDK. Read them when the quick st
   </a>
   <a class="route-card" href="/concepts/smart-terrains">
     <strong>Smart Terrains</strong>
-    Why off-screen NPCs feel like they belong to a world instead of wandering randomly.
+    How off-screen NPCs pick destinations and jobs instead of wandering randomly.
   </a>
   <a class="route-card" href="/concepts/events">
     <strong>Events</strong>
@@ -53,4 +53,4 @@ simulation / ai / social / economy / hazards / persistence
 - Simulation and AI are complementary layers, not duplicates.
 - Smart terrains, factions, and events are the glue that makes the world coherent.
 
-If any word here feels unfamiliar, keep [Glossary](/glossary) open while reading.
+If any word here is unfamiliar, keep [Glossary](/glossary) open while reading.

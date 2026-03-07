@@ -1,6 +1,6 @@
 # createPhaserKernel
 
-Use this page when you want the shortest path from a Phaser scene to a working SDK runtime.
+Use this page when you want to go from a Phaser scene setup to a working SDK runtime.
 
 `createPhaserKernel()` is the high-level factory for wiring the common ports, plugins, and startup data in one call.
 
@@ -49,7 +49,7 @@ You still decide:
 
 ## Required ports
 
-At minimum, a useful scene setup needs:
+At minimum, a scene setup needs:
 
 - `entityAdapter`
 - `entityFactory`
@@ -158,7 +158,7 @@ createPhaserKernel({
 
 ## Scene lifecycle
 
-The healthy order is:
+The recommended order is:
 
 1. create adapters and scene-owned bridges
 2. call `createPhaserKernel()`

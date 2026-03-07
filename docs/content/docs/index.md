@@ -1,8 +1,8 @@
 # A-Life SDK
 
-The world keeps living when the player leaves.
+Keep world state advancing when the player leaves an area.
 
-Build 2D games where distant camps keep moving, patrols keep travelling, hazards keep changing, and nearby encounters inherit real world state instead of spawning empty.
+Use it in 2D games where camps, patrols, hazards, and nearby encounters should all read from the same runtime state instead of resetting off-screen.
 
 ## What this SDK is for
 
@@ -24,7 +24,7 @@ Build 2D games where distant camps keep moving, patrols keep travelling, hazards
 - [Examples](/examples/)
 - [Packages](/packages/)
 
-## First proof
+## First check
 
 Run the runtime in Node before you wire it into a scene:
 
@@ -34,4 +34,4 @@ pnpm build:sdk
 npx tsx --tsconfig examples/tsconfig.json examples/18-full-npc.ts
 ```
 
-Once that model clicks, integrating it into Phaser or your own engine becomes much easier to reason about.
+Once you can follow that runtime in Node, it becomes easier to integrate it into Phaser or your own engine.

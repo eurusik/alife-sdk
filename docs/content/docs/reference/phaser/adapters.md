@@ -134,7 +134,7 @@ You can hot-swap the source after scene restart with `setSource(...)`.
 
 ## Lifecycle
 
-The healthy order is:
+The recommended order is:
 
 1. create adapters before kernel wiring
 2. register sprites and HP records when entities spawn

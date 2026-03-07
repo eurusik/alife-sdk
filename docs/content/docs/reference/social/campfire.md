@@ -63,7 +63,7 @@ That is enough structure to feel authored without turning the system into a full
 
 Group membership must stay current.
 
-If participants drop below the required minimum, the session should collapse cleanly instead of pretending the group is still there.
+If participants drop below the required minimum, the session should end instead of pretending the group is still there.
 
 That is why stale participant lists create some of the ugliest campfire bugs.
 
@@ -96,7 +96,7 @@ class TavernFSM implements IGatheringFSM {
 
 ## Lifecycle
 
-The healthy pattern is:
+The recommended pattern is:
 
 1. detect when one terrain has enough participants
 2. create or reuse one FSM for that terrain
@@ -108,8 +108,8 @@ The healthy pattern is:
 
 - participant lists are not refreshed, so absent NPCs keep speaking
 - director rotation breaks because group membership is unstable
-- content exists for stories but not for reactions, so the flow feels empty
-- the session is kept alive after the terrain no longer has enough participants
+- content exists for stories but not for reactions, so the flow has no visible follow-up
+- the session is kept active after the terrain no longer has enough participants
 
 ## Related pages
 

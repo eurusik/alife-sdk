@@ -54,9 +54,9 @@ function update(deltaMs: number): void {
 
 ## Debug this package
 
-- Event delivery feels wrong -> [Core Events Reference](/docs/reference/core/events)
-- Runtime ownership is blurry -> [Core Plugins Reference](/docs/reference/core/plugins)
-- Scene objects do not map cleanly into the SDK -> [Core Entities Reference](/docs/reference/core/entities)
+- Event delivery does not match the expected order or payloads -> [Core Events Reference](/docs/reference/core/events)
+- Runtime ownership is unclear -> [Core Plugins Reference](/docs/reference/core/plugins)
+- Scene objects do not map correctly into the SDK -> [Core Entities Reference](/docs/reference/core/entities)
 
 ## What you usually add next
 

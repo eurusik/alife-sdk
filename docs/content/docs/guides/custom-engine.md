@@ -1,6 +1,6 @@
 # Custom Engine
 
-If you are not using Phaser, the SDK still fits cleanly. The integration boundary is the port layer.
+If you are not using Phaser, integrate through the port layer.
 
 ## What you implement
 
@@ -30,7 +30,7 @@ kernel.start();
 
 ## `ISimulationBridge` is the critical piece
 
-This is the one bridge the simulation package truly depends on for real gameplay state.
+This bridge is where the simulation package reads and writes gameplay state.
 
 ```ts
 class MyEngineBridge implements ISimulationBridge {
@@ -58,7 +58,7 @@ class MyEngineBridge implements ISimulationBridge {
 
 ## Online/offline handoff
 
-This is where many custom integrations get muddy. Keep it explicit.
+This is where custom integrations often fail if the ownership model stays implicit. Keep it explicit.
 
 ### When an NPC goes online
 
@@ -101,7 +101,7 @@ kernel.events.on('ai:npc_panicked', ({ npcId }) => audio.playDistantScream(npcId
 | ~300 NPCs | `tickIntervalMs: 10_000`, `maxBrainUpdatesPerTick: 30` |
 | ~500 NPCs | Increase interval again and lower combat resolution budgets |
 
-The important mental model is that offline CPU cost is budgeted. You do not pay full AI cost for every NPC every frame.
+The offline runtime is budgeted. You do not run full AI cost for every NPC every frame.
 
 ## Related next pages
 

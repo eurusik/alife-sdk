@@ -151,7 +151,7 @@ Use this when squad behavior or combat coherence matters more than per-NPC indep
 
 ## Lifecycle
 
-The healthy order is:
+The recommended order is:
 
 1. evaluate ownership on a throttled cadence
 2. when an NPC goes online, create or reuse its `PhaserNPCContext`

@@ -148,7 +148,7 @@ The restore flow typically looks like this:
 2. rebuild brains from restored records
 3. reattach any runtime-only references like dispatchers
 
-If a team skips step 2, the restore may look superficially correct while the actual offline runtime is broken.
+If you skip step 2, the restore may look superficially correct while the actual offline runtime is broken.
 
 ## Extension hooks
 

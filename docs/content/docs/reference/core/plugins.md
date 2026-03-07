@@ -2,7 +2,7 @@
 
 Use this page when you are deciding what should live in the kernel runtime and what should stay in scene or UI code.
 
-Plugins are where the kernel starts owning domain state. The kernel itself stays small on purpose.
+Plugins are where the kernel starts owning domain state. The kernel itself stays narrow and focused on runtime coordination.
 
 ## Import path
 

@@ -1,6 +1,6 @@
 # AI Cover
 
-Use this page when online NPCs need believable cover selection instead of running straight through open fire.
+Use this page when online NPCs need consistent cover selection instead of running straight through open fire.
 
 The cover module is a shared scene subsystem plus a per-NPC access layer. That split is the most important thing to understand before integrating it.
 
@@ -83,7 +83,7 @@ That means cover choice is not only geometry. It is also tactical policy.
 
 ## Lifecycle
 
-The healthy order is:
+The recommended order is:
 
 1. load cover points during scene setup
 2. keep one shared registry and one shared lock registry for the scene
@@ -106,7 +106,7 @@ The first things worth checking are:
 - one `CoverAccessAdapter` instance is accidentally shared across multiple NPCs
 - chosen points are never locked, so several NPCs collapse into one spot
 - locks are never released on despawn or death
-- teams try to debug cover geometry when the real issue is wrong tactical mode selection
+- you can end up debugging cover geometry when the real issue is wrong tactical mode selection
 
 ## Related pages
 

@@ -1,6 +1,6 @@
 # @alife-sdk/simulation
 
-This is the off-screen world layer. It is what makes the SDK feel like a living world instead of a collection of isolated actors.
+This is the off-screen world layer. It keeps NPC state progressing outside the player's immediate view.
 
 ## Install
 
@@ -36,9 +36,9 @@ const { kernel, sim, factions } = createInMemoryKernel({ tickIntervalMs: 5_000 }
 
 ## Debug this package
 
-- NPCs feel frozen or dead off-screen -> [Simulation Brains](/docs/reference/simulation/brains)
+- NPCs stop updating off-screen -> [Simulation Brains](/docs/reference/simulation/brains)
 - NPCs choose bad terrains or no jobs -> [Simulation Terrain State](/docs/reference/simulation/terrain-state)
-- Ownership handoff feels incoherent -> [Online vs Offline](/docs/concepts/online-offline)
+- Ownership handoff does not match the expected online/offline flow -> [Online vs Offline](/docs/concepts/online-offline)
 
 ## Production integration contract
 

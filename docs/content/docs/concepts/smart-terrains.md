@@ -13,7 +13,7 @@ If you come from another AI framework, think of it as a point of interest with r
 
 ## Why it matters
 
-Smart terrains are one of the main reasons offline simulation feels coherent. NPCs do not just drift randomly; they choose destinations that fit faction, danger, and available jobs.
+Smart terrains help keep offline simulation consistent. NPCs do not just drift randomly; they choose destinations that fit faction, danger, and available jobs.
 
 ## Example
 

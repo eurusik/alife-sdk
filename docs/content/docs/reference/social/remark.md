@@ -1,6 +1,6 @@
 # Remark System
 
-Use this page when you want low-frequency ambient speech that makes online spaces feel inhabited without turning into spam.
+Use this page when you want low-frequency NPC speech in online spaces without turning it into spam.
 
 `RemarkDispatcher` runs on a timer and emits at most one remark bubble per check pass.
 
@@ -56,7 +56,7 @@ A remark can fire only if all gates pass:
 
 Only one NPC per pass will speak, even if several are eligible.
 
-That cap is one of the main reasons the subsystem feels ambient instead of noisy.
+That cap keeps the subsystem low-frequency instead of noisy.
 
 ## Category model
 
@@ -70,16 +70,16 @@ If a category has no content, it is skipped instead of breaking the whole pass.
 
 ## Eligible states
 
-By default, the dispatcher uses `DEFAULT_REMARK_ELIGIBLE_STATES`, which are tuned for ambient idle behavior.
+By default, the dispatcher uses `DEFAULT_REMARK_ELIGIBLE_STATES`, which are tuned for low-activity idle behavior.
 
 Override this in config when your game wants guards, sleepers, or other states to be remark-capable.
 
 ## Lifecycle
 
-The healthy pattern is:
+The recommended pattern is:
 
 1. create one dispatcher for the running social runtime
-2. keep it alive so cooldowns and terrain locks remain coherent
+2. keep it allocated so cooldowns and terrain locks remain stable
 3. call `update()` from the social loop
 4. route returned bubbles into your presenter
 5. call `clear()` only when you intentionally reset the runtime

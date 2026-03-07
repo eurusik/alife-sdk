@@ -2,7 +2,7 @@
 
 Use this page when you need a deterministic item container for trade, rewards, gifting, loot, or persistence.
 
-`Inventory` is small on purpose. It is a rules object, not a UI grid.
+`Inventory` keeps its scope narrow. It is a rules object, not a UI grid.
 
 ## Import path
 
@@ -57,7 +57,7 @@ Important behaviors:
 - mutates nothing on failure
 - removes the slot when quantity reaches zero
 
-That deterministic behavior is why inventory integrates cleanly with trade and save/load.
+That deterministic behavior makes inventory easier to integrate with trade and save/load.
 
 ## Per-slot stack rule
 

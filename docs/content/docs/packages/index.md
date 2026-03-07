@@ -15,8 +15,8 @@ If package boundaries are already clear and you need concrete contracts, jump to
 
 - [`@alife-sdk/core`](/docs/packages/core) -> you need the runtime shell, ports, plugins, factions, terrains, and events
 - [`@alife-sdk/simulation`](/docs/packages/simulation) -> your world should keep living off-screen
-- [`@alife-sdk/ai`](/docs/packages/ai) -> nearby NPCs need richer frame-based behavior
-- [`@alife-sdk/social`](/docs/packages/social) -> the world should speak and feel inhabited
+- [`@alife-sdk/ai`](/docs/packages/ai) -> nearby NPCs need additional frame-based behavior
+- [`@alife-sdk/social`](/docs/packages/social) -> you need greetings, remarks, or campfire behavior
 - [`@alife-sdk/economy`](/docs/packages/economy) -> you need items, trade, and quest progression
 - [`@alife-sdk/hazards`](/docs/packages/hazards) -> the environment itself should threaten or reward actors
 - [`@alife-sdk/persistence`](/docs/packages/persistence) -> you need durable world state
@@ -27,15 +27,15 @@ If package boundaries are already clear and you need concrete contracts, jump to
 - [`@alife-sdk/core`](/docs/packages/core) -> I want the minimal runtime shell
 - [`@alife-sdk/simulation`](/docs/packages/simulation) -> I want the world to keep moving off-screen
 - [`@alife-sdk/ai`](/docs/packages/ai) -> I want one observed NPC to fight and react properly
-- [`@alife-sdk/social`](/docs/packages/social) -> I want ambient chatter and social texture
+- [`@alife-sdk/social`](/docs/packages/social) -> I want NPC chatter and group social behavior
 - [`@alife-sdk/economy`](/docs/packages/economy) -> I want traders, inventory, and quests
 - [`@alife-sdk/hazards`](/docs/packages/hazards) -> I want anomaly fields and artefacts
 - [`@alife-sdk/persistence`](/docs/packages/persistence) -> I want save/load
-- [`@alife-sdk/phaser`](/docs/packages/phaser) -> I want the fastest route into a Phaser scene
+- [`@alife-sdk/phaser`](/docs/packages/phaser) -> I want Phaser scene bootstrap and adapters
 
 ## Recommended stacks
 
-### Foundational living-world stack
+### Core living-world stack
 
 ```bash
 npm install @alife-sdk/core @alife-sdk/simulation
@@ -47,7 +47,7 @@ npm install @alife-sdk/core @alife-sdk/simulation
 npm install @alife-sdk/core @alife-sdk/simulation @alife-sdk/ai
 ```
 
-### Living world plus social texture
+### Living world plus social systems
 
 ```bash
 npm install @alife-sdk/core @alife-sdk/simulation @alife-sdk/social

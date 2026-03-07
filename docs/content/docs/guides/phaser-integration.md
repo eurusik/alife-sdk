@@ -1,6 +1,6 @@
 # Phaser Integration
 
-If you are shipping on Phaser 3, use `@alife-sdk/phaser`. It exists to remove the repetitive adapter work and give you a clean scene-level integration path.
+If you are integrating with Phaser 3, use `@alife-sdk/phaser`. It provides the adapters and bootstrap helpers for a scene-level integration.
 
 ## What this package gives you
 
@@ -21,7 +21,7 @@ If you are shipping on Phaser 3, use `@alife-sdk/phaser`. It exists to remove th
 6. Call `kernel.update(delta)` every frame
 7. Periodically run `onlineOffline.evaluate(...)` and apply `sim.setNPCOnline()`
 
-## A minimal useful scene
+## Minimal scene
 
 ```ts
 import { createDefaultBehaviorConfig } from '@alife-sdk/simulation';
@@ -69,7 +69,7 @@ kernel.start();
 |---|---|---|
 | `minimal` | Core factions and spawn wiring | You are still assembling the scene shell |
 | `simulation` | Adds `SimulationPlugin` | You want offline NPC behavior first |
-| `full` | Adds AI and social plugins | You want a more complete playable slice |
+| `full` | Adds AI and social plugins | You need AI and social systems in the same scene |
 
 ## Online/offline handoff in Phaser
 
@@ -82,13 +82,13 @@ for (const id of goOnline) simulation!.setNPCOnline(id, true);
 for (const id of goOffline) simulation!.setNPCOnline(id, false);
 ```
 
-That design is useful because you control when to evaluate, how often to evaluate, and what extra scene-side sync you want around the handoff.
+That design keeps the handoff explicit: you control when to evaluate, how often to evaluate, and what extra scene-side sync runs around the handoff.
 
 ## Common mistakes in Phaser projects
 
 ### 1. Forgetting `kernel.update(delta)`
 
-Without it, nothing really runs. No ticks, no clock, no plugin updates.
+Without it, the kernel clock and plugins do not advance.
 
 ### 2. Passing `time` instead of `delta`
 

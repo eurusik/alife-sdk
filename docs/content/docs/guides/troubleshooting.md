@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Use this page when the runtime boots, but the behavior still feels wrong.
+Use this page when the runtime boots, but the behavior or output does not match what you expect.
 
 ## Start here
 
@@ -22,7 +22,7 @@ The common causes:
 - `kernel.update(deltaMs)` is not running
 - no terrains were registered
 - the NPC is online but nothing is driving online AI
-- the NPC was never registered into the simulation cleanly
+- the NPC was never registered into the simulation correctly
 
 Open next:
 
@@ -61,7 +61,7 @@ Open next:
 
 ## Online/offline never switches
 
-That usually means the runtime itself is alive, but the handoff logic is not being applied.
+That usually means the runtime is running, but the handoff logic is not being applied.
 
 Check these first:
 
@@ -112,7 +112,7 @@ Tune the background runtime first:
 - raise `tickIntervalMs`
 - reduce offline work budgets
 - evaluate online/offline transitions less often
-- prove one healthy population size before you scale up further
+- measure one stable population size before you scale up further
 
 ## Related pages
 

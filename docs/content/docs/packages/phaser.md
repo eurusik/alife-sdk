@@ -1,6 +1,6 @@
 # @alife-sdk/phaser
 
-This is the cleanest route from the SDK to a visible Phaser 3 scene.
+This package provides the Phaser-specific adapters and bootstrap helpers.
 
 ## Install
 
@@ -12,8 +12,8 @@ npm install phaser@^3.60.0
 ## Add it when
 
 - you are building on Phaser 3
-- you want a batteries-included adapter layer
-- you would rather wire one scene cleanly than build every port from scratch
+- you want prebuilt adapters
+- you want to wire one scene instead of building every port from scratch
 
 ## Typical scene setup
 
@@ -38,13 +38,13 @@ npm install phaser@^3.60.0
 
 ## Debug this package
 
-- Scene shell is not wiring cleanly -> [createPhaserKernel](/docs/reference/phaser/create-phaser-kernel)
+- Scene bootstrap is failing or incomplete -> [createPhaserKernel](/docs/reference/phaser/create-phaser-kernel)
 - Sprites or HP records are desynced -> [Phaser Adapters](/docs/reference/phaser/adapters)
 - NPCs never switch ownership correctly -> [OnlineOfflineManager](/docs/reference/phaser/online-offline-manager)
 
-## Recommended starting preset
+## Default first preset
 
-`preset: "simulation"` is the most practical default for first-time adoption. It proves the world loop without forcing the full stack immediately.
+`preset: "simulation"` is a good default for a first integration. It lets you verify the world loop without adding AI and social packages immediately.
 
 ## Package README
 

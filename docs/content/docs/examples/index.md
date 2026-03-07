@@ -1,12 +1,12 @@
 # Examples
 
-The examples are the most honest way to understand how this SDK behaves.
+The examples show the runtime behavior more directly than the API pages do.
 
-Most top-level examples run in Node.js, which makes them a much better learning surface than a game scene when you are still trying to understand the world model.
+Most top-level examples run in Node.js, which makes them easier to inspect than a game scene when you are still learning the world model.
 
 ## Recommended first routes
 
-If you want the shortest path, start with one of these:
+If you want the smallest starting point, start with one of these:
 
 1. **Understand the loop** -> run `18-full-npc.ts`
 2. **See Phaser integration** -> open the Phaser demo route below
@@ -14,7 +14,7 @@ If you want the shortest path, start with one of these:
 
 ## If you only open one example first
 
-Run the capstone example:
+Run this example first:
 
 ```bash
 pnpm install
@@ -27,11 +27,11 @@ Then open:
 - [`18-full-npc.ts`](https://github.com/eurusik/alife-sdk/blob/main/examples/18-full-npc.ts)
 - [Examples README](https://github.com/eurusik/alife-sdk/blob/main/examples/README.md)
 
-Open the file beside the console output. That is the quickest way to see how the major systems fit into one NPC lifecycle.
+Open the file beside the console output. That is the simplest way to inspect how the major systems fit into one NPC lifecycle.
 
 ### Expected output
 
-- console events that show the runtime is alive
+- console events that show the runtime is updating
 - readable transitions in the NPC lifecycle
 - enough signal to decide whether the model fits your game
 
@@ -56,9 +56,9 @@ Open the file beside the console output. That is the quickest way to see how the
     <strong>I want real-time combat behavior</strong>
     Read the online AI examples when the simulation model already makes sense to you.
   </a>
-  <a class="route-card" href="#i-want-phaser-integration-and-on-screen-proof">
-    <strong>I want Phaser integration and on-screen proof</strong>
-    Use the browser demo when you are ready to see the handoff working inside a scene.
+  <a class="route-card" href="#i-want-phaser-integration-and-on-screen-output">
+    <strong>I want Phaser integration and on-screen output</strong>
+    Use the browser demo when you are ready to inspect the handoff inside a scene.
   </a>
 </div>
 
@@ -90,7 +90,7 @@ Open the file beside the console output. That is the quickest way to see how the
 3. [`06-economy.ts`](https://github.com/eurusik/alife-sdk/blob/main/examples/06-economy.ts)
 4. [`08-social.ts`](https://github.com/eurusik/alife-sdk/blob/main/examples/08-social.ts)
 
-### I want Phaser integration and on-screen proof
+### I want Phaser integration and on-screen output
 
 1. [`09-phaser.ts`](https://github.com/eurusik/alife-sdk/blob/main/examples/09-phaser.ts)
 2. [Phaser demo README](https://github.com/eurusik/alife-sdk/blob/main/examples/phaser/README.md)
@@ -132,7 +132,7 @@ Open the local Vite URL shown in the terminal.
 - player position driving online/offline switching
 - blue and red NPC factions sharing one world
 - smart terrain movement and conflict
-- event log proving the background simulation is alive
+- event log showing that background simulation is updating
 - one runtime handoff instead of two separate NPC systems
 
 ## Related pages

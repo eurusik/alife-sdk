@@ -68,7 +68,7 @@ The backend owns only moving raw strings in and out of storage.
 
 ## Lifecycle
 
-The healthy order is:
+The recommended order is:
 
 1. create backend
 2. create plugin
@@ -124,7 +124,7 @@ That keeps slot policy outside the storage backend.
 
 ## Practical usage rule
 
-Do not treat `hasSave()` as proof that `load()` will succeed.
+Do not treat `hasSave()` as a guarantee that `load()` will succeed.
 
 It only means something exists at that key. The stored data can still be corrupt or incompatible.
 

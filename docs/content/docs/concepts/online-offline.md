@@ -2,7 +2,7 @@
 
 This is the core runtime idea behind the SDK.
 
-Most games do not need full frame-by-frame AI for every actor in the world. They need a cheaper background model for distant NPCs and a richer model for actors near the player.
+Most games do not need full frame-by-frame AI for every actor in the world. They need a cheaper background model for distant NPCs and a higher-detail model for actors near the player.
 
 ## The split
 
@@ -44,7 +44,7 @@ The point is not to keep two separate NPCs in sync. It is one NPC record moving 
 
 ## Why this matters for performance
 
-When 300 NPCs exist in the world, only a fraction should pay the cost of full real-time AI. The rest can keep progressing on a tick budget without breaking the illusion of a living simulation.
+When 300 NPCs exist in the world, only a fraction should pay the cost of full real-time AI. The rest can keep progressing on a tick budget while still updating world state.
 
 ## Common mistake
 

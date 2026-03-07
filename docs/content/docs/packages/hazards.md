@@ -42,7 +42,7 @@ hazards.manager.tick(deltaMs, world.getLiveEntities());
 ## Debug this package
 
 - Hazards never advance -> [Hazard Manager](/docs/reference/hazards/manager)
-- Damage cadence or expiry feels wrong -> [Hazard Zones](/docs/reference/hazards/zones)
+- Damage cadence or expiry does not match the configured zone rules -> [Hazard Zones](/docs/reference/hazards/zones)
 - Pickups never appear or never reconcile -> [Artefacts](/docs/reference/hazards/artefacts)
 
 ## Important note
