@@ -1,0 +1,16 @@
+{
+  "name": "A-Life SDK Docs",
+  "short_name": "A-Life Docs",
+  "description": "Documentation for the A-Life SDK: offline NPC simulation, online behavior, and Phaser integration.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#100d0c",
+  "theme_color": "#100d0c",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48 32x32 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

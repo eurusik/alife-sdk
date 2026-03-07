@@ -1,0 +1,752 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 20 10% 8%;
+    --foreground: 35 90% 55%;
+
+    --card: 20 12% 12%;
+    --card-foreground: 35 90% 55%;
+
+    --popover: 20 12% 10%;
+    --popover-foreground: 35 90% 55%;
+
+    --primary: 30 100% 50%;
+    --primary-foreground: 20 10% 5%;
+
+    --secondary: 20 15% 16%;
+    --secondary-foreground: 35 80% 64%;
+
+    --muted: 20 10% 18%;
+    --muted-foreground: 31 44% 67%;
+
+    --accent: 30 100% 50%;
+    --accent-foreground: 20 10% 5%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 95%;
+
+    --border: 30 40% 22%;
+    --input: 30 30% 18%;
+    --ring: 30 100% 50%;
+
+    --radius: 0px;
+
+    --sidebar-background: 20 12% 10%;
+    --sidebar-foreground: 35 80% 55%;
+    --sidebar-primary: 30 100% 50%;
+    --sidebar-primary-foreground: 20 10% 5%;
+    --sidebar-accent: 30 40% 16%;
+    --sidebar-accent-foreground: 35 90% 60%;
+    --sidebar-border: 30 30% 20%;
+    --sidebar-ring: 30 100% 50%;
+
+    --glow-orange: 30 100% 50%;
+    --terminal-green: 120 60% 40%;
+    --surface-elevated: 20 14% 14%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    image-rendering: pixelated;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display;
+  }
+
+  code,
+  pre {
+    @apply font-mono;
+  }
+}
+
+@layer utilities {
+  .text-glow-soft {
+    text-shadow: 0 0 8px hsl(30 100% 50% / 0.5), 0 0 18px hsl(30 100% 50% / 0.22);
+  }
+
+  .card-hover {
+    @apply transition-all duration-150;
+  }
+
+  .card-hover:hover {
+    box-shadow: 0 0 16px hsl(30 100% 50% / 0.3), inset 0 0 12px hsl(30 100% 50% / 0.08);
+    border-color: hsl(30 100% 50% / 0.6);
+  }
+
+  .scanline {
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      hsl(30 100% 50% / 0.03) 2px,
+      hsl(30 100% 50% / 0.03) 4px
+    );
+  }
+
+  .pixel-divider {
+    height: 4px;
+    background: repeating-linear-gradient(
+      90deg,
+      hsl(30 100% 50% / 0.6) 0px,
+      hsl(30 100% 50% / 0.6) 8px,
+      transparent 8px,
+      transparent 12px
+    );
+  }
+
+  .pixel-btn {
+    position: relative;
+    box-shadow: 4px 4px 0 0 hsl(30 100% 50% / 0.4);
+  }
+
+  .pixel-btn:hover {
+    box-shadow: 2px 2px 0 0 hsl(30 100% 50% / 0.6);
+    transform: translate(2px, 2px);
+  }
+
+  .pixel-btn:active {
+    box-shadow: none;
+    transform: translate(4px, 4px);
+  }
+
+  .pixel-border {
+    border: 3px solid hsl(30 40% 22%);
+    box-shadow:
+      inset 3px 3px 0 0 hsl(30 100% 50% / 0.08),
+      inset -3px -3px 0 0 hsl(20 10% 5% / 0.4),
+      6px 6px 0 0 hsl(20 10% 3% / 0.5);
+  }
+
+  .pixel-card {
+    border: 3px solid hsl(30 40% 22%);
+    background: linear-gradient(135deg, hsl(20 14% 14%) 0%, hsl(20 12% 11%) 100%);
+    box-shadow:
+      inset 3px 3px 0 0 hsl(30 100% 50% / 0.06),
+      inset -3px -3px 0 0 hsl(20 10% 5% / 0.3),
+      5px 5px 0 0 hsl(20 10% 3% / 0.6);
+  }
+
+  .pixel-inset {
+    box-shadow:
+      inset 2px 2px 0 0 hsl(20 10% 5% / 0.5),
+      inset -2px -2px 0 0 hsl(30 100% 50% / 0.05);
+  }
+
+  .landing-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: hsl(31 42% 68%);
+  }
+
+  .landing-kicker::before {
+    content: "";
+    width: 0.85rem;
+    height: 0.85rem;
+    border: 1px solid hsl(30 100% 50% / 0.42);
+    background: linear-gradient(135deg, hsl(30 100% 50% / 0.22), transparent);
+    box-shadow: inset 0 0 0 2px hsl(20 12% 10%);
+  }
+
+  .landing-panel {
+    position: relative;
+    border: 2px solid hsl(30 34% 22%);
+    background:
+      linear-gradient(180deg, hsl(20 14% 13% / 0.96) 0%, hsl(20 12% 10% / 0.94) 100%);
+    box-shadow:
+      inset 1px 1px 0 hsl(30 100% 50% / 0.06),
+      0 14px 28px hsl(20 38% 3% / 0.22);
+  }
+
+  .landing-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, hsl(30 100% 50% / 0.03), transparent 26%),
+      repeating-linear-gradient(
+        180deg,
+        transparent 0,
+        transparent 23px,
+        hsl(30 100% 50% / 0.018) 23px,
+        hsl(30 100% 50% / 0.018) 24px
+      );
+    opacity: 0.75;
+  }
+
+  .landing-node {
+    position: relative;
+    border: 1px solid hsl(30 34% 24%);
+    background: hsl(20 12% 11% / 0.92);
+    padding: 1rem 1.05rem;
+    box-shadow: inset 0 1px 0 hsl(30 100% 50% / 0.04);
+  }
+
+  .search-mark {
+    background: hsl(30 100% 50% / 0.22);
+    color: hsl(35 90% 62%);
+    padding: 0 2px;
+  }
+
+  .md-link {
+    color: hsl(30 100% 58%);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .md-link:hover {
+    color: hsl(35 95% 66%);
+  }
+
+  .md-link-button {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .md-content {
+    @apply text-base font-body text-muted-foreground leading-8;
+  }
+
+  .md-content h1,
+  .md-content h2,
+  .md-content h3,
+  .md-content h4 {
+    @apply font-display text-foreground tracking-wide;
+    margin: 1.35rem 0 0.55rem;
+  }
+
+  .md-content h1 {
+    @apply text-3xl;
+  }
+
+  .md-content h2 {
+    @apply text-2xl;
+    scroll-margin-top: 142px;
+  }
+
+  .md-content h3 {
+    @apply text-xl;
+    scroll-margin-top: 142px;
+  }
+
+  .md-content p,
+  .md-content li,
+  .md-content blockquote {
+    margin: 0.6rem 0;
+    max-width: 72ch;
+  }
+
+  .md-content ul,
+  .md-content ol {
+    padding-left: 1.25rem;
+    margin: 0.65rem 0 1rem;
+  }
+
+  .md-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.95rem 0 1.25rem;
+    table-layout: fixed;
+  }
+
+  .md-content thead th {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: hsl(34 72% 77%);
+    text-align: left;
+    border-bottom: 1px solid hsl(30 35% 24%);
+    padding: 0.55rem 0.75rem;
+  }
+
+  .md-content tbody td {
+    border-bottom: 1px solid hsl(30 24% 18%);
+    padding: 0.7rem 0.75rem;
+    vertical-align: top;
+    color: hsl(31 38% 74%);
+    line-height: 1.65;
+  }
+
+  .md-content tbody tr:nth-child(even) {
+    background: hsl(20 12% 11% / 0.42);
+  }
+
+  .md-content thead th:first-child,
+  .md-content tbody td:first-child {
+    width: 34%;
+  }
+
+  .md-inline-code {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.94em;
+    color: hsl(35 88% 64%);
+    background: hsl(20 15% 16%);
+    border: 1px solid hsl(30 32% 24%);
+    padding: 1px 6px;
+  }
+
+  .md-content blockquote {
+    border-left: 2px solid hsl(30 100% 50% / 0.5);
+    padding-left: 0.75rem;
+    color: hsl(30 45% 70%);
+  }
+
+  .md-content .route-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-auto-rows: 1fr;
+    gap: 0.55rem;
+    margin: 0.85rem 0 1.15rem;
+    max-width: 72ch;
+  }
+
+  .md-content .route-card {
+    position: relative;
+    display: block;
+    height: 100%;
+    border: 1px solid hsl(30 34% 24%);
+    background: hsl(20 12% 12%);
+    padding: 0.55rem 0.7rem;
+    text-decoration: none;
+    color: hsl(31 42% 74%);
+    line-height: 1.5;
+    transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease, transform 120ms ease;
+  }
+
+  .md-content .route-card::after {
+    content: "↗";
+    position: absolute;
+    right: 0.65rem;
+    top: 0.58rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: hsl(35 95% 67% / 0.75);
+    opacity: 0;
+    transform: translateX(-2px);
+    transition: opacity 120ms ease, transform 120ms ease;
+  }
+
+  .md-content .route-card:hover {
+    border-color: hsl(30 100% 50% / 0.5);
+    background: hsl(30 100% 50% / 0.08);
+    color: hsl(35 93% 72%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px hsl(20 30% 5% / 0.35);
+  }
+
+  .md-content .route-card:hover::after {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .md-content .route-card strong {
+    display: block;
+    margin-bottom: 0.2rem;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: hsl(35 95% 69%);
+  }
+
+  .route-card-button {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  @media (min-width: 1120px) {
+    .md-content .route-grid {
+      grid-template-columns: 1fr 1fr;
+      max-width: none;
+    }
+  }
+
+  .md-code-block {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid hsl(30 40% 22%);
+    background:
+      linear-gradient(180deg, hsl(20 15% 11%) 0%, hsl(18 16% 8%) 100%);
+    box-shadow:
+      inset 0 1px 0 hsl(30 100% 50% / 0.06),
+      0 10px 22px hsl(20 35% 3% / 0.28);
+    margin: 0.95rem 0;
+  }
+
+  .md-code-block::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(90deg, hsl(30 100% 50% / 0.05) 0, transparent 12%),
+      radial-gradient(circle at 0% 35%, hsl(30 100% 50% / 0.04), transparent 28%);
+  }
+
+  .md-code-meta {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    border-bottom: 1px solid hsl(30 30% 20%);
+    background: linear-gradient(180deg, hsl(20 14% 15%) 0%, hsl(20 14% 13%) 100%);
+    padding: 0.45rem 0.65rem;
+  }
+
+  .md-code-lang {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    text-transform: none;
+    letter-spacing: 0.04em;
+    color: hsl(34 42% 68%);
+  }
+
+  .md-code-copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border: 1px solid hsl(30 30% 28%);
+    background: hsl(20 14% 11%);
+    padding: 4px 9px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: hsl(31 44% 75%);
+    transition: border-color 120ms ease, color 120ms ease, background-color 120ms ease;
+  }
+
+  .md-code-copy:hover {
+    border-color: hsl(30 100% 50% / 0.45);
+    color: hsl(35 95% 66%);
+    background: hsl(30 100% 50% / 0.08);
+  }
+
+  .md-code-copy[data-copied="true"] {
+    border-color: hsl(35 95% 66% / 0.45);
+    color: hsl(35 95% 72%);
+    background: hsl(30 100% 50% / 0.1);
+  }
+
+  .md-code-block pre {
+    position: relative;
+    z-index: 1;
+    overflow-x: auto;
+    margin: 0;
+    padding: 1.05rem 1.1rem 1.15rem;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(30 34% 30%) hsl(20 14% 10%);
+  }
+
+  .landing-code-block pre {
+    flex: 1;
+    max-height: 32rem;
+    overflow: auto;
+  }
+
+  .landing-code-block {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    margin: 0;
+  }
+
+  .md-code-block pre code {
+    background: transparent;
+    padding: 0;
+    font-size: 1rem;
+    line-height: 1.8;
+    text-shadow: none;
+  }
+
+  .md-code-block code[class*="language-"],
+  .md-code-block pre[class*="language-"] {
+    background: transparent !important;
+  }
+
+  .md-code-block code[class*="language-"] {
+    font-family: 'Share Tech Mono', monospace !important;
+  }
+
+  .doc-nav-btn {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.1rem;
+    border: 2px solid hsl(30 40% 22%);
+    background: hsl(20 15% 16%);
+    padding: 0.35rem 0.55rem;
+    max-width: 170px;
+    text-align: left;
+    transition: border-color 120ms ease, color 120ms ease;
+  }
+
+  .doc-nav-btn:hover {
+    border-color: hsl(30 100% 50% / 0.45);
+  }
+
+  .doc-nav-kicker {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: hsl(30 32% 63%);
+    text-transform: uppercase;
+  }
+
+  .doc-nav-label {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    color: hsl(31 44% 75%);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 155px;
+  }
+
+  .docs-section-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    padding: 0 0.5rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: hsl(31 44% 70%);
+    text-align: left;
+  }
+
+  .docs-nav-item {
+    width: 100%;
+    text-align: left;
+    padding: 0.5rem 0.6rem;
+    font-size: 17px;
+    font-family: 'Rajdhani', sans-serif;
+    border-left: 3px solid transparent;
+    color: hsl(30 36% 66%);
+    transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease;
+  }
+
+  .docs-nav-item:hover {
+    color: hsl(35 90% 76%);
+    background: hsl(20 15% 16%);
+  }
+
+  .docs-nav-item-active {
+    border-left-color: hsl(30 100% 50%);
+    color: hsl(35 95% 67%);
+    background: hsl(30 100% 50% / 0.14);
+  }
+
+  .toc-link {
+    display: block;
+    border-left: 2px solid transparent;
+    padding: 0.12rem 0.4rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    line-height: 1.28;
+    color: hsl(30 34% 68%);
+    transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease;
+  }
+
+  .toc-link:hover {
+    color: hsl(35 90% 76%);
+    background: hsl(30 100% 50% / 0.05);
+  }
+
+  .toc-link-active {
+    border-left-color: hsl(30 100% 50%);
+    color: hsl(35 95% 67%);
+    background: hsl(30 100% 50% / 0.05);
+  }
+
+  .toc-link-text {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .toc-back-link {
+    display: inline-flex;
+    align-items: center;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: hsl(30 28% 60%);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    transition: color 120ms ease;
+  }
+
+  .toc-back-link:hover {
+    color: hsl(35 95% 67%);
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible {
+    outline: 2px solid hsl(30 100% 50% / 0.9);
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 767px) {
+    .pixel-card {
+      box-shadow:
+        inset 2px 2px 0 0 hsl(30 100% 50% / 0.06),
+        inset -2px -2px 0 0 hsl(20 10% 5% / 0.28),
+        4px 4px 0 0 hsl(20 10% 3% / 0.52);
+    }
+
+    .md-content {
+      font-size: 0.98rem;
+      line-height: 1.72;
+    }
+
+    .md-content h1,
+    .md-content h2,
+    .md-content h3,
+    .md-content h4 {
+      margin-top: 1.1rem;
+      margin-bottom: 0.45rem;
+    }
+
+    .md-content h1 {
+      font-size: 2rem;
+      line-height: 1.08;
+    }
+
+    .md-content h2 {
+      font-size: 1.6rem;
+      line-height: 1.15;
+      scroll-margin-top: 152px;
+    }
+
+    .md-content h3 {
+      font-size: 1.3rem;
+      line-height: 1.18;
+      scroll-margin-top: 152px;
+    }
+
+    .md-content p,
+    .md-content li,
+    .md-content blockquote {
+      max-width: none;
+      margin: 0.5rem 0;
+    }
+
+    .md-content ul,
+    .md-content ol {
+      padding-left: 1rem;
+      margin: 0.55rem 0 0.9rem;
+    }
+
+    .md-content table {
+      display: block;
+      overflow-x: auto;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .md-content thead th:first-child,
+    .md-content tbody td:first-child {
+      width: auto;
+    }
+
+    .md-inline-code {
+      padding: 1px 5px;
+    }
+
+    .md-code-meta {
+      padding: 0.42rem 0.5rem;
+    }
+
+    .md-code-lang {
+      font-size: 10px;
+    }
+
+    .md-code-copy {
+      gap: 0.25rem;
+      padding: 4px 7px;
+      font-size: 10px;
+    }
+
+    .md-code-block pre {
+      padding: 0.9rem 0.9rem 1rem;
+    }
+
+    .md-code-block pre code {
+      font-size: 0.92rem;
+      line-height: 1.7;
+    }
+
+    .doc-nav-btn {
+      max-width: none;
+      min-height: 62px;
+      justify-content: center;
+    }
+
+    .doc-nav-label {
+      max-width: none;
+      white-space: normal;
+      line-height: 1.15;
+    }
+
+    .docs-section-toggle {
+      padding: 0 0.25rem;
+      font-size: 11px;
+    }
+
+    .docs-nav-item {
+      padding: 0.62rem 0.6rem;
+      font-size: 1.05rem;
+    }
+
+    .toc-link {
+      padding: 0.28rem 0.5rem;
+      font-size: 12px;
+      line-height: 1.34;
+    }
+
+    .landing-kicker {
+      font-size: 0.64rem;
+      letter-spacing: 0.16em;
+    }
+
+    .landing-node {
+      padding: 0.9rem;
+    }
+  }
+}

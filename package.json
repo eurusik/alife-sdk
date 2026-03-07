@@ -22,6 +22,12 @@
     "build:sdk": "pnpm --filter @alife-sdk/core build && pnpm --filter @alife-sdk/simulation build && pnpm --filter @alife-sdk/ai build && pnpm --filter @alife-sdk/economy build && pnpm --filter @alife-sdk/hazards build && pnpm --filter @alife-sdk/persistence build && pnpm --filter @alife-sdk/social build && pnpm --filter @alife-sdk/phaser build",
     "test:sdk": "pnpm -r --filter './packages/**' test -- --run",
     "lint": "eslint 'packages/*/src/**/*.ts'",
+    "docs:dev": "pnpm --dir docs dev",
+    "docs:build": "pnpm --dir docs build",
+    "docs:preview": "pnpm --dir docs preview",
+    "example:phaser:install": "pnpm --dir examples/phaser install",
+    "example:phaser:dev": "pnpm --dir examples/phaser dev",
+    "example:phaser:build": "pnpm --dir examples/phaser build",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "pnpm build:sdk && changeset publish"

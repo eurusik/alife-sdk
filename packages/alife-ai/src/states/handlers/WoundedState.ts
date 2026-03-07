@@ -86,7 +86,6 @@ export class WoundedState implements IOnlineStateHandler {
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   exit(_ctx: INPCContext): void {
     // No cleanup required.
   }
