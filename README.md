@@ -67,27 +67,21 @@ More detail: [examples/phaser/README.md](examples/phaser/README.md)
 
 ---
 
-## 30-Second Package Guide
+## Package Selection
 
-```text
-Are you building with Phaser 3?
-├─ YES → install @alife-sdk/core @alife-sdk/simulation @alife-sdk/ai @alife-sdk/social @alife-sdk/phaser
-│         Start with createPhaserKernel() and examples/09-phaser.ts
-│
-└─ NO  → Do you need NPCs to keep living off-screen?
-          ├─ YES → install @alife-sdk/core @alife-sdk/simulation
-          │         Add @alife-sdk/ai later for on-screen combat behavior
-          │
-          └─ NO  → install @alife-sdk/core
-                    Use the kernel, factions, events, and your own plugins
-```
+Start with the smallest package set that matches your integration:
 
-Optional add-ons:
+- Phaser 3 scene integration: `@alife-sdk/core @alife-sdk/simulation @alife-sdk/ai @alife-sdk/social @alife-sdk/phaser`
+- Engine-agnostic off-screen NPC simulation: `@alife-sdk/core @alife-sdk/simulation`
+- Engine-agnostic runtime shell only: `@alife-sdk/core`
 
+Add packages only when you need their runtime:
+
+- `@alife-sdk/ai` for online frame-based NPC behavior
+- `@alife-sdk/social` for greetings, remarks, and campfire behavior
 - `@alife-sdk/economy` for inventory, trade, and quests
 - `@alife-sdk/hazards` for anomaly zones, damage, and artefacts
-- `@alife-sdk/social` for greetings, ambient remarks, and campfire stories
-- `@alife-sdk/persistence` for save/load pipelines
+- `@alife-sdk/persistence` for save/load
 
 ---
 
@@ -113,19 +107,6 @@ Optional add-ons:
 | [`@alife-sdk/hazards`](packages/alife-hazards/README.md) | Hazard zones, anomaly damage, artefact spawning, immunity system |
 | [`@alife-sdk/persistence`](packages/alife-persistence/README.md) | Save/load pipeline — pluggable storage backends (localStorage, file, memory) |
 | [`@alife-sdk/phaser`](packages/alife-phaser/README.md) | Phaser 3 adapter layer — ready-to-use port implementations, `createPhaserKernel` factory |
-
-```text
-@alife-sdk/core
-    ├── @alife-sdk/simulation
-    ├── @alife-sdk/ai
-    ├── @alife-sdk/social
-    ├── @alife-sdk/economy
-    ├── @alife-sdk/hazards
-    ├── @alife-sdk/persistence
-    └── @alife-sdk/phaser
-```
-
-Each package is independently installable.
 
 ---
 
@@ -209,7 +190,9 @@ When an NPC comes back online its brain state (terrain, task, morale) is preserv
 
 ### Phaser 3
 
-The `@alife-sdk/phaser` package provides `createPhaserKernel`, a facade that wires the common ports and plugins in one call:
+Phaser 3 is a JavaScript/TypeScript 2D game framework.
+
+If your game uses Phaser 3, the `@alife-sdk/phaser` package provides `createPhaserKernel`, a helper that wires the common ports and plugins in one call:
 
 ```ts
 import { createPhaserKernel, PhaserEntityAdapter, PhaserEntityFactory, PhaserSimulationBridge } from '@alife-sdk/phaser';
