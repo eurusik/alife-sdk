@@ -37,11 +37,6 @@ const LANDING_SECTIONS = [
     summary: "How the SDK integrates through ports without replacing your engine.",
   },
   {
-    id: "start",
-    title: "First Proof",
-    summary: "The shortest path from the first tick to a minimal working proof.",
-  },
-  {
     id: "routes",
     title: "Entry Points",
     summary: "Direct paths into the docs based on the next integration question.",

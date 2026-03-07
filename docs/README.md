@@ -7,17 +7,15 @@ It is not the SDK workspace itself. The SDK packages, examples, and monorepo too
 ## Run locally
 
 ```bash
-cd engine-dev-companion-main
-npm install
-npm run dev
+pnpm --dir docs install
+pnpm --dir docs dev
 ```
 
 ## Build
 
 ```bash
-cd engine-dev-companion-main
-npm run build
-npm test
+pnpm --dir docs build
+pnpm --dir docs test
 ```
 
 ## Site structure
