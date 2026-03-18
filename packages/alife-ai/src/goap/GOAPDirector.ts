@@ -115,12 +115,10 @@ export class GOAPDirector implements IOnlineStateHandler {
     }
 
     // 2. Get current plan and action.
-    const custom = ctx.state.custom ?? {};
-    const plan = custom[GOAP_PLAN_KEY] as Array<{ id: string }> | undefined;
-    const index = (custom[GOAP_INDEX_KEY] as number | undefined) ?? 0;
+    const plan = this._read(ctx, GOAP_PLAN_KEY) as Array<{ id: string }> | undefined;
+    const index = (this._read(ctx, GOAP_INDEX_KEY) as number | undefined) ?? 0;
 
     if (!plan || index >= plan.length) {
-      // Plan exhausted — fallback or idle.
       if (this.config.onNoPlan) {
         this.config.onNoPlan(ctx, deltaMs);
       }
@@ -131,21 +129,18 @@ export class GOAPDirector implements IOnlineStateHandler {
     const action = plan[index];
     const handler = this.config.actionHandlers[action.id];
     if (!handler) {
-      // No handler for this action — skip it.
       this._advanceAction(ctx);
       return;
     }
 
-    const activeHandlerId = custom[GOAP_HANDLER_KEY] as string | undefined;
+    const activeHandlerId = this._read(ctx, GOAP_HANDLER_KEY) as string | undefined;
     if (activeHandlerId !== action.id) {
-      // Enter the new action handler.
       if (activeHandlerId) {
         const prevHandler = this.config.actionHandlers[activeHandlerId];
         prevHandler?.exit(ctx);
       }
       handler.enter(ctx);
-      // Re-read custom AFTER enter() — the handler may have written to it.
-      ctx.state.custom = { ...(ctx.state.custom ?? {}), [GOAP_HANDLER_KEY]: action.id };
+      this._write(ctx, GOAP_HANDLER_KEY, action.id);
     }
 
     // 4. Tick the action handler.
@@ -153,15 +148,13 @@ export class GOAPDirector implements IOnlineStateHandler {
 
     if (result === 'success') {
       handler.exit(ctx);
-      ctx.state.custom = { ...(ctx.state.custom ?? {}), [GOAP_HANDLER_KEY]: undefined };
+      this._write(ctx, GOAP_HANDLER_KEY, undefined);
       this._advanceAction(ctx);
     } else if (result === 'failure') {
       handler.exit(ctx);
-      ctx.state.custom = { ...(ctx.state.custom ?? {}), [GOAP_HANDLER_KEY]: undefined };
-      // Replan from scratch on failure.
+      this._write(ctx, GOAP_HANDLER_KEY, undefined);
       this._replan(ctx);
     }
-    // 'running' — continue next tick.
   }
 
   exit(ctx: INPCContext): void {
@@ -172,40 +165,38 @@ export class GOAPDirector implements IOnlineStateHandler {
   // Internal helpers
   // -----------------------------------------------------------------------
 
+  /** Read a GOAP key from ctx.state.custom (always fresh, never cached). */
+  private _read(ctx: INPCContext, key: string): unknown {
+    return (ctx.state.custom ?? {})[key];
+  }
+
+  /** Write a single GOAP key to ctx.state.custom (always fresh, never cached). */
+  private _write(ctx: INPCContext, key: string, value: unknown): void {
+    ctx.state.custom = { ...(ctx.state.custom ?? {}), [key]: value };
+  }
+
   private _replan(ctx: INPCContext): void {
     const ws = this.config.buildWorldState(ctx);
     const plan = this.planner.plan(ws, this.config.goal);
 
     const resultPlan = plan ?? [];
-    const custom = ctx.state.custom ?? {};
-    let emptyCount = (custom[GOAP_EMPTY_COUNT_KEY] as number) ?? 0;
+    let emptyCount = (this._read(ctx, GOAP_EMPTY_COUNT_KEY) as number) ?? 0;
+    emptyCount = resultPlan.length === 0 ? emptyCount + 1 : 0;
 
-    if (resultPlan.length === 0) {
-      emptyCount++;
-    } else {
-      emptyCount = 0;
-    }
-
-    ctx.state.custom = {
-      ...custom,
-      [GOAP_PLAN_KEY]:        resultPlan,
-      [GOAP_INDEX_KEY]:       0,
-      [GOAP_HANDLER_KEY]:     undefined,
-      [GOAP_EMPTY_COUNT_KEY]: emptyCount,
-    };
+    this._write(ctx, GOAP_PLAN_KEY, resultPlan);
+    this._write(ctx, GOAP_INDEX_KEY, 0);
+    this._write(ctx, GOAP_HANDLER_KEY, undefined);
+    this._write(ctx, GOAP_EMPTY_COUNT_KEY, emptyCount);
   }
 
   private _advanceAction(ctx: INPCContext): void {
-    const custom = ctx.state.custom ?? {};
-    const index = ((custom[GOAP_INDEX_KEY] as number) ?? 0) + 1;
-    const plan = custom[GOAP_PLAN_KEY] as Array<{ id: string }> | undefined;
+    const index = ((this._read(ctx, GOAP_INDEX_KEY) as number) ?? 0) + 1;
+    const plan = this._read(ctx, GOAP_PLAN_KEY) as Array<{ id: string }> | undefined;
 
-    ctx.state.custom = { ...custom, [GOAP_INDEX_KEY]: index };
+    this._write(ctx, GOAP_INDEX_KEY, index);
 
     if (!plan || index >= plan.length) {
-      // Plan complete — replan for next cycle unless we've hit too many
-      // consecutive empty plans (prevents infinite replan loops).
-      const emptyCount = ((ctx.state.custom ?? {})[GOAP_EMPTY_COUNT_KEY] as number) ?? 0;
+      const emptyCount = (this._read(ctx, GOAP_EMPTY_COUNT_KEY) as number) ?? 0;
       if (emptyCount < 3) {
         this._replan(ctx);
       }
@@ -213,12 +204,10 @@ export class GOAPDirector implements IOnlineStateHandler {
   }
 
   private _exitCurrentAction(ctx: INPCContext): void {
-    const activeId = (ctx.state.custom ?? {})[GOAP_HANDLER_KEY] as string | undefined;
+    const activeId = this._read(ctx, GOAP_HANDLER_KEY) as string | undefined;
     if (activeId) {
-      const handler = this.config.actionHandlers[activeId];
-      handler?.exit(ctx);
-      // Re-read custom AFTER exit() — the handler may have written to it.
-      ctx.state.custom = { ...(ctx.state.custom ?? {}), [GOAP_HANDLER_KEY]: undefined };
+      this.config.actionHandlers[activeId]?.exit(ctx);
+      this._write(ctx, GOAP_HANDLER_KEY, undefined);
     }
   }
 }
