@@ -84,6 +84,53 @@ describe('ContentPool', () => {
   it('gossipKey generates correct format', () => {
     expect(ContentPool.gossipKey('loner')).toBe('remark_gossip:loner');
   });
+
+  // -------------------------------------------------------------------------
+  // Retry-cap (getRandomLine loop capped at 10 attempts)
+  // -------------------------------------------------------------------------
+
+  it('normal multi-item pool returns a valid line without hanging', () => {
+    // Cycling through distinct values — loop exits on the first attempt every time.
+    const pool = new ContentPool(makeRandom([0.0, 0.33, 0.66]));
+    pool.addLines('lines', ['Line0', 'Line1', 'Line2']);
+
+    for (let i = 0; i < 20; i++) {
+      const result = pool.getRandomLine('lines');
+      expect(['Line0', 'Line1', 'Line2']).toContain(result);
+    }
+  });
+
+  it('pool of size 1 returns the only line immediately (bypass loop)', () => {
+    // Single-item pools take the early-return path before the retry loop.
+    const pool = new ContentPool(makeRandom([0.5]));
+    pool.addLines('solo', ['Only']);
+
+    expect(pool.getRandomLine('solo')).toBe('Only');
+    // Calling again must still return the same item and never hang.
+    expect(pool.getRandomLine('solo')).toBe('Only');
+  });
+
+  it('pool of size 2 with fixed RNG exits within cap and returns a line', () => {
+    // RNG always returns 0.5 → Math.floor(0.5 * 2) = 1 → always idx 1.
+    // After the first call cursor is set to 1; all subsequent calls hit the
+    // same index every roll. The loop retries up to 10 times then exits,
+    // returning pool[1] rather than hanging.
+    const pool = new ContentPool(makeRandom([0.5]));
+    pool.addLines('pair', ['Alpha', 'Beta']);
+
+    // First call: no previous cursor, idx 1 accepted immediately.
+    const first = pool.getRandomLine('pair');
+    expect(first).toBe('Beta');
+
+    // Second call: prev = 1, every roll returns 1 again → hits cap, still
+    // returns 'Beta' (idx 1). Must complete without hanging.
+    const second = pool.getRandomLine('pair');
+    expect(second).toBe('Beta');
+
+    // A third call behaves the same way — cap prevents infinite loop.
+    const third = pool.getRandomLine('pair');
+    expect(third).toBe('Beta');
+  });
 });
 
 describe('loadSocialData', () => {

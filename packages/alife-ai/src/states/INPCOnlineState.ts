@@ -42,6 +42,8 @@ export interface IChargePhase {
   targetX: number;
   /** World Y of the charge target when the charge was initiated. */
   targetY: number;
+  /** scene.time.now when the full-speed charge began (ms), for timeout. */
+  chargeStartMs: number;
 }
 
 /**
@@ -100,8 +102,8 @@ export interface IPsiPhase {
  * in tests). All online state handlers are stateless — they read and write
  * this bag each frame via {@link INPCContext.state}.
  *
- * Fields match those in the game-layer AIComponent but use ms-based timers
- * (not scene.time.now subtraction) where possible for portability.
+ * Fields match those in the game-layer AIComponent and use absolute ms
+ * timestamps compared via subtraction (ctx.now() - field).
  */
 export interface INPCOnlineState {
   // -------------------------------------------------------------------------
@@ -133,7 +135,7 @@ export interface INPCOnlineState {
   /** ctx.now() when SEARCH state was entered. */
   searchStartMs: number;
 
-  /** ctx.now() of the last idle animation change (for random anim cycling). */
+  /** ctx.now() of the last restricted-zone check (throttle for zone-exit logic in IdleState). */
   lastIdleAnimChangeMs: number;
 
   /** ctx.now() of the last melee attack performed. */
@@ -149,7 +151,7 @@ export interface INPCOnlineState {
   lastGrenadeMs: number;
 
   /** ctx.now() of the last suppressive fire shot during RETREAT. */
-  lastSupressiveFireMs: number;
+  lastSuppressiveFireMs: number;
 
   /** ctx.now() when the current grenade throw wind-up began. */
   grenadeThrowStartMs: number;
@@ -160,8 +162,20 @@ export interface INPCOnlineState {
   /** ctx.now() when WOUNDED state was entered. */
   woundedStartMs: number;
 
-  /** ctx.now() when the current PSI channel began (legacy — use psiPhase). */
-  psiPhaseStartMs: number;
+  /**
+   * ctx.now() when SleepState began tracking a detected threat.
+   * Used exclusively by SleepState as its delayed-reaction timer so that it
+   * does not pollute woundedStartMs (which CombatTransitionHandler reads to
+   * compute timeSinceWoundedMs for the WOUNDED transition guard).
+   * 0 = no pending reaction.
+   */
+  sleepReactionStartMs: number;
+
+  /** ctx.now() when RETREAT state was entered. Used to enforce retreatMaxDurationMs on the no-cover flee path. */
+  retreatStartMs: number;
+
+  /** ctx.now() of the last medkit use. 0 = never used. */
+  lastMedkitMs: number;
 
   /** ctx.now() when INVESTIGATE state was entered. */
   investigateStartMs: number;
@@ -227,16 +241,6 @@ export interface INPCOnlineState {
   packLastBroadcastMs: number;
 
   // -------------------------------------------------------------------------
-  // Navigation
-  // -------------------------------------------------------------------------
-
-  /** Current patrol waypoint index (wraps by handler). */
-  patrolWaypointIndex: number;
-
-  /** Current search waypoint index. */
-  searchWaypointIndex: number;
-
-  // -------------------------------------------------------------------------
   // Loadout (weapon/item inventory)
   // -------------------------------------------------------------------------
 
@@ -262,10 +266,17 @@ export interface INPCOnlineState {
   /** True while the NPC is occupying a cover position. */
   hasTakenCover: boolean;
 
-  /** World X of the current cover point (valid when hasTakenCover is true). */
+  /**
+   * ctx.now() when the NPC last transitioned to TakeCoverState.
+   * Used to enforce a cooldown before seeking cover again after returning to
+   * CombatState, preventing the cover-seek ping-pong loop.
+   */
+  lastSeekCoverMs: number;
+
+  /** World X of the current cover destination (set on cover-state entry, used for movement). */
   coverPointX: number;
 
-  /** World Y of the current cover point (valid when hasTakenCover is true). */
+  /** World Y of the current cover destination (set on cover-state entry, used for movement). */
   coverPointY: number;
 
   /**
@@ -273,6 +284,13 @@ export interface INPCOnlineState {
    * Null when not in TAKE_COVER state.
    */
   loophole: ILoopholeState | null;
+
+  /**
+   * Absolute timestamp (ms) at which the current loophole WAIT phase ends.
+   * Written by TakeCoverState; separate from lastGrenadeMs to avoid
+   * corrupting the grenade cooldown when cycling through GrenadeState.
+   */
+  loopholeWaitEndMs: number;
 
   // -------------------------------------------------------------------------
   // Monster ability phases
@@ -296,6 +314,17 @@ export interface INPCOnlineState {
    * Undefined for NPCs that never enter EAT_CORPSE.
    */
   eatCorpsePhase?: IEatCorpsePhase;
+
+  /**
+   * Set of corpse entity IDs that have already contributed suspicion during
+   * the current PATROL entry. Cleared on each PatrolState.enter() so that
+   * a corpse the NPC has not yet reacted to can still trigger suspicion on
+   * re-entry. Undefined until the first corpse is seen.
+   *
+   * Prevents the PATROL→ALERT→PATROL oscillation caused by the same static
+   * corpse adding suspicion every frame.
+   */
+  seenCorpseIds?: Set<string>;
 
   // -------------------------------------------------------------------------
   // Morale

@@ -459,7 +459,7 @@ describe('Squad lifecycle', () => {
   // -----------------------------------------------------------------------
   // 7. Kill bonus propagates to entire squad
   // -----------------------------------------------------------------------
-  it('kill by squad member grants morale bonus to all members', () => {
+  it('kill by squad member grants morale bonus to all members except the killer', () => {
     const moraleCalls: Array<{ npcId: string; delta: number }> = [];
     const moraleLookup: MoraleLookup = (npcId) => ({
       adjustMorale(delta: number) {
@@ -471,13 +471,13 @@ describe('Squad lifecycle', () => {
     squadMgr.createSquad('stalker', ['npc_a', 'npc_b', 'npc_c']);
     events.flush();
 
-    squadMgr.onNPCKill('npc_b');
+    squadMgr.onNPCKill('npc_b'); // npc_b is the killer
 
     const config = createDefaultSquadConfig();
-    // All 3 members get the bonus (including the killer)
-    expect(moraleCalls).toHaveLength(3);
+    // Killer (npc_b) is skipped; only the other 2 members receive the bonus.
+    expect(moraleCalls).toHaveLength(2);
     expect(moraleCalls.every((c) => c.delta === config.moraleKillBonus)).toBe(true);
-    expect(moraleCalls.map((c) => c.npcId).sort()).toEqual(['npc_a', 'npc_b', 'npc_c']);
+    expect(moraleCalls.map((c) => c.npcId).sort()).toEqual(['npc_a', 'npc_c']);
   });
 
   // -----------------------------------------------------------------------

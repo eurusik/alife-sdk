@@ -60,8 +60,8 @@ describe('WorldProperty', () => {
 });
 
 describe('GoalPriority', () => {
-  it('contains 5 priority bands', () => {
-    expect(Object.keys(GoalPriority)).toHaveLength(5);
+  it('contains 6 priority bands', () => {
+    expect(Object.keys(GoalPriority)).toHaveLength(6);
   });
 
   it('has correct priority ordering (lower = higher priority)', () => {

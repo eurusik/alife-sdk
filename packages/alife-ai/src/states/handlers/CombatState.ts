@@ -24,7 +24,7 @@ import { moveToward } from './_utils';
 /**
  * Stateless combat state handler for human NPCs.
  *
- * Monsters use a separate controller (MonsterCombatController from Slice 14).
+ * Monsters use a separate controller (MonsterCombatController).
  * A single instance can be shared across all NPC entities.
  */
 export class CombatState implements IOnlineStateHandler {
@@ -51,6 +51,7 @@ export class CombatState implements IOnlineStateHandler {
 
     if (!hasEnemy) {
       // No visual contact — transition based on whether a last position is known.
+      ctx.halt();
       if (ctx.state.lastKnownEnemyX !== 0 || ctx.state.lastKnownEnemyY !== 0) {
         ctx.transition(this.tr.combatOnLastKnown);
       } else {
@@ -59,10 +60,11 @@ export class CombatState implements IOnlineStateHandler {
       return;
     }
 
-    // Update last known enemy position from the closest visible enemy.
+    // Update last known enemy position and identity from the closest visible enemy.
     const enemy = enemies[0];
     ctx.state.lastKnownEnemyX = enemy.x;
     ctx.state.lastKnownEnemyY = enemy.y;
+    ctx.state.targetId = enemy.id;
 
     // -------------------------------------------------------------------------
     // 2. Morale checks (highest priority after target acquisition)
@@ -78,7 +80,7 @@ export class CombatState implements IOnlineStateHandler {
     }
 
     // -------------------------------------------------------------------------
-    // 3. HP threshold — wounded
+    // 4. HP threshold — wounded
     // -------------------------------------------------------------------------
     if (ctx.health !== null) {
       if (ctx.health.hpPercent < this.cfg.woundedHpThreshold) {
@@ -88,9 +90,11 @@ export class CombatState implements IOnlineStateHandler {
     }
 
     // -------------------------------------------------------------------------
-    // 4. Kill-wounded seam (opt-in) — only when morale is STABLE
+    // 5. Kill-wounded seam (opt-in) — only when morale is STABLE
     // -------------------------------------------------------------------------
-    const woundedEnemies = ctx.perception?.getWoundedEnemies?.() ?? [];
+    const woundedEnemies = ctx.state.moraleState === 'STABLE'
+      ? (ctx.perception?.getWoundedEnemies?.() ?? [])
+      : [];
     if (woundedEnemies.length > 0) {
       const we = woundedEnemies[0];
       ctx.state.killWoundedTargetId = we.id;
@@ -104,7 +108,7 @@ export class CombatState implements IOnlineStateHandler {
     }
 
     // -------------------------------------------------------------------------
-    // 5. Movement — approach or halt
+    // 6. Movement — approach or halt
     // -------------------------------------------------------------------------
     const dx = enemy.x - ctx.x;
     const dy = enemy.y - ctx.y;
@@ -117,11 +121,15 @@ export class CombatState implements IOnlineStateHandler {
       ctx.setRotation(Math.atan2(dy, dx));
 
       // Check cover transition when already in combat range.
-      if (ctx.cover !== null) {
+      // Guard with a cooldown so that returning from TakeCoverState doesn't
+      // immediately re-trigger the transition (ping-pong every frame).
+      const coverCooldownElapsed = now - ctx.state.lastSeekCoverMs >= this.cfg.coverSeekCooldownMs;
+      if (ctx.cover !== null && coverCooldownElapsed) {
         const coverPt = ctx.cover.findCover(ctx.x, ctx.y, enemy.x, enemy.y, 'CLOSE');
         if (coverPt !== null) {
           ctx.state.coverPointX = coverPt.x;
           ctx.state.coverPointY = coverPt.y;
+          ctx.state.lastSeekCoverMs = now;
           ctx.transition(this.tr.combatOnCover);
           return;
         }
@@ -130,6 +138,7 @@ export class CombatState implements IOnlineStateHandler {
 
     // -------------------------------------------------------------------------
     // 7. Fire when cooldown elapsed
+    //    (numbering matches header comment)
     // -------------------------------------------------------------------------
     if (now - ctx.state.lastShootMs >= this.cfg.fireRateMs) {
       ctx.state.lastShootMs = now;

@@ -215,7 +215,7 @@ describe('AI: cover + combat pipeline (integration)', () => {
     it('grenade transition + shouldThrowGrenade agree on same config', () => {
       // Ensure both systems agree when using shared distance/enemy thresholds.
       const grenadeCtx = makeContext({
-        lostSightMs: 2500, // between grenadeLostSightMs(2000) and lostSightThresholdMs(3000)
+        lostSightMs: 0, // enemies are currently visible
         visibleEnemyCount: 3,
         distanceToEnemy: 150, // within [100, 250] range
         loadout: makeLoadout(null, null, 3),

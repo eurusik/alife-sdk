@@ -118,7 +118,7 @@ export class MapGenerator {
       width: cfg.width,
       height: cfg.height,
       tileSize: cfg.tileSize,
-      seed,
+      seed: cfg.seed,
       layers: terrainResult.layers,
       zones: macroResult.zones,
       props: propsResult.props,

@@ -67,6 +67,13 @@ export class KillWoundedState implements IOnlineStateHandler {
     // ── EXECUTE phase ─────────────────────────────────────────────────────────
     if (ctx.state.killWoundedExecuteStartMs >= 0) {
       ctx.halt();
+      // Refresh target position — wounded enemy may have crawled since AIM began
+      const execTarget = ctx.perception?.getWoundedEnemies?.()
+        ?.find(e => e.id === ctx.state.killWoundedTargetId);
+      if (execTarget) {
+        ctx.state.killWoundedTargetX = execTarget.x;
+        ctx.state.killWoundedTargetY = execTarget.y;
+      }
       ctx.setRotation(Math.atan2(
         ctx.state.killWoundedTargetY - ctx.y,
         ctx.state.killWoundedTargetX - ctx.x,
@@ -107,6 +114,13 @@ export class KillWoundedState implements IOnlineStateHandler {
     // ── AIM phase ─────────────────────────────────────────────────────────────
     if (ctx.state.killWoundedAimStartMs >= 0) {
       ctx.halt();
+      // Refresh target position — wounded enemy may crawl during the aim wind-up
+      const aimTarget = ctx.perception?.getWoundedEnemies?.()
+        ?.find(e => e.id === ctx.state.killWoundedTargetId);
+      if (aimTarget) {
+        ctx.state.killWoundedTargetX = aimTarget.x;
+        ctx.state.killWoundedTargetY = aimTarget.y;
+      }
       ctx.setRotation(Math.atan2(
         ctx.state.killWoundedTargetY - ctx.y,
         ctx.state.killWoundedTargetX - ctx.x,

@@ -10,8 +10,10 @@
  */
 export class Rng {
   private state: number;
+  private readonly _seed: string;
 
   constructor(seed: string) {
+    this._seed = seed;
     this.state = Rng.hashString(seed);
   }
 
@@ -86,6 +88,12 @@ export class Rng {
   weightedPick<K extends string>(weights: Partial<Record<K, number>>): K {
     const entries = Object.entries(weights) as [K, number][];
     const total = entries.reduce((sum, [, w]) => sum + (w ?? 0), 0);
+    if (total <= 0) {
+      throw new RangeError(
+        `weightedPick: total weight must be > 0, got ${total}. ` +
+        `Ensure at least one key has a positive weight.`,
+      );
+    }
     let roll = this.next() * total;
     for (const [key, w] of entries) {
       roll -= w ?? 0;
@@ -99,7 +107,7 @@ export class Rng {
    * Useful for giving sub-systems their own independent sequence.
    */
   fork(namespace: string): Rng {
-    const child = new Rng(`${this.state}-${namespace}`);
+    const child = new Rng(`${this._seed}-${namespace}`);
     return child;
   }
 }

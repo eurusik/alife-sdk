@@ -33,6 +33,7 @@ interface MockOverrides {
   secondaryWeapon?: string | null;
   woundedStartMs?: number;
   targetLockUntilMs?: number;
+  woundedEnemies?: Array<{ id: string; x: number; y: number }>;
 }
 
 function makeMockCtx(overrides: MockOverrides = {}): {
@@ -85,6 +86,7 @@ function makeMockCtx(overrides: MockOverrides = {}): {
       getVisibleAllies: () => [],
       getNearbyItems: () => [],
       hasVisibleEnemy: () => enemies.length > 0,
+      getWoundedEnemies: () => overrides.woundedEnemies ?? [],
     },
     health: {
       hp,
@@ -238,6 +240,30 @@ describe('CombatState', () => {
     });
   });
 
+  describe('kill-wounded seam — morale guard', () => {
+    it('transitions to KILL_WOUNDED when wounded enemy present and morale is STABLE', () => {
+      const { ctx, calls } = makeMockCtx({
+        hpPercent: 0.9,
+        moraleState: 'STABLE',
+        morale: 0.5,
+        woundedEnemies: [{ id: 'we1', x: 150, y: 150 }],
+      });
+      handler.update(ctx, 16);
+      expect(calls).toContain('transition:KILL_WOUNDED');
+    });
+
+    it('does NOT transition to KILL_WOUNDED when wounded enemy present but morale is SHAKEN', () => {
+      const { ctx, calls } = makeMockCtx({
+        hpPercent: 0.9,
+        moraleState: 'SHAKEN',
+        morale: 0.2,
+        woundedEnemies: [{ id: 'we1', x: 150, y: 150 }],
+      });
+      handler.update(ctx, 16);
+      expect(calls.some(c => c === 'transition:KILL_WOUNDED')).toBe(false);
+    });
+  });
+
   describe('movement', () => {
     it('moves toward enemy when distance > combatRange', () => {
       // Enemy at (200, 200), NPC at (100, 100) — dist ~141 < default combatRange 200
@@ -305,11 +331,13 @@ describe('CombatState', () => {
 
   describe('cover transition', () => {
     it('transitions to TAKE_COVER when in combat range and cover is available', () => {
+      // nowMs must be >= coverSeekCooldownMs (3000ms) so the cover cooldown check passes.
       const { ctx, calls } = makeMockCtx({
         // Enemy within combatRange
         perceptionEnemies: [{ id: 'e1', x: 150, y: 100, factionId: 'bandit' }],
         coverX: 90,
         coverY: 90,
+        nowMs: 3001,
       });
       handler.update(ctx, 16);
       expect(calls).toContain('transition:TAKE_COVER');
@@ -333,6 +361,82 @@ describe('CombatState', () => {
       handler.update(ctx, 16);
       expect(state.lastKnownEnemyX).toBe(300);
       expect(state.lastKnownEnemyY).toBe(400);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Round-4 fix: targetId is set from enemies[0] each frame, and halt() is
+  // called before combatOnNoEnemy / combatOnLastKnown transitions.
+  // ---------------------------------------------------------------------------
+
+  describe('targetId tracking (round-4 fix)', () => {
+    it('sets ctx.state.targetId to the visible enemy id during combat', () => {
+      const { ctx, state } = makeMockCtx({
+        perceptionEnemies: [{ id: 'enemy-alpha', x: 150, y: 100, factionId: 'bandit' }],
+      });
+      handler.update(ctx, 16);
+      expect(state.targetId).toBe('enemy-alpha');
+    });
+
+    it('updates targetId when a different enemy becomes enemies[0]', () => {
+      // First tick: enemy-alpha is closest.
+      const enemies = [{ id: 'enemy-alpha', x: 150, y: 100, factionId: 'bandit' }];
+      const { ctx, state } = makeMockCtx({ perceptionEnemies: enemies });
+      handler.update(ctx, 16);
+      expect(state.targetId).toBe('enemy-alpha');
+
+      // Second tick: enemy-beta displaces enemy-alpha as enemies[0].
+      enemies.splice(0, 1, { id: 'enemy-beta', x: 140, y: 100, factionId: 'bandit' });
+      handler.update(ctx, 16);
+      expect(state.targetId).toBe('enemy-beta');
+    });
+
+    it('does NOT overwrite targetId when there are no visible enemies', () => {
+      // Pre-populate a targetId, then drive the no-enemy branch.
+      const { ctx, state } = makeNoEnemyCtx({ lastKnownEnemyX: 300 });
+      state.targetId = 'previous-target';
+      handler.update(ctx, 16);
+      // The no-enemy branch must NOT clear the pre-existing targetId.
+      expect(state.targetId).toBe('previous-target');
+    });
+  });
+
+  describe('halt() before no-enemy transitions (round-4 fix)', () => {
+    it('calls halt() before combatOnNoEnemy transition when no last-known position', () => {
+      const { ctx, calls } = makeNoEnemyCtx();
+      // lastKnownEnemyX and Y both default to 0.
+      handler.update(ctx, 16);
+
+      const haltIdx = calls.indexOf('halt');
+      const transIdx = calls.indexOf('transition:IDLE');
+      expect(haltIdx).toBeGreaterThanOrEqual(0);
+      expect(transIdx).toBeGreaterThanOrEqual(0);
+      expect(haltIdx).toBeLessThan(transIdx);
+    });
+
+    it('calls halt() before combatOnLastKnown transition when last-known position exists', () => {
+      const { ctx, calls } = makeNoEnemyCtx({ lastKnownEnemyX: 300 });
+      handler.update(ctx, 16);
+
+      const haltIdx = calls.indexOf('halt');
+      const transIdx = calls.indexOf('transition:SEARCH');
+      expect(haltIdx).toBeGreaterThanOrEqual(0);
+      expect(transIdx).toBeGreaterThanOrEqual(0);
+      expect(haltIdx).toBeLessThan(transIdx);
+    });
+
+    it('halt() is called exactly once in the combatOnNoEnemy path', () => {
+      const { ctx, calls } = makeNoEnemyCtx();
+      handler.update(ctx, 16);
+      const haltCalls = calls.filter(c => c === 'halt');
+      expect(haltCalls).toHaveLength(1);
+    });
+
+    it('halt() is called exactly once in the combatOnLastKnown path', () => {
+      const { ctx, calls } = makeNoEnemyCtx({ lastKnownEnemyX: 500 });
+      handler.update(ctx, 16);
+      const haltCalls = calls.filter(c => c === 'halt');
+      expect(haltCalls).toHaveLength(1);
     });
   });
 
@@ -485,8 +589,8 @@ describe('TakeCoverState', () => {
     it('advances from WAIT to PEEK after wait duration elapses', () => {
       const { ctx, state, setNow } = makeMockCtx({ coverX: 105, coverY: 100 });
       handler.enter(ctx);
-      // Advance past the wait duration end (stored in lastGrenadeMs).
-      setNow(state.lastGrenadeMs + 1);
+      // Advance past the wait duration end (stored in loopholeWaitEndMs).
+      setNow(state.loopholeWaitEndMs + 1);
       handler.update(ctx, 16);
       expect(state.loophole?.phase).toBe('PEEK');
     });
@@ -496,7 +600,7 @@ describe('TakeCoverState', () => {
       handler.enter(ctx);
 
       // Advance to PEEK.
-      setNow(state.lastGrenadeMs + 1);
+      setNow(state.loopholeWaitEndMs + 1);
       handler.update(ctx, 16);
       expect(state.loophole?.phase).toBe('PEEK');
 
@@ -511,7 +615,7 @@ describe('TakeCoverState', () => {
       handler.enter(ctx);
 
       // Advance to PEEK.
-      setNow(state.lastGrenadeMs + 1);
+      setNow(state.loopholeWaitEndMs + 1);
       handler.update(ctx, 16);
 
       // Advance to FIRE.
@@ -533,7 +637,7 @@ describe('TakeCoverState', () => {
       handler.enter(ctx);
 
       // WAIT → PEEK.
-      setNow(state.lastGrenadeMs + 1);
+      setNow(state.loopholeWaitEndMs + 1);
       handler.update(ctx, 16);
 
       // PEEK → FIRE.
@@ -554,7 +658,7 @@ describe('TakeCoverState', () => {
       handler.enter(ctx);
 
       // WAIT → PEEK → FIRE → RETURN.
-      setNow(state.lastGrenadeMs + 1);
+      setNow(state.loopholeWaitEndMs + 1);
       handler.update(ctx, 16);
 
       const peekStart = state.loophole!.phaseStartMs;

@@ -515,21 +515,22 @@ export class NPCBrain {
       this._reEvaluateTimerMs = 0;
       return;
     }
+    const previousTerrainId = this._currentTerrainId;
     this._currentTerrainId = terrain.id;
     this._currentTerrain = terrain;
     this._currentSlots = JobSlotSystem.buildSlots(terrain);
 
-    this.dispatchMovementToTerrain(terrain);
+    this.dispatchMovementToTerrain(terrain, previousTerrainId);
     this._scheduleManager.resetWaypointTimer();
   }
 
   /** Dispatch movement toward the terrain center. */
-  private dispatchMovementToTerrain(terrain: SmartTerrain): void {
+  private dispatchMovementToTerrain(terrain: SmartTerrain, fromTerrainId: string | null = this._currentTerrainId): void {
     if (this._dispatcher === null) return;
 
     this._dispatcher.addMovingNPC(
       this._npcId,
-      this._currentTerrainId ?? '',
+      fromTerrainId ?? '',
       terrain.id,
       this._lastPosition,
       terrain.center,
@@ -562,6 +563,12 @@ export class NPCBrain {
     if (slot === null) {
       this._reEvaluateTimerMs = 0;
       return;
+    }
+
+    for (const s of this._currentSlots) {
+      if (s.assignedNPCs.has(this._npcId)) {
+        JobSlotSystem.releaseNPC(s, this._npcId);
+      }
     }
 
     JobSlotSystem.assignNPC(slot, this._npcId);

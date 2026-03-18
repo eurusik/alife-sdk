@@ -183,9 +183,9 @@ export class OfflineCombatResolver {
 
           // Squad size advantage: side with more members gets a bonus.
           let sizeA = 0;
-          for (const id of npcsA) if (npcRecords.has(id)) sizeA++;
+          for (const id of npcsA) if ((npcRecords.get(id)?.currentHp ?? 0) > 0) sizeA++;
           let sizeB = 0;
-          for (const id of npcsB) if (npcRecords.has(id)) sizeB++;
+          for (const id of npcsB) if ((npcRecords.get(id)?.currentHp ?? 0) > 0) sizeB++;
           const sizeAdvantageA = Math.min(maxSizeAdvantage, sizeA / Math.max(1, sizeB));
           const sizeAdvantageB = Math.min(maxSizeAdvantage, sizeB / Math.max(1, sizeA));
 
@@ -323,17 +323,18 @@ export class OfflineCombatResolver {
   /**
    * Build a map from terrainId -> npcIds for all offline, alive NPCs.
    * Uses brain.currentTerrainId to determine terrain assignment.
-   * Reuses the class-level _terrainIndex map and pooled string[] buckets.
+   * Reuses the class-level _terrainIndex map.
+   *
+   * NOTE: terrain buckets are plain allocations, not pooled. The terrain index
+   * lives for the full duration of the tick, so returning its arrays to the
+   * shared _stringArrayPool before the tick ends would allow _acquireBucket()
+   * to hand the same array to a faction bucket, aliasing the two and silently
+   * corrupting the terrain NPC list mid-iteration.
    */
   private buildTerrainIndex(
     npcRecords: ReadonlyMap<string, INPCRecord>,
     brains: ReadonlyMap<string, NPCBrain>,
   ): Map<string, string[]> {
-    // Return pooled buckets from previous call before clearing.
-    for (const arr of this._terrainIndex.values()) {
-      arr.length = 0;
-      this._stringArrayPool.push(arr);
-    }
     this._terrainIndex.clear();
 
     for (const [npcId, record] of npcRecords) {
@@ -352,8 +353,9 @@ export class OfflineCombatResolver {
       if (bucket) {
         bucket.push(npcId);
       } else {
-        const newBucket = this._acquireBucket();
-        newBucket.push(npcId);
+        // Allocate a plain array -- terrain buckets must NOT come from
+        // _stringArrayPool because they stay live until the end of the tick.
+        const newBucket = [npcId];
         this._terrainIndex.set(terrainId, newBucket);
       }
     }

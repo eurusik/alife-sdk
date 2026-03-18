@@ -1,6 +1,5 @@
 // src/utils/Pathfinder.ts
 // A* pathfinder on a 2D grid.
-// Used by MacroPass to route the road network between zone centers.
 // Returns paths as arrays of grid coordinates (tile space).
 
 import { Grid } from '../core/Grid.js';
@@ -107,7 +106,6 @@ export class Pathfinder {
    *
    * The `costGrid` contains per-cell traversal costs.
    * Cells with cost === Infinity are impassable.
-   * The caller can pass a function `costFn` instead for dynamic costs.
    */
   findPath(
     costGrid: Grid<number>,
@@ -162,7 +160,7 @@ export class Pathfinder {
 
         const isDiag = n.x !== current.x && n.y !== current.y;
         const moveCost = isDiag ? this.opts.diagonalCost : 1.0;
-        const tentativeG = current.g + moveCost * Math.max(1, tileCost);
+        const tentativeG = current.g + moveCost * (tileCost || 1);
 
         if (tentativeG < gScore[ni]) {
           gScore[ni] = tentativeG;

@@ -175,15 +175,16 @@ export class SuspicionAccumulator {
    * Returns `true` if the current level is **strictly greater than** the
    * given threshold.
    *
-   * When `threshold` is omitted, falls back to the configured `maxLevel`.
-   * Since `add()` clamps `level` to `maxLevel`, `level > maxLevel` is always
-   * `false` — the no-arg form **never** triggers. Always pass an explicit
-   * threshold (e.g. `IStateConfig.suspicionAlertThreshold`).
+   * When `threshold` is omitted, falls back to `0.7 * maxLevel` — the same
+   * fraction used by `IStateConfig.suspicionAlertThreshold` (default `0.7`
+   * against a `maxLevel` of `1.0`). Prefer passing an explicit threshold
+   * sourced from `IStateConfig.suspicionAlertThreshold` so the value is
+   * tunable from one place.
    *
-   * @param threshold - Exclusive comparison value. @default config.maxLevel
+   * @param threshold - Exclusive comparison value. @default 0.7 * config.maxLevel
    */
   hasReachedAlert(threshold?: number): boolean {
-    return this.level > (threshold ?? this.config.maxLevel);
+    return this.level > (threshold ?? 0.7 * this.config.maxLevel);
   }
 
   /**

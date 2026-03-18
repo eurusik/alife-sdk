@@ -13,6 +13,7 @@
 import type { IOnlineStateHandler } from '../IOnlineStateHandler';
 import type { INPCContext } from '../INPCContext';
 import type { IStateConfig } from '../IStateConfig';
+import { createDefaultTransitionMap } from '../IStateTransitionMap';
 import type { IStateTransitionMap } from '../IStateTransitionMap';
 import {
   evaluateTransitions,
@@ -39,12 +40,13 @@ import type { INPCLoadout } from '../../types/IWeaponTypes';
 export class CombatTransitionHandler implements IOnlineStateHandler {
   private readonly transitionCfg: ICombatTransitionConfig;
   private readonly rules: readonly ITransitionRule[];
+  private readonly tr: IStateTransitionMap;
 
   constructor(
     private readonly cfg: IStateConfig,
     transitionCfgOverrides?: Partial<ICombatTransitionConfig>,
     rules?: readonly ITransitionRule[],
-    _tr?: Partial<IStateTransitionMap>,
+    tr?: Partial<IStateTransitionMap>,
   ) {
     this.transitionCfg = createDefaultCombatTransitionConfig({
       woundedHpThreshold: cfg.woundedHpThreshold,
@@ -52,6 +54,7 @@ export class CombatTransitionHandler implements IOnlineStateHandler {
       ...transitionCfgOverrides,
     });
     this.rules = rules ?? DEFAULT_COMBAT_RULES;
+    this.tr = createDefaultTransitionMap(tr);
   }
 
   enter(_ctx: INPCContext): void {
@@ -62,7 +65,22 @@ export class CombatTransitionHandler implements IOnlineStateHandler {
     const snapshot = this._buildSnapshot(ctx);
     const next = evaluateTransitions(this.rules, snapshot, this.transitionCfg);
     if (next !== null) {
-      ctx.transition(next);
+      ctx.transition(this._resolveTransition(next));
+    }
+  }
+
+  /**
+   * Map a CombatTransitionChain result string to the corresponding
+   * IStateTransitionMap key so callers can remap state names via `tr` overrides.
+   * Unmapped rule results (e.g. 'EVADE_GRENADE', 'GRENADE') fall through as-is.
+   */
+  private _resolveTransition(result: string): string {
+    switch (result) {
+      case 'WOUNDED':  return this.tr.combatOnWounded;
+      case 'RETREAT':  return this.tr.combatOnShaken;
+      case 'FLEE':     return this.tr.combatOnPanicked;
+      case 'SEARCH':   return this.tr.combatOnLastKnown;
+      default:         return result;
     }
   }
 

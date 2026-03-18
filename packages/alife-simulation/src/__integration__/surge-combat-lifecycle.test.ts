@@ -567,8 +567,8 @@ describe('Surge-combat lifecycle (integration)', () => {
       manager.update(500, npcs, emptyTerrains);
       events.flush();
 
-      // Verify the callback received the correct npcId
-      expect(deadIds).toEqual(['doomed_npc']);
+      // Verify the callback received the correct npcId (entity ID, not map key)
+      expect(deadIds).toEqual(['ent_doomed']);
     });
 
     it('no SURGE_DAMAGE event emitted for NPC that died from surge damage', () => {

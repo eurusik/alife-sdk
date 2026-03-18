@@ -139,7 +139,7 @@ export class NPCGraphMover implements ISerializable<INPCGraphMoverState> {
 
     // Fix C1: bound iterations by number of path vertices to prevent infinite loop
     // on consecutive zero-weight edges (distToNext=0, remaining never decreases).
-    const maxSteps = this._remainingPath.length - this._pathCursor + 2;
+    const maxSteps = Math.max(2, this._remainingPath.length - this._pathCursor + 2);
     let steps = 0;
 
     while (remaining > 0 && this._nextVertexId !== null && steps++ < maxSteps) {

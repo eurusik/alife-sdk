@@ -30,17 +30,21 @@ export class StateMachine {
   private stateEnterTime: number;
   private readonly registry: AIStateRegistry;
   private readonly entity: IEntity;
+  private readonly timeFn: () => number;
 
   private readonly enterListeners = new Map<string, Set<(from: string | null) => void>>();
   private readonly exitListeners = new Map<string, Set<(to: string) => void>>();
   private readonly changeListeners = new Set<(from: string, to: string) => void>();
   private readonly historyLog: StateTransitionEvent[] = [];
+  private readonly maxHistoryLength: number;
 
-  constructor(entity: IEntity, registry: AIStateRegistry, initialState: string) {
+  constructor(entity: IEntity, registry: AIStateRegistry, initialState: string, timeFn: () => number = Date.now, maxHistoryLength = 100) {
     this.entity = entity;
     this.registry = registry;
+    this.timeFn = timeFn;
+    this.maxHistoryLength = maxHistoryLength;
     this.currentStateId = initialState;
-    this.stateEnterTime = Date.now();
+    this.stateEnterTime = this.timeFn();
 
     const definition = this.registry.get(this.currentStateId);
     definition.handler.enter(this.entity);
@@ -62,7 +66,7 @@ export class StateMachine {
 
   /** Milliseconds elapsed since entering the current state. */
   get currentStateDuration(): number {
-    return Date.now() - this.stateEnterTime;
+    return this.timeFn() - this.stateEnterTime;
   }
 
   // -----------------------------------------------------------------------
@@ -159,10 +163,13 @@ export class StateMachine {
     // Advance state
     this.previousStateId = from;
     this.currentStateId = newState;
-    this.stateEnterTime = Date.now();
+    this.stateEnterTime = this.timeFn();
 
-    // Record history
+    // Record history (bounded by maxHistoryLength to prevent unbounded growth).
     this.historyLog.push({ from, to: newState, timestamp: this.stateEnterTime });
+    if (this.historyLog.length > this.maxHistoryLength) {
+      this.historyLog.shift();
+    }
 
     // Notify change listeners
     this.changeListeners.forEach(cb => cb(from, newState));

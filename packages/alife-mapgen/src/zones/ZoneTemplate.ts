@@ -227,6 +227,11 @@ export function applyFlipCover(
     ...op,
     rx: flipX ? width - 1 - op.rx : op.rx,
     ry: flipY ? height - 1 - op.ry : op.ry,
-    facingAngle: flipX ? Math.PI - op.facingAngle : op.facingAngle,
+    facingAngle: (() => {
+      let a = op.facingAngle;
+      if (flipX) a = Math.PI - a;
+      if (flipY) a = -a;
+      return a;
+    })(),
   }));
 }

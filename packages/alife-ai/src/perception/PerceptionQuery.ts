@@ -3,6 +3,8 @@
 // No side effects, no state — all functions are deterministic.
 
 import type { Vec2 } from '@alife-sdk/core';
+import { distanceSq } from '@alife-sdk/core';
+export { distanceSq } from '@alife-sdk/core';
 import type { IPerceivedEntity, IPerceptionConfig } from '../types/IPerceptionTypes';
 
 // ---------------------------------------------------------------------------
@@ -170,16 +172,6 @@ export function filterFriendlyEntities(
     }
   }
   return _friendlyScratch;
-}
-
-/**
- * Calculate squared distance between two points.
- * Avoid sqrt when only comparing relative distances.
- */
-export function distanceSq(a: Vec2, b: Vec2): number {
-  const dx = a.x - b.x;
-  const dy = a.y - b.y;
-  return dx * dx + dy * dy;
 }
 
 /**

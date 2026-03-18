@@ -263,7 +263,7 @@ describe('Squad', () => {
     expect(squad.hasMember('npc_2')).toBe(false);
   });
 
-  it('onMemberKill applies kill bonus to all members', () => {
+  it('onMemberKill applies kill bonus to all members except the killer', () => {
     const { lookup, calls } = createMoraleSpy();
     const sq = new Squad(
       'sq_k',
@@ -278,12 +278,70 @@ describe('Squad', () => {
 
     sq.onMemberKill('npc_2');
 
-    // moraleKillBonus = 0.1 for all members
+    // moraleKillBonus = 0.1; killer (npc_2) is skipped
     expect(calls).toEqual([
       { npcId: 'npc_1', delta: 0.1 },
-      { npcId: 'npc_2', delta: 0.1 },
       { npcId: 'npc_3', delta: 0.1 },
     ]);
+  });
+
+  it('onMemberKill does NOT give killer the moraleKillBonus', () => {
+    const { lookup, calls } = createMoraleSpy();
+    const sq = new Squad(
+      'sq_k2',
+      'duty',
+      createDefaultSquadConfig(),
+      events,
+      lookup,
+    );
+    sq.addMember('npc_1');
+    sq.addMember('npc_2');
+    sq.addMember('npc_3');
+
+    sq.onMemberKill('npc_1'); // npc_1 is the killer
+
+    const killerBonus = calls.filter((c) => c.npcId === 'npc_1');
+    expect(killerBonus).toHaveLength(0);
+  });
+
+  it('onMemberKill gives moraleKillBonus to every non-killer squad member', () => {
+    const { lookup, calls } = createMoraleSpy();
+    const sq = new Squad(
+      'sq_k3',
+      'loner',
+      createDefaultSquadConfig({ moraleKillBonus: 0.2 }),
+      events,
+      lookup,
+    );
+    sq.addMember('npc_a');
+    sq.addMember('npc_b');
+    sq.addMember('npc_c');
+    sq.addMember('npc_d');
+
+    sq.onMemberKill('npc_c'); // killer is npc_c
+
+    expect(calls).toEqual([
+      { npcId: 'npc_a', delta: 0.2 },
+      { npcId: 'npc_b', delta: 0.2 },
+      { npcId: 'npc_d', delta: 0.2 },
+    ]);
+    expect(calls.find((c) => c.npcId === 'npc_c')).toBeUndefined();
+  });
+
+  it('onMemberKill in a solo squad applies no bonus (killer is only member)', () => {
+    const { lookup, calls } = createMoraleSpy();
+    const sq = new Squad(
+      'sq_solo',
+      'loner',
+      createDefaultSquadConfig(),
+      events,
+      lookup,
+    );
+    sq.addMember('npc_1');
+
+    sq.onMemberKill('npc_1');
+
+    expect(calls).toHaveLength(0);
   });
 
   it('onMemberKill with no moraleLookup is safe', () => {

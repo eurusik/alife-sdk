@@ -41,7 +41,7 @@ export interface IRestrictedZone {
  * const zones = new RestrictedZoneManager(20); // 20px safety margin
  * zones.addZone({ id: 'rad_1', type: RestrictionType.OUT, x: 100, y: 100, radius: 50, active: true });
  *
- * if (!zones.accessible(110, 110)) {
+ * if (!zones.isAccessible(110, 110)) {
  *   const safe = zones.getSafeDirection(110, 110);
  *   // Move NPC along safe.dx, safe.dy
  * }
@@ -117,8 +117,10 @@ export class RestrictedZoneManager {
    * - DANGER zones: ignored (soft avoidance only).
    *
    * Uses squared-distance for performance. Early-exit on first violation.
+   *
+   * Implements {@link IRestrictedZoneAccess.isAccessible}.
    */
-  accessible(x: number, y: number): boolean {
+  isAccessible(x: number, y: number): boolean {
     for (const zone of this.zones.values()) {
       if (!zone.active) continue;
 
@@ -135,6 +137,16 @@ export class RestrictedZoneManager {
     }
 
     return true;
+  }
+
+  /**
+   * @deprecated Use {@link isAccessible} instead.
+   *
+   * Alias kept for backwards compatibility with existing call sites.
+   * Will be removed in a future major version.
+   */
+  accessible(x: number, y: number): boolean {
+    return this.isAccessible(x, y);
   }
 
   // -----------------------------------------------------------------
@@ -212,6 +224,6 @@ export class RestrictedZoneManager {
    * O(waypoints × zones).
    */
   filterAccessibleWaypoints<T extends Vec2>(waypoints: readonly T[]): T[] {
-    return waypoints.filter((wp) => this.accessible(wp.x, wp.y));
+    return waypoints.filter((wp) => this.isAccessible(wp.x, wp.y));
   }
 }

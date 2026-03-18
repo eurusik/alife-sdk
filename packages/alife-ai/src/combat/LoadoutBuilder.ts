@@ -68,7 +68,7 @@ export class LoadoutBuilder {
     return {
       category,
       ammo,
-      maxAmmo: cfg.defaultAmmo,
+      maxAmmo: Math.max(ammo, cfg.defaultAmmo),
       range: cfg.range,
       damage: cfg.damage,
       fireRate: cfg.fireRate,

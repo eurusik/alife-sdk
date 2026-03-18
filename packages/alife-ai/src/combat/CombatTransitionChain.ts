@@ -61,8 +61,6 @@ export interface ICombatTransitionConfig {
   readonly woundedReentryCooldownMs: number;
   /** Morale below which the NPC should retreat. */
   readonly retreatMoraleThreshold: number;
-  /** Time without visual contact before throwing a grenade (ms). */
-  readonly grenadeLostSightMs: number;
   /** Time without visual contact before searching (ms). */
   readonly lostSightThresholdMs: number;
   /** Minimum enemies for grenade throw. */
@@ -80,7 +78,6 @@ export function createDefaultCombatTransitionConfig(
     woundedHpThreshold: 0.2,
     woundedReentryCooldownMs: 10_000,
     retreatMoraleThreshold: -0.3,
-    grenadeLostSightMs: 2_000,
     lostSightThresholdMs: 3_000,
     grenadeMinEnemies: 2,
     grenadeMinDistance: 80,
@@ -134,13 +131,11 @@ export const MoraleRule: ITransitionRule = {
   },
 };
 
-/** Priority 5: Lost sight long enough, has grenades → throw. */
+/** Priority 5: Multiple enemies visible and clustered in range → throw grenade. */
 export const GrenadeOpportunityRule: ITransitionRule = {
   name: 'grenadeOpportunity',
   priority: 5,
   evaluate(ctx, cfg) {
-    if (ctx.lostSightMs < cfg.grenadeLostSightMs) return null;
-    if (ctx.lostSightMs >= cfg.lostSightThresholdMs) return null;
     if (ctx.loadout.grenades <= 0) return null;
     if (ctx.visibleEnemyCount < cfg.grenadeMinEnemies) return null;
     if (

@@ -116,4 +116,33 @@ describe('MeetOrchestrator', () => {
     const result = orch2.update(makeCtx({ npcs: [makeNPC('a', 50, 0, 'military')] }));
     expect(result[0].durationMs).toBeGreaterThan(2000);
   });
+
+  // --- IRandom constructor injection fix ---
+
+  describe('IRandom constructor injection', () => {
+    it('two orchestrators with different IRandom instances select content independently', () => {
+      // First random always returns 0.0 → selects index 0 in ContentPool.
+      const randomA = makeRandom([0.0]);
+      // Second random always returns 0.99 → selects last index in ContentPool.
+      const randomB = makeRandom([0.99]);
+
+      // Build separate pools seeded with the two randoms.
+      const poolA = new ContentPool(randomA);
+      poolA.addLines('greeting_neutral', ['Line A', 'Line B']);
+      const poolB = new ContentPool(randomB);
+      poolB.addLines('greeting_neutral', ['Line A', 'Line B']);
+
+      const orchA = new MeetOrchestrator(poolA, randomA, config);
+      const orchB = new MeetOrchestrator(poolB, randomB, config);
+
+      const resultA = orchA.update(makeCtx({ npcs: [makeNPC('x', 50, 0, 'military')] }));
+      const resultB = orchB.update(makeCtx({ npcs: [makeNPC('y', 50, 0, 'military')] }));
+
+      // Both must produce a bubble, and the selected texts must differ
+      // only because the injected IRandom instances differ.
+      expect(resultA).toHaveLength(1);
+      expect(resultB).toHaveLength(1);
+      expect(resultA[0].text).not.toBe(resultB[0].text);
+    });
+  });
 });

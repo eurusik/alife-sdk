@@ -229,6 +229,149 @@ describe('auto-purge', () => {
 });
 
 // ---------------------------------------------------------------------------
+// auto-purge via unlock
+// ---------------------------------------------------------------------------
+
+describe('auto-purge via unlock', () => {
+  it('unlock triggers auto-purge at the configured interval', () => {
+    let t = 0;
+    const reg = new CoverLockRegistry(() => t, {
+      defaultTtlMs: 1_000,
+      autoPurgeInterval: 3,  // purge every 3 calls
+    });
+
+    // Lock two separate points.
+    reg.tryLock('cover_001', 'npc_a');
+    reg.tryLock('cover_002', 'npc_b');
+
+    t = 2_000;  // expire both locks
+
+    // Drive the counter to the threshold exclusively through unlock() calls.
+    // Each unlock() call increments _checkCounter via _maybeAutoPurge().
+    reg.unlock('cover_003', 'npc_x');  // call 1 — no-op unlock, counter = 1
+    reg.unlock('cover_003', 'npc_x');  // call 2, counter = 2
+    reg.unlock('cover_003', 'npc_x');  // call 3, counter hits 3 → auto-purge fires
+
+    expect(reg.lockedPointCount).toBe(0);
+  });
+
+  it('unlock does not trigger auto-purge before the interval is reached', () => {
+    // autoPurgeInterval=5 means the 5th call to any public method fires the purge.
+    // tryLock uses call #1; calls #2-#4 via unlock should NOT fire; call #5 should.
+    let t = 0;
+    const reg = new CoverLockRegistry(() => t, {
+      defaultTtlMs: 1_000,
+      autoPurgeInterval: 5,
+    });
+
+    reg.tryLock('cover_001', 'npc_a');  // counter = 1
+    t = 2_000;  // expire npc_a
+
+    // 3 more unlock calls bring the counter to 4 — one below the threshold.
+    for (let i = 0; i < 3; i++) {
+      reg.unlock('cover_002', 'npc_x');  // no-op unlocks, counter 2 → 3 → 4
+    }
+
+    // Entry still present (expired but not yet purged).
+    expect(reg.lockedPointCount).toBe(1);
+
+    // Fifth call crosses the threshold and fires the purge.
+    reg.unlock('cover_002', 'npc_x');  // counter = 5 → purge fires
+    expect(reg.lockedPointCount).toBe(0);
+  });
+
+  it('expired entries are eventually purged after many unlock() calls', () => {
+    let t = 0;
+    const reg = new CoverLockRegistry(() => t, {
+      defaultTtlMs: 1_000,
+      autoPurgeInterval: 4,
+    });
+
+    // Populate several points with short-lived locks.
+    for (let i = 0; i < 5; i++) {
+      reg.tryLock(`cover_${i}`, `npc_${i}`);
+    }
+    t = 5_000;  // expire every lock
+
+    // Issue enough unlock() calls to cross the auto-purge threshold at least once.
+    for (let i = 0; i < 8; i++) {
+      reg.unlock('ghost', 'npc_x');  // no-op unlocks — only here to advance the counter
+    }
+
+    expect(reg.lockedPointCount).toBe(0);
+  });
+
+  it('unlock shares the auto-purge counter with tryLock and isAvailable', () => {
+    // All three public methods increment the same _checkCounter via
+    // _maybeAutoPurge(). This test verifies that mixing unlock/tryLock/isAvailable
+    // calls advances the counter jointly and triggers purge at the right total.
+    //
+    // autoPurgeInterval=4: purge fires on the 4th call (counter 1→2→3→4 → purge).
+    let t = 0;
+    const reg = new CoverLockRegistry(() => t, {
+      defaultTtlMs: 1_000,
+      autoPurgeInterval: 4,
+    });
+
+    reg.tryLock('cover_001', 'npc_a');  // counter = 1
+    t = 2_000;                          // expire npc_a
+
+    // One call each from unlock and isAvailable advances counter to 3.
+    reg.unlock('ghost', 'npc_z');            // counter = 2 — no purge yet
+    reg.isAvailable('ghost', 'npc_z');       // counter = 3 — no purge yet
+    expect(reg.lockedPointCount).toBe(1);   // expired entry still present
+
+    // Fourth call via unlock crosses the threshold.
+    reg.unlock('ghost', 'npc_z');            // counter = 4 → purge fires
+    expect(reg.lockedPointCount).toBe(0);
+  });
+
+  it('unlock still removes the NPC lock even when auto-purge fires on the same call', () => {
+    let t = 0;
+    const reg = new CoverLockRegistry(() => t, {
+      defaultTtlMs: 10_000,
+      autoPurgeInterval: 1,  // purge on every single call
+    });
+
+    // Lock two points for two different NPCs.
+    reg.tryLock('cover_001', 'npc_a');
+    reg.tryLock('cover_002', 'npc_b');
+
+    // Expire npc_b's lock only.
+    t = 20_000;
+    // Re-lock npc_a so it has a fresh, non-expired entry.
+    reg.tryLock('cover_001', 'npc_a', { ttlMs: 60_000 });
+
+    // unlock() will: (1) run _maybeAutoPurge — removes expired npc_b entry,
+    //                (2) then remove npc_a's lock from cover_001.
+    reg.unlock('cover_001', 'npc_a');
+
+    // Both points should now be fully gone.
+    expect(reg.lockedPointCount).toBe(0);
+    expect(reg.isAvailable('cover_001', 'npc_x')).toBe(true);
+  });
+
+  it('unlock auto-purge with autoPurgeInterval=0 is a no-op (disabled)', () => {
+    let t = 0;
+    const reg = new CoverLockRegistry(() => t, {
+      defaultTtlMs: 1_000,
+      autoPurgeInterval: 0,  // disabled
+    });
+
+    reg.tryLock('cover_001', 'npc_a');
+    t = 2_000;  // expire lock
+
+    // Many unlock() calls — auto-purge is disabled so the stale entry persists.
+    for (let i = 0; i < 100; i++) {
+      reg.unlock('ghost', 'npc_x');
+    }
+
+    // lockedPointCount still reflects the un-purged expired entry.
+    expect(reg.lockedPointCount).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // clear
 // ---------------------------------------------------------------------------
 

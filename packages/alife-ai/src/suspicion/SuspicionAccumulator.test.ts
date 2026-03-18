@@ -156,10 +156,51 @@ describe('SuspicionAccumulator.hasReachedAlert', () => {
     expect(acc.hasReachedAlert(0.7)).toBe(false);
   });
 
-  it('no-arg uses maxLevel as default threshold', () => {
+  // -------------------------------------------------------------------------
+  // hasReachedAlert no-arg default fix (round-4):
+  //   Old default: maxLevel   (meant only a fully-saturated accumulator triggered)
+  //   New default: 0.7 * maxLevel  (matches IStateConfig suspicionAlertThreshold)
+  // -------------------------------------------------------------------------
+
+  it('no-arg hasReachedAlert returns true when level > 0.7 * maxLevel', () => {
+    // With default maxLevel = 1.0, the implicit threshold is 0.7.
+    // Adding 0.8 puts the level above the threshold.
     const acc = new SuspicionAccumulator({ maxLevel: 1.0 });
-    acc.add(SuspicionStimuli.EXPLOSION, 1.0); // exactly at maxLevel
-    expect(acc.hasReachedAlert()).toBe(false); // 1.0 > 1.0 is false
+    acc.add(SuspicionStimuli.EXPLOSION, 0.8);
+    expect(acc.hasReachedAlert()).toBe(true); // 0.8 > 0.7
+  });
+
+  it('no-arg hasReachedAlert returns false when level equals 0.7 * maxLevel (strict >)', () => {
+    const acc = new SuspicionAccumulator({ maxLevel: 1.0 });
+    acc.add(SuspicionStimuli.EXPLOSION, 0.7); // level === threshold → not triggered
+    expect(acc.hasReachedAlert()).toBe(false); // 0.7 > 0.7 is false
+  });
+
+  it('no-arg hasReachedAlert returns false when level is below 0.7 * maxLevel', () => {
+    const acc = new SuspicionAccumulator({ maxLevel: 1.0 });
+    acc.add(SuspicionStimuli.SOUND, 0.5);
+    expect(acc.hasReachedAlert()).toBe(false); // 0.5 > 0.7 is false
+  });
+
+  it('no-arg hasReachedAlert respects a custom maxLevel for the 0.7 fraction', () => {
+    // With maxLevel = 2.0, the implicit threshold is 0.7 * 2.0 = 1.4.
+    const acc = new SuspicionAccumulator({ maxLevel: 2.0 });
+    acc.add(SuspicionStimuli.EXPLOSION, 1.5);
+    expect(acc.hasReachedAlert()).toBe(true);  // 1.5 > 1.4
+
+    const acc2 = new SuspicionAccumulator({ maxLevel: 2.0 });
+    acc2.add(SuspicionStimuli.SOUND, 1.3);
+    expect(acc2.hasReachedAlert()).toBe(false); // 1.3 > 1.4 is false
+  });
+
+  it('explicit threshold is used as-is, not scaled (regression)', () => {
+    // Callers that pass an explicit threshold must not be affected by the
+    // no-arg default change — they should still get exact threshold comparison.
+    const acc = new SuspicionAccumulator({ maxLevel: 1.0 });
+    acc.add(SuspicionStimuli.BODY_FOUND, 0.8);
+    expect(acc.hasReachedAlert(0.7)).toBe(true);  // 0.8 > 0.7
+    expect(acc.hasReachedAlert(0.9)).toBe(false); // 0.8 > 0.9 is false
+    expect(acc.hasReachedAlert(1.0)).toBe(false); // 0.8 > 1.0 is false
   });
 });
 

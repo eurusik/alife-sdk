@@ -1314,4 +1314,263 @@ describe('OfflineCombatResolver', () => {
     // dead_npc must never appear as a combatant that dies (it's already at 0 hp)
     expect(diedIds).not.toContain('dead_npc');
   });
+
+  // -----------------------------------------------------------------------
+  // Pool contamination regression
+  // -----------------------------------------------------------------------
+
+  // Verify that terrain buckets built by buildTerrainIndex are never handed
+  // back into _stringArrayPool.  If they were, _acquireBucket() could return
+  // the same array reference that _terrainIndex already holds; writes to that
+  // faction bucket would silently corrupt the terrain NPC list used for
+  // witness enumeration and ally-death morale, producing extra morale calls.
+
+  it('terrain NPC list is not corrupted after faction bucket operations on the same terrain', () => {
+    // Scenario: three NPCs on one terrain — two stalkers and one bandit.
+    // Only npc_a dies (1 HP).  The terrain bucket starts with three IDs;
+    // it must contain exactly those three IDs when witness enumeration runs.
+    // Contamination would insert extra IDs and trigger duplicate morale calls.
+    const config = getDefaultCombatConfig({ maxResolutionsPerTick: 100 });
+    const moraleAdjustments: Array<{ entityId: string; reason: string }> = [];
+    const bridge = createStubBridge({
+      adjustMorale: (entityId, _delta, reason) => {
+        moraleAdjustments.push({ entityId, reason });
+      },
+    });
+    const resolver = new OfflineCombatResolver(config, bridge, seeded);
+
+    const terrain = createTerrain({ id: 't1' });
+
+    const brainA = createBrain('npc_a', 'stalker');  // will die (1 HP)
+    const brainB = createBrain('npc_b', 'stalker');  // ally, witness
+    const brainC = createBrain('npc_c', 'bandit');   // enemy
+    assignBrainToTerrain(brainA, terrain);
+    assignBrainToTerrain(brainB, terrain);
+    assignBrainToTerrain(brainC, terrain);
+
+    const recordA = createNPCRecord({ entityId: 'npc_a', factionId: 'stalker', combatPower: 50, currentHp: 1 });
+    const recordB = createNPCRecord({ entityId: 'npc_b', factionId: 'stalker', combatPower: 50, currentHp: 500 });
+    const recordC = createNPCRecord({ entityId: 'npc_c', factionId: 'bandit',  combatPower: 50, currentHp: 500 });
+
+    const stalker = createFaction('stalker', { bandit: -100 });
+    const bandit  = createFaction('bandit',  { stalker: -100 });
+
+    const npcRecords = new Map([['npc_a', recordA], ['npc_b', recordB], ['npc_c', recordC]]);
+    const factions   = new Map([['stalker', stalker], ['bandit', bandit]]);
+    const brains     = new Map([['npc_a', brainA], ['npc_b', brainB], ['npc_c', brainC]]);
+
+    resolver.resolve(
+      npcRecords, new Map([['t1', terrain]]), factions, brains,
+      new StoryRegistry(), new NPCRelationRegistry(createDefaultRelationConfig()), 0,
+    );
+
+    // npc_a dies.  npc_b is the sole ally — it must receive exactly one
+    // ally_died penalty.  A contaminated terrain bucket would contain
+    // duplicate or foreign IDs, causing the penalty to fire more than once.
+    const allyPenalties = moraleAdjustments.filter(
+      a => a.entityId === 'npc_b' && a.reason === 'ally_died',
+    );
+    expect(allyPenalties).toHaveLength(1);
+  });
+
+  it('buildTerrainIndex produces correct NPC IDs per terrain bucket', () => {
+    // Two terrains, two NPCs each.  After resolve(), each terrain's
+    // combat pair must receive exactly two hit-penalty adjustments —
+    // no IDs from the other terrain must bleed in.
+    const config = getDefaultCombatConfig({ maxResolutionsPerTick: 100, detectionProbability: 100 });
+    const moraleAdjustments: Array<{ entityId: string; reason: string }> = [];
+    const bridge = createStubBridge({
+      adjustMorale: (entityId, _delta, reason) => {
+        moraleAdjustments.push({ entityId, reason });
+      },
+    });
+    const resolver = new OfflineCombatResolver(config, bridge, seeded);
+
+    const t1 = createTerrain({ id: 't1' });
+    const t2 = createTerrain({ id: 't2' });
+
+    // t1: stalker vs bandit
+    const brainS1 = createBrain('s1', 'stalker');
+    const brainB1 = createBrain('b1', 'bandit');
+    assignBrainToTerrain(brainS1, t1);
+    assignBrainToTerrain(brainB1, t1);
+
+    // t2: different stalker vs different bandit
+    const brainS2 = createBrain('s2', 'stalker');
+    const brainB2 = createBrain('b2', 'bandit');
+    assignBrainToTerrain(brainS2, t2);
+    assignBrainToTerrain(brainB2, t2);
+
+    const recS1 = createNPCRecord({ entityId: 's1', factionId: 'stalker', currentHp: 500 });
+    const recB1 = createNPCRecord({ entityId: 'b1', factionId: 'bandit',  currentHp: 500 });
+    const recS2 = createNPCRecord({ entityId: 's2', factionId: 'stalker', currentHp: 500 });
+    const recB2 = createNPCRecord({ entityId: 'b2', factionId: 'bandit',  currentHp: 500 });
+
+    const stalker = createFaction('stalker', { bandit: -100 });
+    const bandit  = createFaction('bandit',  { stalker: -100 });
+
+    const npcRecords = new Map([['s1', recS1], ['b1', recB1], ['s2', recS2], ['b2', recB2]]);
+    const factions   = new Map([['stalker', stalker], ['bandit', bandit]]);
+    const brains     = new Map([['s1', brainS1], ['b1', brainB1], ['s2', brainS2], ['b2', brainB2]]);
+
+    resolver.resolve(
+      npcRecords, new Map([['t1', t1], ['t2', t2]]), factions, brains,
+      new StoryRegistry(), new NPCRelationRegistry(createDefaultRelationConfig()), 0,
+    );
+
+    // Exactly four hit penalties — one per NPC — no more, no less.
+    // Contamination would cause IDs from one terrain's faction bucket to
+    // appear in the other terrain's bucket, producing extra penalties.
+    const hitPenalties = moraleAdjustments.filter(a => a.reason === 'hit');
+    expect(hitPenalties).toHaveLength(4);
+    const hitIds = hitPenalties.map(a => a.entityId);
+    expect(hitIds).toContain('s1');
+    expect(hitIds).toContain('b1');
+    expect(hitIds).toContain('s2');
+    expect(hitIds).toContain('b2');
+  });
+
+  it('faction bucket writes do not affect the terrain NPC list (core contamination regression)', () => {
+    // This test directly targets the pool contamination bug:
+    // if terrain buckets were pooled, _acquireBucket() could return an array
+    // that _terrainIndex still references, so pushing a faction NPC ID into
+    // the new faction bucket would also append it to the terrain bucket.
+    //
+    // Observable symptom: the terrain bucket used as `npcsInTerrain` would
+    // grow during the faction-grouping loop, causing witness morale calls
+    // for NPCs that were never originally in the terrain list for that kill.
+    //
+    // Setup: two terrains with opposing factions.  Terrain t1 has one pair
+    // and terrain t2 has one pair.  A death on t1 must produce ally-death
+    // morale calls only for t1 occupants — never for t2 NPCs.
+    const config = getDefaultCombatConfig({ maxResolutionsPerTick: 100 });
+    const moraleAdjustments: Array<{ entityId: string; reason: string }> = [];
+    const bridge = createStubBridge({
+      adjustMorale: (entityId, _delta, reason) => {
+        moraleAdjustments.push({ entityId, reason });
+      },
+    });
+    const resolver = new OfflineCombatResolver(config, bridge, seeded);
+
+    const t1 = createTerrain({ id: 't1' });
+    const t2 = createTerrain({ id: 't2' });
+
+    // t1: npc_a (stalker, 1HP — will die) + npc_b (bandit, high HP)
+    const brainA = createBrain('npc_a', 'stalker');
+    const brainB = createBrain('npc_b', 'bandit');
+    assignBrainToTerrain(brainA, t1);
+    assignBrainToTerrain(brainB, t1);
+
+    // t2: npc_c (stalker) + npc_d (bandit) — uninvolved in t1 death
+    const brainC = createBrain('npc_c', 'stalker');
+    const brainD = createBrain('npc_d', 'bandit');
+    assignBrainToTerrain(brainC, t2);
+    assignBrainToTerrain(brainD, t2);
+
+    const recA = createNPCRecord({ entityId: 'npc_a', factionId: 'stalker', combatPower: 10,  currentHp: 1 });
+    const recB = createNPCRecord({ entityId: 'npc_b', factionId: 'bandit',  combatPower: 100, currentHp: 500 });
+    const recC = createNPCRecord({ entityId: 'npc_c', factionId: 'stalker', combatPower: 50,  currentHp: 500 });
+    const recD = createNPCRecord({ entityId: 'npc_d', factionId: 'bandit',  combatPower: 50,  currentHp: 500 });
+
+    const stalker = createFaction('stalker', { bandit: -100 });
+    const bandit  = createFaction('bandit',  { stalker: -100 });
+
+    const npcRecords = new Map([
+      ['npc_a', recA], ['npc_b', recB], ['npc_c', recC], ['npc_d', recD],
+    ]);
+    const factions = new Map([['stalker', stalker], ['bandit', bandit]]);
+    const brains   = new Map([
+      ['npc_a', brainA], ['npc_b', brainB], ['npc_c', brainC], ['npc_d', brainD],
+    ]);
+
+    resolver.resolve(
+      npcRecords, new Map([['t1', t1], ['t2', t2]]), factions, brains,
+      new StoryRegistry(), new NPCRelationRegistry(createDefaultRelationConfig()), 0,
+    );
+
+    // npc_a dies on t1.  t1 has no stalker ally, so zero ally_died penalties
+    // should be emitted for stalker faction.  If t2 NPCs bled into t1's
+    // terrain bucket, npc_c would wrongly receive an ally_died penalty.
+    const allyPenalties = moraleAdjustments.filter(a => a.reason === 'ally_died');
+    const penaltyIds    = allyPenalties.map(a => a.entityId);
+    expect(penaltyIds).not.toContain('npc_c');
+    expect(penaltyIds).not.toContain('npc_d');
+  });
+
+  it('multiple resolve() calls do not accumulate stale NPC data across ticks', () => {
+    // The resolver reuses internal scratch structures (_terrainsList,
+    // _factionToNpcs, _terrainIndex) between calls.  Each resolve() must
+    // produce the same outcome as if the resolver were freshly constructed.
+    //
+    // Specifically: an NPC that died in tick N must not appear in the
+    // terrain bucket or faction bucket during tick N+1.
+    const config = getDefaultCombatConfig({ maxResolutionsPerTick: 100 });
+    const moraleAdjustments: Array<{ entityId: string; reason: string }> = [];
+    const bridge = createStubBridge({
+      adjustMorale: (entityId, _delta, reason) => {
+        moraleAdjustments.push({ entityId, reason });
+      },
+    });
+    const resolver = new OfflineCombatResolver(config, bridge, seeded);
+
+    const terrain = createTerrain({ id: 'arena' });
+
+    const brainA = createBrain('npc_a', 'stalker');
+    const brainB = createBrain('npc_b', 'bandit');
+    assignBrainToTerrain(brainA, terrain);
+    assignBrainToTerrain(brainB, terrain);
+
+    // Tick 1: npc_b has 1 HP — it dies.
+    const recA = createNPCRecord({ entityId: 'npc_a', factionId: 'stalker', combatPower: 50, currentHp: 500 });
+    const recB = createNPCRecord({ entityId: 'npc_b', factionId: 'bandit',  combatPower: 50, currentHp: 1 });
+
+    const stalker = createFaction('stalker', { bandit: -100 });
+    const bandit  = createFaction('bandit',  { stalker: -100 });
+
+    const npcRecords = new Map([['npc_a', recA], ['npc_b', recB]]);
+    const factions   = new Map([['stalker', stalker], ['bandit', bandit]]);
+    const brains     = new Map([['npc_a', brainA], ['npc_b', brainB]]);
+
+    let cursor = resolver.resolve(
+      npcRecords, new Map([['arena', terrain]]), factions, brains,
+      new StoryRegistry(), new NPCRelationRegistry(createDefaultRelationConfig()), 0,
+    );
+
+    // npc_b is dead now.  Simulate removal from the active records map.
+    npcRecords.delete('npc_b');
+
+    moraleAdjustments.length = 0; // reset tracking for tick 2
+
+    // Tick 2: only npc_a remains.  No valid opponent → no exchange.
+    cursor = resolver.resolve(
+      npcRecords, new Map([['arena', terrain]]), factions, brains,
+      new StoryRegistry(), new NPCRelationRegistry(createDefaultRelationConfig()), cursor,
+    );
+
+    // No morale adjustments in tick 2 — npc_b must not have been retained
+    // in any internal bucket from tick 1.
+    expect(moraleAdjustments).toHaveLength(0);
+
+    // Tick 3: add a new enemy so we can confirm the resolver still works correctly.
+    const brainC = createBrain('npc_c', 'bandit');
+    assignBrainToTerrain(brainC, terrain);
+    const recC = createNPCRecord({ entityId: 'npc_c', factionId: 'bandit', combatPower: 50, currentHp: 500 });
+    npcRecords.set('npc_c', recC);
+    brains.set('npc_c', brainC);
+
+    cursor = resolver.resolve(
+      npcRecords, new Map([['arena', terrain]]), factions, brains,
+      new StoryRegistry(), new NPCRelationRegistry(createDefaultRelationConfig()), cursor,
+    );
+
+    const hitPenaltiesTick3 = moraleAdjustments.filter(a => a.reason === 'hit');
+    expect(hitPenaltiesTick3).toHaveLength(2);
+    const hitIdsTick3 = hitPenaltiesTick3.map(a => a.entityId);
+    expect(hitIdsTick3).toContain('npc_a');
+    expect(hitIdsTick3).toContain('npc_c');
+
+    // The dead npc_b must never appear as a morale recipient in any tick.
+    const allIds = moraleAdjustments.map(a => a.entityId);
+    expect(allIds).not.toContain('npc_b');
+  });
 });

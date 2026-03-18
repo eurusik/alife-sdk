@@ -323,17 +323,19 @@ describe('SquadManager', () => {
       expect(mgr.getSquadId('npc_a')).toBeNull();
     });
 
-    it('onNPCKill delegates to Squad.onMemberKill', () => {
+    it('onNPCKill delegates to Squad.onMemberKill, skipping the killer', () => {
       const { lookup, calls } = createMoraleSpy();
       const mgr = createManager(events, lookup);
       mgr.createSquad('stalker', ['npc_a', 'npc_b']);
 
       mgr.onNPCKill('npc_a');
 
-      // Squad.onMemberKill applies moraleKillBonus (0.1) to ALL members
+      // Squad.onMemberKill applies moraleKillBonus (0.1) to all members
+      // except the killer (npc_a). Only npc_b should receive the bonus.
       const config = createDefaultSquadConfig();
-      expect(calls).toHaveLength(2);
-      expect(calls.every(c => c.delta === config.moraleKillBonus)).toBe(true);
+      expect(calls).toHaveLength(1);
+      expect(calls[0].npcId).toBe('npc_b');
+      expect(calls[0].delta).toBe(config.moraleKillBonus);
     });
 
     it('cascadeMorale applies leader factor when source is leader', () => {
@@ -482,6 +484,146 @@ describe('SquadManager', () => {
       // Verify reverse index is rebuilt
       expect(mgr2.getSquadId('a')).toBe(s1.id);
       expect(mgr2.getSquadId('d')).toBe(s2.id);
+    });
+  });
+
+  // =========================================================================
+  // destroy() leak fix -- squad.destroy() called on empty-squad paths
+  // =========================================================================
+
+  describe('destroy() leak fix', () => {
+    // -----------------------------------------------------------------------
+    // removeFromSquad paths
+    // -----------------------------------------------------------------------
+
+    it('removeFromSquad on last member calls squad.destroy() (members cleared)', () => {
+      const mgr = createManager(events);
+      const squad = mgr.createSquad('stalker', ['npc_a']);
+      events.flush();
+
+      // Hold a reference before removal so we can inspect post-destroy state.
+      const capturedSquad = mgr.getSquadForNPC('npc_a')!;
+      expect(capturedSquad).toBeDefined();
+
+      mgr.removeFromSquad('npc_a');
+
+      // destroy() clears members and leaderId -- the only code path that does so
+      // while the squad object is still reachable via a captured reference.
+      expect(capturedSquad.getMemberCount()).toBe(0);
+      expect(capturedSquad.getLeader()).toBeNull();
+      // Manager evicts the squad from its index.
+      expect(mgr.getAllSquads()).toHaveLength(0);
+    });
+
+    it('removeFromSquad on last member emits SQUAD_DISBANDED', () => {
+      const mgr = createManager(events);
+      const squad = mgr.createSquad('stalker', ['npc_a']);
+      events.flush();
+
+      const disbanded: string[] = [];
+      events.on(ALifeEvents.SQUAD_DISBANDED, ({ squadId }) => disbanded.push(squadId));
+
+      mgr.removeFromSquad('npc_a');
+      events.flush();
+
+      expect(disbanded).toEqual([squad.id]);
+    });
+
+    it('removeFromSquad on non-last member does NOT call squad.destroy()', () => {
+      const mgr = createManager(events);
+      mgr.createSquad('stalker', ['npc_a', 'npc_b']);
+
+      const capturedSquad = mgr.getSquadForNPC('npc_a')!;
+
+      // Remove one of two members -- squad should survive intact.
+      mgr.removeFromSquad('npc_a');
+
+      // destroy() was NOT called: remaining member is still tracked.
+      expect(capturedSquad.getMemberCount()).toBe(1);
+      expect(capturedSquad.hasMember('npc_b')).toBe(true);
+      expect(capturedSquad.getLeader()).toBe('npc_b');
+      // Squad is still registered in the manager.
+      expect(mgr.getAllSquads()).toHaveLength(1);
+    });
+
+    // -----------------------------------------------------------------------
+    // onNPCDeath paths
+    // -----------------------------------------------------------------------
+
+    it('onNPCDeath on last member calls squad.destroy() (members cleared)', () => {
+      const mgr = createManager(events);
+      mgr.createSquad('stalker', ['npc_a']);
+      events.flush();
+
+      const capturedSquad = mgr.getSquadForNPC('npc_a')!;
+      expect(capturedSquad).toBeDefined();
+
+      mgr.onNPCDeath('npc_a');
+
+      expect(capturedSquad.getMemberCount()).toBe(0);
+      expect(capturedSquad.getLeader()).toBeNull();
+      expect(mgr.getAllSquads()).toHaveLength(0);
+    });
+
+    it('onNPCDeath on last member emits SQUAD_DISBANDED', () => {
+      const mgr = createManager(events);
+      const squad = mgr.createSquad('stalker', ['npc_a']);
+      events.flush();
+
+      const disbanded: string[] = [];
+      events.on(ALifeEvents.SQUAD_DISBANDED, ({ squadId }) => disbanded.push(squadId));
+
+      mgr.onNPCDeath('npc_a');
+      events.flush();
+
+      expect(disbanded).toEqual([squad.id]);
+    });
+
+    it('onNPCDeath on non-last member does NOT call squad.destroy()', () => {
+      const mgr = createManager(events);
+      mgr.createSquad('stalker', ['npc_a', 'npc_b']);
+
+      const capturedSquad = mgr.getSquadForNPC('npc_a')!;
+
+      mgr.onNPCDeath('npc_a');
+
+      // Survivor must still be tracked -- destroy() would have wiped them.
+      expect(capturedSquad.getMemberCount()).toBe(1);
+      expect(capturedSquad.hasMember('npc_b')).toBe(true);
+      expect(mgr.getAllSquads()).toHaveLength(1);
+    });
+
+    // -----------------------------------------------------------------------
+    // disbandSquad regression -- pre-existing explicit disband must still work
+    // -----------------------------------------------------------------------
+
+    it('disbandSquad still calls squad.destroy() (regression)', () => {
+      const mgr = createManager(events);
+      const squad = mgr.createSquad('stalker', ['npc_a', 'npc_b']);
+      events.flush();
+
+      // Capture before disbanding so we can assert post-destroy state.
+      const capturedSquad = mgr.getSquadForNPC('npc_a')!;
+
+      mgr.disbandSquad(squad.id);
+
+      expect(capturedSquad.getMemberCount()).toBe(0);
+      expect(capturedSquad.getLeader()).toBeNull();
+      expect(mgr.getAllSquads()).toHaveLength(0);
+    });
+
+    it('disbandSquad still emits SQUAD_DISBANDED (regression)', () => {
+      const mgr = createManager(events);
+      const squad = mgr.createSquad('stalker', ['npc_a', 'npc_b']);
+      events.flush();
+
+      const disbanded: string[] = [];
+      events.on(ALifeEvents.SQUAD_DISBANDED, ({ squadId }) => disbanded.push(squadId));
+
+      mgr.disbandSquad(squad.id);
+      events.flush();
+
+      expect(disbanded).toEqual([squad.id]);
     });
   });
 

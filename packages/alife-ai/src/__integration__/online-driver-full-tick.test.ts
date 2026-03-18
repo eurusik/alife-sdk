@@ -426,6 +426,8 @@ describe('OnlineAIDriver.tick() — full-tick sequences', () => {
       const cfg = createDefaultStateConfig({ combatRange: 200 });
       // Enemy within combat range
       host.perception.sync([makeEnemy('e1', host.x + 50, host.y)], [], []);
+      // Pre-set lastSeekCoverMs so the cooldown (coverSeekCooldownMs=3000ms) is already elapsed.
+      host.state.lastSeekCoverMs = -cfg.coverSeekCooldownMs;
 
       const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(cfg), ONLINE_STATE.COMBAT);
 
@@ -440,7 +442,7 @@ describe('OnlineAIDriver.tick() — full-tick sequences', () => {
         },
       };
 
-      // Next tick: cover found → TAKE_COVER
+      // Next tick: cover found → TAKE_COVER (cooldown was pre-seeded to be elapsed)
       tick(host, driver, 16);
       expect(driver.currentStateId).toBe(ONLINE_STATE.TAKE_COVER);
     });

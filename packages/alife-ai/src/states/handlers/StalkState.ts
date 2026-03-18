@@ -4,7 +4,7 @@
 // Phase pipeline (stored in ctx.state.stalkPhase):
 //   APPROACH  — entity alpha drops to stalkAlphaInvisible; moves toward enemy
 //               at approachSpeed × stalkSpeedMultiplier. Transitions to uncloak
-//               when distance < stalkUnclockDistance.
+//               when distance < stalkUncloakDistance.
 //   UNCLOAK   — alpha restored to 1.0, then transition to COMBAT for the melee strike.
 //
 // exit() always restores full alpha (1.0) so the bloodsucker is never permanently
@@ -69,7 +69,7 @@ export class StalkState implements IOnlineStateHandler {
     // APPROACH phase — close distance invisibly
     // -----------------------------------------------------------------------
     if (!ctx.state.stalkPhase!.approaching) {
-      if (dist <= this.cfg.stalkUnclockDistance) {
+      if (dist <= this.cfg.stalkUncloakDistance) {
         // Close enough — flag as approaching (uncloak next frame).
         ctx.state.stalkPhase!.approaching = true;
         return;

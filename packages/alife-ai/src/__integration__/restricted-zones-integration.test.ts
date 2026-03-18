@@ -393,7 +393,7 @@ describe('RestrictedZoneManager — integration (two zones, IRestrictedZoneAcces
   // -------------------------------------------------------------------------
 
   describe('IRestrictedZoneAccess adapter wired into OnlineAIDriver (IdleState escape)', () => {
-    it('NPC in IDLE inside OUT zone → transitions to ALERT after check interval', () => {
+    it('NPC in IDLE inside OUT zone → stays in IDLE and moves toward safe exit', () => {
       const mgr = new RestrictedZoneManager(10);
       mgr.addZone(makeOutZone('rad', 0, 0, 100));
 
@@ -407,8 +407,9 @@ describe('RestrictedZoneManager — integration (two zones, IRestrictedZoneAcces
       host.advanceMs(CHECK_INTERVAL_MS + 1);
       driver.update(50);
 
-      // IdleState transitions via idleOnEnemy (default ALERT)
-      expect(driver.currentStateId).toBe(ONLINE_STATE.ALERT);
+      // IdleState no longer transitions to ALERT on zone exit — it stays IDLE
+      // and calls moveToward() to guide the NPC toward a safe exit point.
+      expect(driver.currentStateId).toBe(ONLINE_STATE.IDLE);
     });
 
     it('NPC in IDLE outside all zones → stays IDLE', () => {

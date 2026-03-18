@@ -24,7 +24,7 @@ const result = selectGoal(snapshot, config.goap);
 ```
 
 Rules are evaluated in order — the first rule that returns a non-null result wins.
-`DEFAULT_GOAL_RULES` provides the 4-band hierarchy used by `GOAPController`.
+`DEFAULT_GOAL_RULES` provides the 6-band hierarchy used by `GOAPController`.
 
 `GOAPController` calls this automatically — you only need to call it directly
 for custom goal evaluation outside the controller.
@@ -36,7 +36,7 @@ for custom goal evaluation outside the controller.
 ```ts
 interface IGoalResult {
   readonly goal: WorldState;          // The desired end state
-  readonly priority: GoalPriorityLevel; // 0 = CRITICALLY_WOUNDED, 3 = DEFAULT
+  readonly priority: GoalPriorityLevel; // 0 = CRITICALLY_WOUNDED, 5 = DEFAULT
   readonly reason: string;            // e.g. "Enemy detected", "HP critical (18%)"
 }
 ```
@@ -46,21 +46,25 @@ satisfy. The planner finds a sequence of actions that makes these properties tru
 
 ---
 
-## DEFAULT_GOAL_RULES — 4-band priority hierarchy
+## DEFAULT_GOAL_RULES — 6-band priority hierarchy
 
-Four rules evaluated in priority order (lowest number = first checked):
+Six rules evaluated in priority order (lowest number = first checked):
 
 | Priority | Name | Trigger | Goal |
 |----------|------|---------|------|
 | `0` CRITICALLY_WOUNDED | `critically_wounded` | `hpRatio ≤ config.healHpThreshold` (default 0.3) | `{ criticallyWounded: false, enemyPresent: false }` |
-| `1` ENEMY_PRESENT | `enemy_present` | `snapshot.enemyPresent` | `{ enemyPresent: false }` |
-| `2` DANGER | `danger` | `snapshot.hasDanger` | `{ danger: false }` |
-| `3` DEFAULT | `default` | always matches | `{ atTarget: true }` |
+| `1` PANIC_FLEE | `panic_flee` | `snapshot.isPanicking` | `{ isPanicking: false }` |
+| `2` ENEMY_PRESENT | `enemy_present` | `snapshot.enemyPresent` | `{ enemyPresent: false }` |
+| `3` DANGER | `danger` | `snapshot.hasDanger` | `{ danger: false }` |
+| `4` ANOMALY_AVOID | `anomaly_avoid` | `snapshot.nearAnomaly` | `{ nearAnomaly: false }` |
+| `5` DEFAULT | `default` | always matches | `{ atTarget: true }` |
 
 ```
 HP ≤ 30%?  → CRITICALLY_WOUNDED goal  (heal + escape threat)
+Panicking? → PANIC_FLEE goal          (flee to safety)
 Enemy?     → ENEMY_PRESENT goal       (neutralize enemy)
 Danger?    → DANGER goal              (investigate/evade)
+Anomaly?   → ANOMALY_AVOID goal       (avoid anomaly)
 (else)     → DEFAULT goal             (patrol/idle)
 ```
 
@@ -91,9 +95,11 @@ interface IGoalRule {
 ```ts
 const GoalPriority = {
   CRITICALLY_WOUNDED: 0,
-  ENEMY_PRESENT: 1,
-  DANGER: 2,
-  DEFAULT: 3,
+  PANIC_FLEE: 1,
+  ENEMY_PRESENT: 2,
+  DANGER: 3,
+  ANOMALY_AVOID: 4,
+  DEFAULT: 5,
 } as const;
 ```
 

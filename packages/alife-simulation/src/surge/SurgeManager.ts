@@ -386,7 +386,7 @@ export class SurgeManager {
       this._shelterIdsDirty = false;
     }
 
-    for (const [npcId, record] of npcs) {
+    for (const [_npcId, record] of npcs) {
       if (!this.bridge.isAlive(record.entityId)) continue;
 
       // Determine if the NPC is sheltered.
@@ -404,7 +404,7 @@ export class SurgeManager {
       );
 
       if (died) {
-        this.onSurgeDeath?.(npcId);
+        this.onSurgeDeath?.(record.entityId);
         continue; // skip morale penalty -- NPC is dead
       }
 
@@ -416,7 +416,7 @@ export class SurgeManager {
       );
 
       this.events.emit(ALifeEvents.SURGE_DAMAGE, {
-        npcId,
+        npcId: record.entityId,
         damage: this.config.damagePerTick,
       });
     }

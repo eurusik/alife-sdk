@@ -3,7 +3,7 @@
 //
 // Loophole phase cycle:
 //   WAIT   — NPC halts behind cover. Duration: random [loopholeWaitMinMs, loopholeWaitMaxMs].
-//   PEEK   — NPC moves toward cover point. Duration: loopholePeekDurationMs.
+//   PEEK   — NPC peeks out toward enemy at half speed. Duration: loopholePeekDurationMs.
 //   FIRE   — NPC emits shoot, stays in place. Duration: loopholeFireDurationMs.
 //   RETURN — NPC moves back / waits to return. Duration: loopholeReturnDurationMs.
 //
@@ -76,13 +76,7 @@ export class TakeCoverState implements IOnlineStateHandler {
       phaseStartMs: ctx.now(),
     };
 
-    // Store wait duration as a scratch value in phaseStartMs offset.
-    // We re-use phaseStartMs + phase duration to know when to advance.
-    // The actual wait end is computed as: phaseStartMs + waitDuration.
-    // Save waitDuration separately via a small trick: store -(waitDuration) in
-    // lastGrenadeMs as a per-NPC scratch. This avoids adding new fields.
-    // Instead, simpler: store the wait-end timestamp directly in lastGrenadeMs.
-    ctx.state.lastGrenadeMs = ctx.now() + waitDuration;
+    ctx.state.loopholeWaitEndMs = ctx.now() + waitDuration;
   }
 
   update(ctx: INPCContext, _deltaMs: number): void {
@@ -122,7 +116,7 @@ export class TakeCoverState implements IOnlineStateHandler {
         this.cfg.loopholeWaitMinMs +
         ctx.random() * (this.cfg.loopholeWaitMaxMs - this.cfg.loopholeWaitMinMs);
       ctx.state.loophole = { phase: 'WAIT', phaseStartMs: now };
-      ctx.state.lastGrenadeMs = now + waitDuration;
+      ctx.state.loopholeWaitEndMs = now + waitDuration;
     }
 
     // -------------------------------------------------------------------------
@@ -153,8 +147,7 @@ export class TakeCoverState implements IOnlineStateHandler {
       // -----------------------------------------------------------------------
       case 'WAIT': {
         ctx.halt();
-        // ctx.state.lastGrenadeMs stores the wait-end timestamp.
-        if (now >= ctx.state.lastGrenadeMs) {
+        if (now >= ctx.state.loopholeWaitEndMs) {
           loophole.phase = 'PEEK';
           loophole.phaseStartMs = now;
         }
@@ -162,7 +155,7 @@ export class TakeCoverState implements IOnlineStateHandler {
       }
 
       // -----------------------------------------------------------------------
-      // PEEK: NPC moves toward the cover peek position (= cover centre for now).
+      // PEEK: NPC moves toward enemy (peeks out of cover) at half speed.
       // -----------------------------------------------------------------------
       case 'PEEK': {
         const elapsed = now - loophole.phaseStartMs;
@@ -225,7 +218,7 @@ export class TakeCoverState implements IOnlineStateHandler {
             ctx.random() * (this.cfg.loopholeWaitMaxMs - this.cfg.loopholeWaitMinMs);
           loophole.phase = 'WAIT';
           loophole.phaseStartMs = now;
-          ctx.state.lastGrenadeMs = now + waitDuration;
+          ctx.state.loopholeWaitEndMs = now + waitDuration;
         } else {
           // Move back toward cover point.
           moveToward(ctx, ctx.state.coverPointX, ctx.state.coverPointY, this.cfg.approachSpeed);

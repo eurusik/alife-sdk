@@ -59,14 +59,29 @@ export class MapScorer {
    * Return a breakdown of individual scores for debugging.
    */
   breakdown(map: MapDefinition): Record<string, number> {
+    const zoneSpread        = this.scoreZoneSpread(map);
+    const pathDiversity     = this.scorePathDiversity(map);
+    const coverDistribution = this.scoreCoverDistribution(map);
+    const densityVariance   = this.scoreDensityVariance(map);
+    const factionBalance    = this.scoreFactionBalance(map);
+    const laneConnectivity  = this.scoreLaneConnectivity(map);
+
+    const total =
+      zoneSpread        * WEIGHTS.zoneSpread +
+      pathDiversity     * WEIGHTS.pathDiversity +
+      coverDistribution * WEIGHTS.coverDistribution +
+      densityVariance   * WEIGHTS.densityVariance +
+      factionBalance    * WEIGHTS.factionBalance +
+      laneConnectivity  * WEIGHTS.laneConnectivity;
+
     return {
-      zoneSpread:        this.scoreZoneSpread(map),
-      pathDiversity:     this.scorePathDiversity(map),
-      coverDistribution: this.scoreCoverDistribution(map),
-      densityVariance:   this.scoreDensityVariance(map),
-      factionBalance:    this.scoreFactionBalance(map),
-      laneConnectivity:  this.scoreLaneConnectivity(map),
-      total:             this.score(map),
+      zoneSpread,
+      pathDiversity,
+      coverDistribution,
+      densityVariance,
+      factionBalance,
+      laneConnectivity,
+      total,
     };
   }
 
@@ -146,10 +161,16 @@ export class MapScorer {
     const occupiedCells = cellCounts.size;
     const totalCells = 16;
 
-    // Gini coefficient of cover distribution (lower = more even)
-    const values = Array.from(cellCounts.values()).sort((a, b) => a - b);
-    const n = values.length;
+    // Gini coefficient of cover distribution (lower = more even).
+    // All 16 grid cells must be represented, including empty ones (count=0),
+    // otherwise clumped distributions score as "even" because the zero-count
+    // cells are absent from the sample and n collapses toward 1.
+    const values = Array.from(cellCounts.values());
+    while (values.length < totalCells) values.push(0);
+    values.sort((a, b) => a - b);
+    const n = values.length; // always totalCells (16)
     const mean = values.reduce((s, v) => s + v, 0) / n;
+    if (mean === 0) return 0;
     let giniNumerator = 0;
     for (let i = 0; i < n; i++) {
       giniNumerator += (2 * (i + 1) - n - 1) * values[i];

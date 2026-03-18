@@ -211,7 +211,7 @@ describe('IdleState', () => {
     expect(calls.filter(c => c.startsWith('transition'))).toHaveLength(0);
   });
 
-  it('update: inside inaccessible zone → transition ALERT', () => {
+  it('update: inside inaccessible zone → stays IDLE and moves toward exit', () => {
     const { ctx, calls, setNow } = makeMockCtx({
       hasRestrictedZone: true,
       restrictedZoneAccessible: false,
@@ -222,7 +222,8 @@ describe('IdleState', () => {
     // Advance time so the zone check interval elapses
     setNow(cfg.restrictedZoneCheckIntervalMs + 1);
     handler.update(ctx, 16);
-    expect(calls).toContain('transition:ALERT');
+    // New behavior: IdleState stays in IDLE on zone violation — calls moveToward(), no transition
+    expect(calls.filter(c => c.startsWith('transition'))).toHaveLength(0);
   });
 
   it('update: zone check throttled after first firing (no second transition within interval)', () => {
@@ -236,8 +237,9 @@ describe('IdleState', () => {
     calls.length = 0;
 
     // First update at t=0: zone check fires (timer was seeded for immediate)
+    // New behavior: IdleState stays in IDLE on zone violation — no transition
     handler.update(ctx, 16);
-    expect(calls).toContain('transition:ALERT');
+    expect(calls.filter(c => c.startsWith('transition'))).toHaveLength(0);
     calls.length = 0;
 
     // Re-enter to reset state (simulate coming back to IDLE)
@@ -1029,21 +1031,22 @@ describe('FleeState', () => {
     expect(calls.find(c => c.startsWith('vel:'))).toBeDefined();
   });
 
-  it('update: SHAKEN + far enough → halts (waits for morale recovery)', () => {
+  it('update: SHAKEN + far enough → transitions to PATROL (fleeOnSafe)', () => {
     const { ctx, calls } = makeMockCtx({
       moraleState: 'SHAKEN',
       x: 1000,
       y: 100,
     });
-    // Threat is far away (dist > fleeDistance)
+    // Threat is far away (dist > fleeDistance): NPC at (1000, 100), threat at (0, 100)
+    // dist = 1000 > fleeDistance → SHAKEN + far → transition to PATROL
     ctx.state.lastKnownEnemyX = 0;
     ctx.state.lastKnownEnemyY = 100;
     handler.enter(ctx);
     calls.length = 0;
     handler.update(ctx, 16);
-    // Should halt and wait — no transition
+    // New behavior: SHAKEN + dist >= fleeDistance → transition to fleeOnSafe (PATROL)
     expect(calls).toContain('halt');
-    expect(calls.filter(c => c.startsWith('transition'))).toHaveLength(0);
+    expect(calls).toContain('transition:PATROL');
   });
 
   it('update: PANICKED + far → keeps fleeing (never stops on distance alone)', () => {
@@ -1374,11 +1377,11 @@ describe('SleepState', () => {
     expect(calls).toContain('alpha:0.8');
   });
 
-  it('enter: resets woundedStartMs (no pending reaction)', () => {
+  it('enter: resets sleepReactionStartMs (no pending reaction)', () => {
     const { ctx } = makeMockCtx();
-    ctx.state.woundedStartMs = 9999;
+    ctx.state.sleepReactionStartMs = 9999;
     handler.enter(ctx);
-    expect(ctx.state.woundedStartMs).toBe(0);
+    expect(ctx.state.sleepReactionStartMs).toBe(0);
   });
 
   it('update: no enemies, no zone → no transition', () => {
@@ -1399,7 +1402,7 @@ describe('SleepState', () => {
     handler.update(ctx, 16);
     // Should queue reaction but not fire yet
     expect(calls.filter(c => c.startsWith('transition'))).toHaveLength(0);
-    expect(ctx.state.woundedStartMs).toBeGreaterThan(0);
+    expect(ctx.state.sleepReactionStartMs).toBeGreaterThan(0);
   });
 
   it('update: delayed ALERT fires after campSleepReactionDelayMs', () => {
@@ -1454,11 +1457,11 @@ describe('SleepState', () => {
     expect(calls).toContain('alpha:1');
   });
 
-  it('exit: clears woundedStartMs', () => {
+  it('exit: clears sleepReactionStartMs', () => {
     const { ctx } = makeMockCtx();
-    ctx.state.woundedStartMs = 9999;
+    ctx.state.sleepReactionStartMs = 9999;
     handler.exit(ctx);
-    expect(ctx.state.woundedStartMs).toBe(0);
+    expect(ctx.state.sleepReactionStartMs).toBe(0);
   });
 
   it('update: null perception → no queued reaction', () => {

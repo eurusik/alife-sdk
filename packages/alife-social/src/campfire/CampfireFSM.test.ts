@@ -163,4 +163,139 @@ describe('CampfireFSM', () => {
     fsm.update(200);
     expect(fsm.getState()).not.toBe(CampfireState.IDLE);
   });
+
+  // --- tickReactions stale-bubbles fix ---
+
+  describe('tickReactions stale bubbles', () => {
+    // Config: reactionDurationMinMs/MaxMs = 200, reactionStaggerMs = 50.
+    // Participants: npc_1 (director), npc_2 (stagger 0), npc_3 (stagger 50).
+    // All reactions fire once stateTimer >= 50.  stateDuration = 200, so the
+    // FSM stays in REACTING until stateTimer >= 200.
+
+    function advanceToReacting(f: CampfireFSM): void {
+      f.update(200); // IDLE → STORY
+      f.update(200); // STORY → REACTING (stateTimer resets to 0)
+    }
+
+    it('returns empty array on the frame after all reactions have fired', () => {
+      advanceToReacting(fsm);
+      expect(fsm.getState()).toBe(CampfireState.REACTING);
+
+      // Advance past both stagger thresholds (0 ms and 50 ms) in one tick so
+      // both pending reactions fire and _pendingReactionCount drops to 0.
+      fsm.update(60); // stateTimer = 60 → both reactions fire
+
+      // Next frame: _pendingReactionCount === 0, fix must return [] not stale buffer.
+      const subsequent = fsm.update(10); // stateTimer = 70, still < 200
+      expect(fsm.getState()).toBe(CampfireState.REACTING);
+      expect(subsequent).toHaveLength(0);
+    });
+
+    it('empty array returned after all reactions fire is a fresh [] not the internal buffer', () => {
+      advanceToReacting(fsm);
+
+      // Drain all pending reactions.
+      const draining = fsm.update(60); // both reactions fire
+      expect(draining.length).toBeGreaterThan(0);
+
+      // Two subsequent calls must each return a distinct [] literal,
+      // proving the early-return path emits `[]` rather than `_reactionBubbles`.
+      const frameA = fsm.update(10);
+      const frameB = fsm.update(10);
+
+      expect(frameA).toHaveLength(0);
+      expect(frameB).toHaveLength(0);
+      // Different references — each call returns a new [].
+      expect(frameA).not.toBe(frameB);
+      // Neither reference is the draining array (which is itself a spread copy).
+      expect(frameA).not.toBe(draining);
+    });
+
+    it('already-fired reactions are not re-emitted on subsequent ticks', () => {
+      advanceToReacting(fsm);
+
+      // Fire the stagger-0 reaction only.
+      const first = fsm.update(1); // stateTimer = 1, npc_2 fires
+      expect(first).toHaveLength(1);
+      const firedNpcId = first[0].npcId;
+
+      // Fire the stagger-50 reaction.
+      const second = fsm.update(60); // stateTimer = 61, npc_3 fires
+      expect(second).toHaveLength(1);
+
+      // Both pending reactions are now exhausted (_pendingReactionCount === 0).
+      // Subsequent ticks must not re-emit either NPC.
+      const third = fsm.update(10);  // stateTimer = 71
+      const fourth = fsm.update(10); // stateTimer = 81
+
+      expect(third).toHaveLength(0);
+      expect(fourth).toHaveLength(0);
+
+      // Confirm the already-fired NPC does not appear in any later tick.
+      const allLaterNpcIds = [...third, ...fourth].map((b) => b.npcId);
+      expect(allLaterNpcIds).not.toContain(firedNpcId);
+    });
+  });
+
+  // --- tickReactions array-aliasing fix ---
+
+  describe('tickReactions array aliasing', () => {
+    function advanceToReacting(f: CampfireFSM): void {
+      f.update(200); // IDLE → STORY (random 0.0 < 0.35)
+      f.update(200); // STORY → REACTING
+    }
+
+    it('two consecutive tickReactions calls return different array references', () => {
+      advanceToReacting(fsm);
+      expect(fsm.getState()).toBe(CampfireState.REACTING);
+
+      // Both calls tick during REACTING before the state timer expires (< 200 ms).
+      // stateTimer is reset to 0 on enterReacting; each update adds deltaMs.
+      const first = fsm.update(10);  // stateTimer = 10
+      const second = fsm.update(10); // stateTimer = 20
+
+      expect(first).not.toBe(second);
+    });
+
+    it('first call result is not emptied when second call fires', () => {
+      advanceToReacting(fsm);
+
+      // reactionStagger = 0 for the first audience NPC, so it fires immediately.
+      // Pass stateTimer=0 for first call so the stagger-0 reaction fires.
+      const first = fsm.update(1);   // fires npc_2 (stagger 0)
+      const snapshot = [...first];   // capture length before second call
+
+      // Second call clears _reactionBubbles internally then re-populates it.
+      fsm.update(1);
+
+      // first must still reflect what it held when returned.
+      expect(first.length).toBe(snapshot.length);
+      expect(first).toEqual(snapshot);
+    });
+
+    it('first call contains the reaction bubble that was ready', () => {
+      advanceToReacting(fsm);
+
+      // stageTimer starts at 0 after enterReacting.
+      // Audience is [npc_2, npc_3] (director is npc_1).
+      // reactionStagger = 50 ms, so npc_2 fires at delay 0, npc_3 at delay 50.
+      const first = fsm.update(1); // stateTimer = 1 → only delay-0 reaction fires
+
+      expect(first).toHaveLength(1);
+      expect(first[0].category).toBe(SocialCategory.CAMPFIRE_STORY_REACT);
+      expect(first[0].text).toBe('Wow!');
+    });
+
+    it('second call contains only the newly ready reaction, independent of first', () => {
+      advanceToReacting(fsm);
+
+      const first = fsm.update(1);  // stateTimer = 1 → delay-0 fires (1 bubble)
+      const second = fsm.update(60); // stateTimer = 61 → delay-50 fires (1 bubble)
+
+      // Each array is independent.
+      expect(first).toHaveLength(1);
+      expect(second).toHaveLength(1);
+      expect(first[0].npcId).not.toBe(second[0].npcId);
+    });
+  });
 });

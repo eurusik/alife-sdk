@@ -298,8 +298,9 @@ export class PropsPass {
       if (variant === lastCarVariant) variant = (variant + 1) % 4;
       lastCarVariant = variant;
 
+      const carPropId = `prop_${propIdCounter++}`;
       props.push({
-        id: `prop_${propIdCounter++}`,
+        id: carPropId,
         type: 'car',
         textureKey: TEXTURES.car,
         frameIndex: variant,
@@ -319,7 +320,7 @@ export class PropsPass {
         width: carFp.w,
         height: carFp.h,
         source: 'prop',
-        sourceId: `prop_${propIdCounter - 1}`,
+        sourceId: carPropId,
       });
       carsPlaced++;
     }
@@ -378,7 +379,7 @@ export class PropsPass {
       });
     }
 
-    // Step 3: Grass tufts scatter (decorative, no collision)
+    // Step 4: Grass tufts scatter (decorative, no collision)
     const grassRng = rng.fork('grass');
     const grassPoints = poissonDisk(
       {
@@ -391,7 +392,9 @@ export class PropsPass {
         const tx = Math.floor(px / tileSize);
         const ty = Math.floor(py / tileSize);
         const t = typeGrid.get(tx, ty);
-        return t === TileType.GRASS_LIGHT || t === TileType.GRASS_DARK;
+        if (t !== TileType.GRASS_LIGHT && t !== TileType.GRASS_DARK) return false;
+        if (isOccupied(px, py, 8, 8)) return false;
+        return true;
       },
     );
 

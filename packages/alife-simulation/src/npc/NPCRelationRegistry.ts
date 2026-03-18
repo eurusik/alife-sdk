@@ -352,7 +352,9 @@ export class NPCRelationRegistry {
 
     for (const [k, goodwill] of this.relations) {
       if (goodwill === 0) continue;
-      const [fromId, toId] = k.split(ARROW);
+      const sep = k.indexOf(ARROW);
+      const fromId = k.slice(0, sep);
+      const toId = k.slice(sep + ARROW.length);
       result.push({ fromId, toId, goodwill });
     }
 

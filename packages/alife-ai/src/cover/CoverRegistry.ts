@@ -113,7 +113,7 @@ export class CoverRegistry {
       for (const p of this.points.values()) this._allPointsCache.push(p);
       this._allPointsDirty = false;
     }
-    return this._allPointsCache;
+    return [...this._allPointsCache];
   }
 
   // -----------------------------------------------------------------

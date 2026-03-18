@@ -64,8 +64,8 @@ describe('createDefaultNPCOnlineState', () => {
       expect(createDefaultNPCOnlineState().lastGrenadeMs).toBe(0);
     });
 
-    it('lastSupressiveFireMs defaults to 0', () => {
-      expect(createDefaultNPCOnlineState().lastSupressiveFireMs).toBe(0);
+    it('lastSuppressiveFireMs defaults to 0', () => {
+      expect(createDefaultNPCOnlineState().lastSuppressiveFireMs).toBe(0);
     });
 
     it('grenadeThrowStartMs defaults to 0', () => {
@@ -80,19 +80,6 @@ describe('createDefaultNPCOnlineState', () => {
       expect(createDefaultNPCOnlineState().woundedStartMs).toBe(0);
     });
 
-    it('psiPhaseStartMs defaults to 0', () => {
-      expect(createDefaultNPCOnlineState().psiPhaseStartMs).toBe(0);
-    });
-  });
-
-  describe('navigation fields', () => {
-    it('patrolWaypointIndex defaults to 0', () => {
-      expect(createDefaultNPCOnlineState().patrolWaypointIndex).toBe(0);
-    });
-
-    it('searchWaypointIndex defaults to 0', () => {
-      expect(createDefaultNPCOnlineState().searchWaypointIndex).toBe(0);
-    });
   });
 
   describe('loadout fields', () => {
@@ -288,7 +275,7 @@ describe('IStateConfig sub-interfaces', () => {
       expect(cfg.evadeSafeDistance).toBe(200);
       expect(cfg.woundedLastStandRange).toBe(100);
       expect(cfg.meleeRange).toBe(48);
-      expect(cfg.stalkUnclockDistance).toBe(80);
+      expect(cfg.stalkUncloakDistance).toBe(80);
       expect(cfg.restrictedZoneCheckIntervalMs).toBe(1_000);
     });
 
@@ -346,7 +333,6 @@ describe('IStateConfig sub-interfaces', () => {
       expect(cfg.patrolRadius).toBe(180);
       expect(cfg.outerRadius).toBe(350);
       expect(cfg.stalkAlphaInvisible).toBe(0.08);
-      expect(cfg.stalkAlphaShimmer).toBe(0.3);
     });
 
     it('override of IMonsterConfig field only changes that field', () => {
@@ -419,7 +405,7 @@ describe('IStateConfig sub-interfaces', () => {
   });
 
   describe('createDefaultStateConfig() returns complete IStateConfig', () => {
-    it('no-arg call returns an object with all 44 expected fields', () => {
+    it('no-arg call returns an object with all 48 expected fields', () => {
       const cfg = createDefaultStateConfig();
       // IMovementConfig (16 fields)
       const movementFields: (keyof IMovementConfig)[] = [
@@ -427,7 +413,7 @@ describe('IStateConfig sub-interfaces', () => {
         'woundedCrawlMultiplier', 'evadeSpeedMultiplier', 'chargeSpeedMultiplier',
         'stalkSpeedMultiplier', 'arriveThreshold', 'waypointArriveThreshold',
         'combatRange', 'fleeDistance', 'evadeSafeDistance', 'woundedLastStandRange',
-        'meleeRange', 'stalkUnclockDistance', 'restrictedZoneCheckIntervalMs',
+        'meleeRange', 'stalkUncloakDistance', 'restrictedZoneCheckIntervalMs',
       ];
       // ICombatConfig (8 fields)
       const combatFields: (keyof ICombatConfig)[] = [
@@ -435,12 +421,12 @@ describe('IStateConfig sub-interfaces', () => {
         'fireRateMs', 'grenadeWindupMs', 'bulletDamage', 'medkitHealRatio',
         'medkitUseDurationMs',
       ];
-      // IMonsterConfig (12 fields)
+      // IMonsterConfig (11 fields)
       const monsterFields: (keyof IMonsterConfig)[] = [
         'meleeDamage', 'chargeDamageMultiplier', 'meleeCooldownMs',
         'chargeWindupMs', 'leapWindupMs', 'leapAirtimeMs', 'psiChannelMs',
         'innerLairRadius', 'patrolRadius', 'outerRadius',
-        'stalkAlphaInvisible', 'stalkAlphaShimmer',
+        'stalkAlphaInvisible',
       ];
       // ITimingConfig (13 fields)
       const timingFields: (keyof ITimingConfig)[] = [
@@ -455,7 +441,7 @@ describe('IStateConfig sub-interfaces', () => {
         expect(cfg, `field ${field} should be defined`).toHaveProperty(field);
         expect(typeof (cfg as Record<string, unknown>)[field], `field ${field} should be number`).toBe('number');
       }
-      expect(allFields).toHaveLength(49);
+      expect(allFields).toHaveLength(48);
     });
 
     it('overrides a single field and all others keep their defaults', () => {

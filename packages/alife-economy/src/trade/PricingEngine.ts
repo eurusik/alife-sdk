@@ -68,18 +68,20 @@ export function calculateBuyPrice(
  * No ally bonus on sell — flat markup regardless of relation.
  *
  * @param basePrice - Item's base price.
+ * @param factionRelation - Relation value [-100, 100]. Passed to modifier for relation-aware adjustments.
  * @param config - Trade configuration.
  * @param modifier - Optional price modifier (quest bonuses, surge penalties, etc.).
  * @returns Integer sell price, minimum 1.
  */
 export function calculateSellPrice(
   basePrice: number,
+  factionRelation: number,
   config: ITradeConfig,
   modifier?: IPriceModifier,
 ): number {
   let price = Math.round(basePrice * config.sellPriceMultiplier);
   if (modifier) {
-    price = Math.round(modifier(price, { basePrice, factionRelation: 0 }));
+    price = Math.round(modifier(price, { basePrice, factionRelation }));
   }
   return Math.max(1, price);
 }

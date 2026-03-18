@@ -853,7 +853,7 @@ describe('StalkState', () => {
     it('moves toward enemy during approach (far away)', () => {
       const ctx = makeMockCtx({
         x: 0, y: 0,
-        enemies: [makeVisibleEnemy('enemy-1', 300, 0)], // far > stalkUnclockDistance (80)
+        enemies: [makeVisibleEnemy('enemy-1', 300, 0)], // far > stalkUncloakDistance (80)
         hasEnemy: true,
       });
       handler.enter(ctx);
@@ -878,8 +878,8 @@ describe('StalkState', () => {
       expect(Math.abs(vx)).toBeCloseTo(stalkSpeed, 0);
     });
 
-    it('sets approaching flag when within stalkUnclockDistance', () => {
-      const dist = cfg.stalkUnclockDistance - 1; // just inside threshold
+    it('sets approaching flag when within stalkUncloakDistance', () => {
+      const dist = cfg.stalkUncloakDistance - 1; // just inside threshold
       const ctx = makeMockCtx({
         x: 0, y: 0,
         enemies: [makeVisibleEnemy('enemy-1', dist, 0)],

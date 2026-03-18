@@ -18,12 +18,25 @@ export type WorldStateValue = boolean | number | string;
 
 export class WorldState {
   private readonly properties = new Map<string, WorldStateValue>();
+  private _frozen = false;
 
   // -----------------------------------------------------------------------
   // Mutators
   // -----------------------------------------------------------------------
 
+  /**
+   * Prevent further set() calls on this instance.
+   * Call once after all properties have been initialised.
+   * Subsequent set() calls will throw a TypeError.
+   */
+  freeze(): void {
+    this._frozen = true;
+  }
+
   set(key: string, value: WorldStateValue): void {
+    if (this._frozen) {
+      throw new TypeError(`WorldState is frozen — cannot set "${key}"`);
+    }
     this.properties.set(key, value);
   }
 

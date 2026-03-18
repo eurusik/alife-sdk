@@ -68,7 +68,7 @@ export interface IMovementConfig {
   meleeRange: number;
 
   /** Distance at which a bloodsucker uncloaks for the melee strike (px). */
-  stalkUnclockDistance: number;
+  stalkUncloakDistance: number;
 
   /** Interval (ms) between restricted-zone position checks. */
   restrictedZoneCheckIntervalMs: number;
@@ -126,7 +126,7 @@ export interface ICombatConfig {
   /** Fraction of max HP restored by a single medkit use. */
   medkitHealRatio: number;
 
-  /** Duration (ms) of the medkit use animation before the heal is applied. */
+  /** Minimum cooldown (ms) between successive medkit uses. */
   medkitUseDurationMs: number;
 
   /**
@@ -143,6 +143,13 @@ export interface ICombatConfig {
    * @default 80
    */
   killWoundedExecuteRange: number;
+
+  /**
+   * Minimum interval (ms) between successive cover-seek transitions in CombatState.
+   * Prevents ping-pong between COMBAT and TakeCoverState on consecutive frames.
+   * @default 3000
+   */
+  coverSeekCooldownMs: number;
 }
 
 /**
@@ -176,6 +183,14 @@ export interface IMonsterConfig {
   /** Wind-up phase duration (ms) before boar starts charging. */
   chargeWindupMs: number;
 
+  /**
+   * Maximum time (ms) the boar may spend in the CHARGING phase before the
+   * charge is aborted.  Prevents infinite charges when the locked target is
+   * unreachable (e.g. blocked by a wall).
+   * @default 3000
+   */
+  chargeTimeoutMs: number;
+
   /** Wind-up phase duration (ms) before a snork leaps. */
   leapWindupMs: number;
 
@@ -204,9 +219,6 @@ export interface IMonsterConfig {
 
   /** Alpha while fully invisible during stalk approach. */
   stalkAlphaInvisible: number;
-
-  /** Alpha shimmer while moving during stalk approach. */
-  stalkAlphaShimmer: number;
 }
 
 /**
@@ -333,6 +345,14 @@ export interface ITimingConfig {
   killWoundedPauseMs: number;
 
   /**
+   * How long (ms) the NPC sprints away from a grenade before checking whether
+   * to return to COMBAT or SEARCH.  Long enough to clear a typical blast radius
+   * at sprint speed.
+   * @default 2000
+   */
+  evadeGrenadeDurationMs: number;
+
+  /**
    * Minimum interval (ms) between outgoing pack broadcasts from MonsterCombatController.
    * Prevents saturating the host's pack record with per-frame writes.
    * @default 500
@@ -428,7 +448,7 @@ export function createDefaultStateConfig(
     evadeSafeDistance: 200,
     woundedLastStandRange: 100,
     meleeRange: 48,
-    stalkUnclockDistance: 80,
+    stalkUncloakDistance: 80,
     restrictedZoneCheckIntervalMs: 1_000,
 
     // -----------------------------------------------------------------------
@@ -446,6 +466,7 @@ export function createDefaultStateConfig(
     medkitUseDurationMs: 3_000,
     killWoundedEnemyHpThreshold: 0.25,
     killWoundedExecuteRange: 80,
+    coverSeekCooldownMs: 3_000,
 
     // -----------------------------------------------------------------------
     // IMonsterConfig
@@ -455,6 +476,7 @@ export function createDefaultStateConfig(
     meleeCooldownMs: 1_000,
 
     chargeWindupMs: 600,
+    chargeTimeoutMs: 3_000,
     leapWindupMs: 400,
     leapAirtimeMs: 350,
     psiChannelMs: 2_000,
@@ -464,7 +486,6 @@ export function createDefaultStateConfig(
     outerRadius: 350,
 
     stalkAlphaInvisible: 0.08,
-    stalkAlphaShimmer: 0.3,
 
     // -----------------------------------------------------------------------
     // ITimingConfig
@@ -491,6 +512,7 @@ export function createDefaultStateConfig(
     killWoundedTauntMs: 1_200,
     killWoundedBurstCount: 3,
     killWoundedPauseMs: 1_000,
+    evadeGrenadeDurationMs: 2_000,
     packAlertIntervalMs: 500,
     packAlertTtlMs: 5_000,
 

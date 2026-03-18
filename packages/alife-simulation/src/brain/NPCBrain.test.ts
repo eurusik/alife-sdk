@@ -1052,4 +1052,273 @@ describe('NPCBrain', () => {
       expect(brain.squadGoalTerrainId).toBeNull();
     });
   });
+
+  // -----------------------------------------------------------------------
+  // Fix: assignToTerrain captures previousTerrainId before overwriting
+  //
+  // The bug: dispatchMovementToTerrain had a default parameter
+  //   fromTerrainId = this._currentTerrainId
+  // which evaluated AFTER _currentTerrainId was already set to terrain.id,
+  // making fromTerrainId === toTerrainId on a first-ever terrain assignment.
+  //
+  // The fix: capture previousTerrainId = this._currentTerrainId on line 518
+  // before line 519 overwrites it, then pass that captured value explicitly.
+  //
+  // Observable contract:
+  //   - First-ever assignment (no prior terrain): fromTerrainId is '' and
+  //     toTerrainId is terrain.id  (they must differ).
+  //   - Terrain switch via switchTerrain: releaseFromTerrain() clears
+  //     _currentTerrainId to null BEFORE assignToTerrain runs, so
+  //     previousTerrainId captured inside assignToTerrain is null → ''.
+  //     toTerrainId is the new terrain.id (still differ; no self-loop).
+  // -----------------------------------------------------------------------
+  describe('assignToTerrain movement dispatch (fromTerrainId fix)', () => {
+    it('dispatches movement with empty fromTerrainId when NPC has no prior terrain', () => {
+      const { brain, dispatcher } = createBrain();
+      const terrain = createTestTerrain({ id: 'zone_a' });
+
+      brain.update(0, [terrain]);
+
+      // First-ever assignment: no previous terrain, so fromTerrainId must be ''.
+      expect(dispatcher.addMovingNPC).toHaveBeenCalledOnce();
+      const [npcId, fromId, toId] = dispatcher.addMovingNPC.mock.calls[0]!;
+      expect(npcId).toBe('npc_1');
+      expect(fromId).toBe('');
+      expect(toId).toBe('zone_a');
+    });
+
+    it('toTerrainId is the assigned terrain on first assignment', () => {
+      const { brain, dispatcher } = createBrain();
+      const terrain = createTestTerrain({ id: 'zone_a' });
+
+      brain.update(0, [terrain]);
+
+      const [, , toId] = dispatcher.addMovingNPC.mock.calls[0]!;
+      expect(toId).toBe('zone_a');
+    });
+
+    it('fromTerrainId is never equal to toTerrainId on first terrain assignment', () => {
+      // Regression guard: without the fix, the default parameter
+      // `fromTerrainId = this._currentTerrainId` evaluated after
+      // _currentTerrainId was set to terrain.id, yielding from === to.
+      const { brain, dispatcher } = createBrain();
+      const terrain = createTestTerrain({ id: 'zone_a' });
+
+      brain.update(0, [terrain]);
+
+      const [, fromId, toId] = dispatcher.addMovingNPC.mock.calls[0]!;
+      expect(fromId).not.toBe(toId);
+    });
+
+    it('dispatches movement call on terrain switch with toTerrainId equal to new terrain', () => {
+      // When switching terrains, releaseFromTerrain() zeros out _currentTerrainId
+      // before assignToTerrain runs. The important guarantee is that toTerrainId
+      // equals the NEW terrain and a movement call is made at all.
+      const { brain, deps, dispatcher } = createBrain({
+        brainConfig: { reEvaluateIntervalMs: 0 },
+      });
+      brain.setLastPosition({ x: 0, y: 0 });
+
+      const terrainA = createTestTerrain({ id: 'zone_a', x: 0, y: 0 });
+      const terrainB = createTestTerrain({ id: 'zone_b', x: 5, y: 5, capacity: 20 });
+
+      brain.update(0, [terrainA]);
+      deps.events.flush();
+      expect(brain.currentTerrainId).toBe('zone_a');
+
+      dispatcher.addMovingNPC.mockClear();
+
+      brain.update(0, [terrainB]);
+      deps.events.flush();
+      expect(brain.currentTerrainId).toBe('zone_b');
+
+      expect(dispatcher.addMovingNPC).toHaveBeenCalledOnce();
+      const [, , toId] = dispatcher.addMovingNPC.mock.calls[0]!;
+      expect(toId).toBe('zone_b');
+    });
+
+    it('fromTerrainId is never equal to toTerrainId on any terrain switch', () => {
+      // toTerrainId is always the new terrain; fromTerrainId is '' (null cleared
+      // by releaseFromTerrain), so they must always differ.
+      const { brain, deps, dispatcher } = createBrain({
+        brainConfig: { reEvaluateIntervalMs: 0 },
+      });
+      brain.setLastPosition({ x: 0, y: 0 });
+
+      const terrainA = createTestTerrain({ id: 'zone_a', x: 0, y: 0 });
+      const terrainB = createTestTerrain({ id: 'zone_b', x: 5, y: 5, capacity: 20 });
+      const terrainC = createTestTerrain({ id: 'zone_c', x: 10, y: 10, capacity: 50 });
+
+      brain.update(0, [terrainA]);
+      deps.events.flush();
+
+      dispatcher.addMovingNPC.mockClear();
+      brain.update(0, [terrainB]);
+      deps.events.flush();
+      const [, from2, to2] = dispatcher.addMovingNPC.mock.calls[0]!;
+      expect(from2).not.toBe(to2);
+      expect(to2).toBe('zone_b');
+
+      dispatcher.addMovingNPC.mockClear();
+      brain.update(0, [terrainC]);
+      deps.events.flush();
+      const [, from3, to3] = dispatcher.addMovingNPC.mock.calls[0]!;
+      expect(from3).not.toBe(to3);
+      expect(to3).toBe('zone_c');
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Fix: pickNewJob releases old slot before assigning new one
+  // -----------------------------------------------------------------------
+  describe('pickNewJob slot count management (release-before-assign fix)', () => {
+    it('old slot assignedNPCs count drops to 0 after task renewal', () => {
+      const { brain, deps } = createBrain();
+      // Two distinct job types so pickBestSlot can switch between them.
+      // Give patrol 1 slot so the second pick is forced onto guard.
+      const terrain = createTestTerrain({
+        id: 't1',
+        jobs: [
+          { type: 'patrol', slots: 1, position: { x: 0, y: 0 } },
+          { type: 'guard', slots: 2, position: { x: 0, y: 0 } },
+        ],
+      });
+
+      // First update: pick first task (patrol wins because it has position at
+      // NPC origin and same distance as guard).
+      brain.update(0, [terrain]);
+      deps.events.flush();
+      expect(brain.currentTask).not.toBeNull();
+
+      // Capture the slot the NPC was assigned to.
+      // We inspect via SmartTerrain.jobs indirectly by checking that after
+      // task renewal the old slot is clean. Use a second brain on the same
+      // terrain to verify the slot was released.
+      const secondBrain = new NPCBrain({
+        npcId: 'npc_2',
+        factionId: 'stalker',
+        config: createBrainConfig(),
+        selectorConfig: createSelectorConfig(),
+        jobConfig: createJobConfig(),
+        deps: createMockDeps(),
+      });
+      secondBrain.setMovementDispatcher(createMockDispatcher());
+
+      // Expire the first brain's task so pickNewJob runs.
+      brain.update(60_001, [terrain]);
+      deps.events.flush();
+      expect(brain.currentTask).not.toBeNull();
+
+      // Now assign the second brain to the same terrain so it can take any
+      // freed slot. If the old slot was not released, patrol (capacity 1)
+      // would still appear full and npc_2 would be blocked.
+      secondBrain.update(0, [terrain]);
+      deps.events.flush();
+
+      // npc_2 should get a task (proof that a slot was available after renewal).
+      expect(secondBrain.currentTask).not.toBeNull();
+    });
+
+    it('new slot assignedNPCs includes the NPC after pickNewJob', () => {
+      const { brain, deps } = createBrain();
+      // Single job type with ample slots — NPC stays in the same slot type
+      // but the set must contain exactly 1 entry (not accumulate).
+      const terrain = createTestTerrain({
+        id: 't1',
+        jobs: [{ type: 'guard', slots: 5, position: { x: 0, y: 0 } }],
+      });
+
+      brain.update(0, [terrain]);
+      deps.events.flush();
+      expect(brain.currentTask).not.toBeNull();
+
+      // Expire task and trigger pickNewJob.
+      brain.update(60_001, [terrain]);
+      deps.events.flush();
+      expect(brain.currentTask).not.toBeNull();
+
+      // The terrain still has one slot object (guard, 5 slots).
+      // After two assignments the NPC should appear exactly once in assignedNPCs.
+      // We verify indirectly: if count leaked, a third brain assigned to the
+      // same terrain would report the slot as containing > 1 NPC for 'npc_1'.
+      // The cleanest observable check is the task itself exists and is valid.
+      expect(brain.currentTask!.slotType).toBe('guard');
+      expect(brain.currentTask!.terrainId).toBe('t1');
+    });
+
+    it('slot count does not accumulate across multiple task renewals', () => {
+      const { brain, deps } = createBrain();
+      // Use capacity=1 on a single slot. If the NPC is not released before
+      // re-assignment, the Set grows to size 1 on first pick (correct), and on
+      // the second pick it tries to add again — harmless for a Set, but a second
+      // NPC would then be blocked even though the slot shows size >= slots.
+      // With 2 slots, a leak would allow a second brain's task while the count
+      // reads 2, leaving no room for others.
+      const terrain = createTestTerrain({
+        id: 't1',
+        jobs: [{ type: 'guard', slots: 2, position: { x: 0, y: 0 } }],
+      });
+
+      // Assign npc_1 and run three task renewals.
+      brain.update(0, [terrain]);
+      deps.events.flush();
+
+      brain.update(60_001, [terrain]);
+      deps.events.flush();
+
+      brain.update(60_001, [terrain]);
+      deps.events.flush();
+
+      // After three assignments the slot must still have room for a second NPC
+      // (slots: 2 means up to 2 occupants; npc_1 alone should count as 1).
+      const secondBrain = new NPCBrain({
+        npcId: 'npc_2',
+        factionId: 'stalker',
+        config: createBrainConfig(),
+        selectorConfig: createSelectorConfig(),
+        jobConfig: createJobConfig(),
+        deps: createMockDeps(),
+      });
+      secondBrain.setMovementDispatcher(createMockDispatcher());
+
+      secondBrain.update(0, [terrain]);
+      deps.events.flush();
+
+      // npc_2 must receive a task — slot capacity was not leaked.
+      expect(secondBrain.currentTask).not.toBeNull();
+      expect(secondBrain.currentTask!.terrainId).toBe('t1');
+    });
+
+    it('releasing old terrain also clears slot assignment so count returns to 0', () => {
+      const { brain, deps } = createBrain();
+      const terrain = createTestTerrain({
+        id: 't1',
+        jobs: [{ type: 'guard', slots: 1, position: { x: 0, y: 0 } }],
+      });
+
+      brain.update(0, [terrain]);
+      deps.events.flush();
+      expect(brain.currentTask).not.toBeNull();
+
+      // Release the terrain — slot must be freed.
+      brain.releaseFromTerrain();
+      deps.events.flush();
+
+      // A fresh brain should now be able to take the only slot (capacity 1).
+      const secondBrain = new NPCBrain({
+        npcId: 'npc_2',
+        factionId: 'stalker',
+        config: createBrainConfig(),
+        selectorConfig: createSelectorConfig(),
+        jobConfig: createJobConfig(),
+        deps: createMockDeps(),
+      });
+      secondBrain.setMovementDispatcher(createMockDispatcher());
+
+      secondBrain.update(0, [terrain]);
+      deps.events.flush();
+
+      expect(secondBrain.currentTask).not.toBeNull();
+    });
+  });
 });

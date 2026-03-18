@@ -45,9 +45,10 @@ export class ContentPool {
 
     const prev = this.cursors.get(key) ?? -1;
     let idx: number;
+    let attempts = 0;
     do {
       idx = Math.floor(this.random.next() * pool.length);
-    } while (idx === prev);
+    } while (idx === prev && ++attempts < 10);
 
     this.cursors.set(key, idx);
     return pool[idx];

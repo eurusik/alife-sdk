@@ -175,6 +175,8 @@ describe('Wounded + Morale Cascade (integration)', () => {
       host.state.medkitCount = 1;
       host.state.lastKnownEnemyX = 200;
       host.state.lastKnownEnemyY = 100;
+      // Pre-set lastMedkitMs so the cooldown (medkitUseDurationMs=3000ms) is already elapsed.
+      host.state.lastMedkitMs = -cfg.medkitUseDurationMs;
 
       const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
 
@@ -205,6 +207,8 @@ describe('Wounded + Morale Cascade (integration)', () => {
       host.state.medkitCount = 1;
       host.state.lastKnownEnemyX = 200;
       host.state.lastKnownEnemyY = 100;
+      // Pre-set lastMedkitMs so the cooldown is already elapsed.
+      host.state.lastMedkitMs = -customCfg.medkitUseDurationMs;
 
       const driver = new OnlineAIDriver(host, customHandlers, ONLINE_STATE.WOUNDED);
       tick(host, driver, 16);

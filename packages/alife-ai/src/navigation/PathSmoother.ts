@@ -1,6 +1,6 @@
 // navigation/PathSmoother.ts
 // Immutable path smoothing pipeline using CatmullRom splines.
-// Pure functions + LRU cache — no framework dependencies.
+// Pure functions + FIFO cache — no framework dependencies.
 
 import type { Vec2, IRandom } from '@alife-sdk/core';
 import { catmullRom } from '@alife-sdk/core';
@@ -188,7 +188,10 @@ export function smoothPathWithTurning(
     const endAngle = Math.atan2(c.y - cy, c.x - cx);
 
     // Signed sweep from startAngle to endAngle — same formula for both turn directions.
-    const sweep = endAngle - startAngle;
+    // Wrap to [-π, π] so the arc always takes the short path across the ±π boundary.
+    let sweep = endAngle - startAngle;
+    if (sweep > Math.PI) sweep -= 2 * Math.PI;
+    if (sweep < -Math.PI) sweep += 2 * Math.PI;
 
     for (let s = 1; s <= ARC_SUBDIVISIONS; s++) {
       const t = s / (ARC_SUBDIVISIONS + 1);

@@ -131,6 +131,7 @@ export class SquadManager {
       squad.removeMember(npcId);
 
       if (squad.getMemberCount() === 0) {
+        squad.destroy();
         this.squads.delete(squadId);
         this.events.emit(ALifeEvents.SQUAD_DISBANDED, { squadId });
       }
@@ -200,6 +201,7 @@ export class SquadManager {
     this.npcToSquad.delete(npcId);
 
     if (squad.getMemberCount() === 0) {
+      squad.destroy();
       this.squads.delete(squad.id);
       this.events.emit(ALifeEvents.SQUAD_DISBANDED, { squadId: squad.id });
     }

@@ -18,7 +18,7 @@ import { createDefaultTransitionMap } from '../IStateTransitionMap';
 import type { IStateTransitionMap } from '../IStateTransitionMap';
 import { moveToward } from './_utils';
 
-// Internal flag stored in ctx.state.psiPhaseStartMs repurposed as the
+// Internal flag stored in ctx.state.evadeStartMs repurposed as the
 // reaction-pending timer timestamp. We use a sentinel value of 0 for "none".
 const NO_PENDING_REACTION = 0;
 
@@ -91,10 +91,10 @@ export class CampState implements IOnlineStateHandler {
 
       const safe = ctx.restrictedZones.filterAccessible(candidates);
       if (safe.length > 0) {
-        const dest = safe[0];
-        ctx.state.lastKnownEnemyX = dest.x;
-        ctx.state.lastKnownEnemyY = dest.y;
-        moveToward(ctx, dest.x, dest.y, this.cfg.approachSpeed);
+        // Walk toward the safe exit without touching lastKnownEnemyX/Y —
+        // writing those fields would broadcast a false enemy position to pack
+        // members (same fix as IdleState).
+        moveToward(ctx, safe[0].x, safe[0].y, this.cfg.approachSpeed);
       }
 
       ctx.transition(this.tr.campOnDanger);

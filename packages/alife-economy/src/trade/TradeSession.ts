@@ -143,7 +143,7 @@ export function executeSell(ctx: ITradeContext): ITradeOutcome {
     };
   }
 
-  const price = calculateSellPrice(basePrice, config);
+  const price = calculateSellPrice(basePrice, factionRelation, config);
   if (trader.money < price) {
     return {
       receipt: { result: TradeResult.TRADER_INSUFFICIENT_FUNDS, itemId, quantity: 1, totalPrice: price },

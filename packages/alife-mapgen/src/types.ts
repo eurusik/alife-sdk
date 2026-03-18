@@ -159,7 +159,8 @@ export type PropType =
   | 'manhole'
   | 'trash_bags'
   | 'wall_ruin'
-  | 'truck';
+  | 'truck'
+  | 'building';
 
 export interface PropPlacement {
   id: string;
