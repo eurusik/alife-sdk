@@ -12,7 +12,15 @@
 
 import type { IOnlineStateHandler } from '../states/IOnlineStateHandler';
 import type { INPCContext } from '../states/INPCContext';
-import type { GOAPPlanner, WorldState } from '@alife-sdk/core';
+import type { WorldState } from '@alife-sdk/core';
+
+/**
+ * Minimal planner interface — accepts any object with a `plan()` method.
+ * This allows passing a GOAPPlanner instance, a dynamic wrapper, or a mock.
+ */
+export interface IGOAPPlannerLike {
+  plan(worldState: WorldState, goal: WorldState): Array<{ id: string }> | null;
+}
 
 /**
  * Handler for a single GOAP action execution.
@@ -86,7 +94,7 @@ const GOAP_EMPTY_COUNT_KEY = '__goapEmptyCount';
  */
 export class GOAPDirector implements IOnlineStateHandler {
   constructor(
-    private readonly planner: GOAPPlanner,
+    private readonly planner: IGOAPPlannerLike,
     private readonly config: IGOAPDirectorConfig,
   ) {}
 

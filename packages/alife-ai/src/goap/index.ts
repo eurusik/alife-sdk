@@ -8,4 +8,4 @@ export type { IGOAPUpdateResult, IGOAPControllerState } from './GOAPController';
 export type { IHazardZoneAccess } from './IHazardZoneAccess';
 export { EvadeHazardAction } from './EvadeHazardAction';
 export { GOAPDirector } from './GOAPDirector';
-export type { IGOAPDirectorConfig, IGOAPActionHandler, IGOAPInterrupt } from './GOAPDirector';
+export type { IGOAPDirectorConfig, IGOAPActionHandler, IGOAPInterrupt, IGOAPPlannerLike } from './GOAPDirector';

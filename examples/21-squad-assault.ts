@@ -1,5 +1,5 @@
 /**
- * 21-squad-assault.ts — 2v2 squad tactical combat with GOAP Director, A* pathfinding,
+ * 21-squad-assault.ts — 2v2 squad tactical combat with SDK GOAPDirector, A* pathfinding,
  * MemoryBank, personality-driven GOAP costs, threat mapping, and squad comms.
  *
  * Run: npx tsx --tsconfig examples/tsconfig.json examples/21-squad-assault.ts
@@ -17,8 +17,8 @@ import type {
   ISquadAccess,
   IShootPayload,
   IMeleeHitPayload,
-  IOnlineStateHandler,
   INPCContext,
+  IPathfindingAccess,
 } from '@alife-sdk/ai/states';
 import {
   OnlineAIDriver,
@@ -28,6 +28,15 @@ import {
   ONLINE_STATE,
 } from '@alife-sdk/ai/states';
 
+import { GOAPDirector } from '@alife-sdk/ai/goap';
+
+/** Local alias — avoids cascading `any` if the barrel .d.ts is stale. */
+interface IGOAPActionHandler {
+  enter(ctx: INPCContext): void;
+  update(ctx: INPCContext, deltaMs: number): 'running' | 'success' | 'failure';
+  exit(ctx: INPCContext): void;
+}
+
 import {
   SquadSharedTargetTable,
   evaluateSituation,
@@ -36,7 +45,6 @@ import type { ISquadSituation } from '@alife-sdk/ai/squad';
 import type { ISquadTacticsConfig } from '@alife-sdk/ai/types';
 
 import { GOAPPlanner, WorldState, DangerManager, DangerType, MemoryBank, MemoryChannel } from '@alife-sdk/core/ai';
-// GOAPActionDef used indirectly via ACTION_TEMPLATES
 import { SeededRandom } from '@alife-sdk/core';
 
 import PF from 'pathfinding';
@@ -70,27 +78,17 @@ function buildMatrix(): number[][] {
   };
 
   // --- Top half ---
-  // Left side walls (cols 4-8)
   wall(4, 2, 8, 4);
   wall(4, 7, 8, 9);
-
-  // Right side walls (cols 24-28)
   wall(24, 2, 28, 4);
   wall(24, 7, 28, 9);
-
-  // Center walls (cols 13-18)
   wall(13, 4, 18, 7);
 
   // --- Bottom half (mirror) ---
-  // Left side walls
   wall(4, 12, 8, 14);
   wall(4, 17, 8, 18);
-
-  // Right side walls
   wall(24, 12, 28, 14);
   wall(24, 17, 28, 18);
-
-  // Center walls
   wall(13, 14, 18, 17);
 
   return m;
@@ -121,9 +119,7 @@ function findPath(
   const c1 = toTile(toX,   COLS);
   const r1 = toTile(toY,   ROWS);
 
-  // PF.Grid mutates during findPath — must clone each call
   const raw = finder.findPath(c0, r0, c1, r1, pfGrid.clone());
-  // Convert tile coords to pixel centers
   return raw.map(([c, r]) => ({ x: c * TILE + TILE / 2, y: r * TILE + TILE / 2 }));
 }
 
@@ -132,7 +128,7 @@ function describeRoute(path: { x: number; y: number }[]): string {
   if (path.length < 2) return 'direct';
   const minY = Math.min(...path.map(p => p.y));
   const maxY = Math.max(...path.map(p => p.y));
-  const midY = H / 2; // 160
+  const midY = H / 2;
   if (minY < midY - 40 && maxY < midY + 40) return 'routing north around center wall';
   if (maxY > midY + 40 && minY > midY - 40) return 'routing south around center wall';
   if (minY < midY - 40) return 'routing north';
@@ -153,27 +149,25 @@ function hashCode(str: string): number {
 }
 
 // ---------------------------------------------------------------------------
-// [IMPROVEMENT 2] Personality system — GOAP cost modifiers per archetype
+// Personality system — GOAP cost modifiers per archetype
 // ---------------------------------------------------------------------------
 
 type Personality = 'aggressive' | 'cautious' | 'balanced' | 'flanker';
 
-/** Cost delta per action per personality. Positive = more expensive, negative = cheaper. */
 const PERSONALITY_COSTS: Record<Personality, Partial<Record<string, number>>> = {
   aggressive: { TakeCover: +2, RushAttack: -3, Flank: -1, Suppress: +1, Attack: -1 },
   cautious:   { TakeCover: -1, Suppress: -1, RushAttack: +3, Flank: +2, CoverAlly: -1 },
-  balanced:   {},  // no modifications
+  balanced:   {},
   flanker:    { Flank: -2, FlankAttack: -1, TakeCover: +1, Suppress: +2, Pursue: -1 },
 };
 
 // ---------------------------------------------------------------------------
-// [IMPROVEMENT 3] Threat mapping — track dangerous tiles
+// Threat mapping — track dangerous tiles
 // ---------------------------------------------------------------------------
 
-/** Tile-key -> threat level [0..1]. Decays each tick. */
 const threatMap = new Map<string, number>();
-const THREAT_DECAY_RATE = 0.002; // per tick (800 ticks ~ 0 -> 1.6 total decay)
-const THREAT_RADIUS = 2;        // tiles around the event
+const THREAT_DECAY_RATE = 0.002;
+const THREAT_RADIUS = 2;
 
 function recordThreat(worldX: number, worldY: number, level: number): void {
   const cx = toTile(worldX, COLS);
@@ -203,7 +197,6 @@ function decayThreats(): void {
   }
 }
 
-/** Check if an NPC is standing on a high-threat tile. */
 function isInDangerousArea(worldX: number, worldY: number): boolean {
   const tx = toTile(worldX, COLS);
   const ty = toTile(worldY, ROWS);
@@ -221,7 +214,6 @@ function findPathThreatAware(
   const r1 = toTile(toY,   ROWS);
 
   const grid = pfGrid.clone();
-  // Block high-threat tiles (but never block start/end)
   for (const [key, threat] of threatMap) {
     if (threat > 0.5) {
       const [tx, ty] = key.split(',').map(Number);
@@ -231,7 +223,6 @@ function findPathThreatAware(
   }
 
   const raw = finder.findPath(c0, r0, c1, r1, grid);
-  // Fallback to normal path if threat-aware path fails
   if (raw.length === 0) {
     return findPath(fromX, fromY, toX, toY);
   }
@@ -239,7 +230,7 @@ function findPathThreatAware(
 }
 
 // ---------------------------------------------------------------------------
-// [IMPROVEMENT 4] Communication protocol — squad-mate broadcasts
+// Communication protocol — squad-mate broadcasts
 // ---------------------------------------------------------------------------
 
 interface SquadComm {
@@ -249,14 +240,13 @@ interface SquadComm {
 }
 
 const squadComms: SquadComm[] = [];
-const MAX_COMM_AGE = 120; // ticks — messages older than this are pruned
+const MAX_COMM_AGE = 120;
 
 function broadcast(from: string, type: SquadComm['type'], tick: number): void {
   squadComms.push({ from, type, tick });
   console.log(`  [COMMS ${from}] "${type}"`);
 }
 
-/** Get the most recent comm from this NPC's squad mate. */
 function getLatestCommFromMate(npcId: string, currentTick: number): SquadComm | null {
   const pairs: Record<string, string> = {
     alpha_lead: 'alpha_flank', alpha_flank: 'alpha_lead',
@@ -274,19 +264,56 @@ function getLatestCommFromMate(npcId: string, currentTick: number): SquadComm | 
   return null;
 }
 
-function pruneOldComms(currentTick: number): void {
-  while (squadComms.length > 0 && (currentTick - squadComms[0].tick) >= MAX_COMM_AGE) {
+function pruneOldComms(tick: number): void {
+  while (squadComms.length > 0 && (tick - squadComms[0].tick) >= MAX_COMM_AGE) {
     squadComms.shift();
   }
 }
 
 // ---------------------------------------------------------------------------
-// PathfindingNPCHost — IOnlineDriverHost with A* navigation + GOAP state
+// GridPathfinding — IPathfindingAccess backed by A* + threat-awareness
+// ---------------------------------------------------------------------------
+
+class GridPathfinding implements IPathfindingAccess {
+  private _path: { x: number; y: number }[] = [];
+  private _cursor = 0;
+
+  constructor(private _host: { x: number; y: number }) {}
+
+  findPath(targetX: number, targetY: number): ReadonlyArray<{ x: number; y: number }> | null {
+    const rawPath = findPathThreatAware(this._host.x, this._host.y, targetX, targetY);
+    this._path = rawPath;
+    this._cursor = rawPath.length > 0 ? 1 : 0; // skip start cell
+    return rawPath.length > 0 ? rawPath : null;
+  }
+
+  getNextWaypoint(): { x: number; y: number } | null {
+    if (this._cursor >= this._path.length) return null;
+    const wp = this._path[this._cursor];
+    const dx = this._host.x - wp.x;
+    const dy = this._host.y - wp.y;
+    if (dx * dx + dy * dy < 16 * 16) this._cursor++;
+    return this._cursor < this._path.length ? this._path[this._cursor] : null;
+  }
+
+  setPath(waypoints: ReadonlyArray<{ x: number; y: number }>): void {
+    this._path = [...waypoints];
+    this._cursor = 0;
+  }
+
+  isNavigating(): boolean { return this._cursor < this._path.length; }
+
+  clearPath(): void { this._path = []; this._cursor = 0; }
+}
+
+// ---------------------------------------------------------------------------
+// PathfindingNPCHost — IOnlineDriverHost with A* navigation
 // ---------------------------------------------------------------------------
 
 class PathfindingNPCHost implements IOnlineDriverHost {
   readonly state = createDefaultNPCOnlineState();
   readonly perception = new NPCPerception();
+  readonly pathfinding: GridPathfinding;
 
   readonly npcId: string;
   readonly factionId: string;
@@ -310,37 +337,26 @@ class PathfindingNPCHost implements IOnlineDriverHost {
   private _maxHp = 100;
   private _nowMs = 0;
   private readonly _rng: SeededRandom;
+  private _moveSpeed = 120;
 
-  // --- Pathfinding state ---
-  private _path: { x: number; y: number }[] = [];
-  private _pathIdx = 0;
-  private _moveSpeed = 120; // px per second
-
-  // --- GOAP execution state (per-NPC, NOT in INPCOnlineState) ---
-  goapPlan: Array<{ id: string }> | null = null;
-  goapActionIndex = 0;
-  goapSuppressShotsFired = 0;
-  goapFlankTarget: { x: number; y: number } | null = null;
-  goapCoverTarget: { x: number; y: number } | null = null;
-
-  // --- [IMPROVEMENT 5] Resource awareness — ammo + reload ---
-  ammo = 12;             // limited magazine — forces tactical reloads
+  // Resource awareness
+  ammo = 12;
   maxAmmo = 12;
   isReloading = false;
   reloadStartMs = 0;
-  reloadDurationMs = 2000;  // 2 seconds to reload
+  reloadDurationMs = 2000;
   totalKills = 0;
 
-  // --- [IMPROVEMENT 6] Anticipation — track enemy velocity ---
+  // Anticipation — track enemy velocity
   lastEnemyX = 0;
   lastEnemyY = 0;
-  enemyVx = 0;           // enemy velocity px/s (estimated)
+  enemyVx = 0;
   enemyVy = 0;
 
-  // --- [IMPROVEMENT 1] MemoryBank — per-NPC episodic memory ---
+  // MemoryBank — per-NPC episodic memory
   readonly memory: MemoryBank;
 
-  // --- [IMPROVEMENT 2] Personality — modifies GOAP action costs ---
+  // Personality — modifies GOAP action costs
   readonly personality: Personality;
 
   constructor(id: string, faction: string, type: string, x: number, y: number, personality: Personality = 'balanced') {
@@ -351,13 +367,14 @@ class PathfindingNPCHost implements IOnlineDriverHost {
     this.y          = y;
     this._rng       = new SeededRandom(hashCode(id));
     this.personality = personality;
+    this.pathfinding = new GridPathfinding(this);
     this.memory     = new MemoryBank({
       timeFn: () => this._nowMs / 1000,
       maxRecords: 10,
       channelDecayRates: {
-        [MemoryChannel.VISUAL]: 0.08,  // visual memory ~12s
-        [MemoryChannel.SOUND]:  0.15,  // sound memory ~6s
-        [MemoryChannel.HIT]:    0.03,  // hit memory ~30s
+        [MemoryChannel.VISUAL]: 0.08,
+        [MemoryChannel.SOUND]:  0.15,
+        [MemoryChannel.HIT]:    0.03,
       },
     });
   }
@@ -390,19 +407,18 @@ class PathfindingNPCHost implements IOnlineDriverHost {
     this._nowMs += deltaMs;
     this._advancePath(deltaMs);
 
-    // [IMPROVEMENT 5] Auto-complete reload after duration
+    // Auto-complete reload after duration
     if (this.isReloading && this._nowMs - this.reloadStartMs >= this.reloadDurationMs) {
       this.isReloading = false;
       this.ammo = this.maxAmmo;
       console.log(`  [RELOAD ${this.npcId}] reload complete! ammo=${this.ammo}`);
     }
 
-    // [IMPROVEMENT 6] Track enemy velocity for anticipation
+    // Track enemy velocity for anticipation
     const enemies = this.perception.getVisibleEnemies();
     if (enemies.length > 0) {
       const e = enemies[0];
       if (this.lastEnemyX !== 0) {
-        // Smooth velocity estimate (exponential moving average)
         const rawVx = (e.x - this.lastEnemyX) / (deltaMs / 1000);
         const rawVy = (e.y - this.lastEnemyY) / (deltaMs / 1000);
         this.enemyVx = this.enemyVx * 0.7 + rawVx * 0.3;
@@ -419,7 +435,6 @@ class PathfindingNPCHost implements IOnlineDriverHost {
   getHp(): number { return this._hp; }
   isAlive(): boolean { return this._hp > 0; }
 
-  /** [IMPROVEMENT 6] Predict where enemy will be in `lookAheadMs` ms. */
   predictEnemyPos(lookAheadMs: number): { x: number; y: number } | null {
     if (this.lastEnemyX === 0) return null;
     return {
@@ -428,7 +443,6 @@ class PathfindingNPCHost implements IOnlineDriverHost {
     };
   }
 
-  /** [IMPROVEMENT 5] Start reloading. Returns false if already reloading. */
   startReload(): boolean {
     if (this.isReloading) return false;
     this.isReloading = true;
@@ -437,51 +451,21 @@ class PathfindingNPCHost implements IOnlineDriverHost {
     return true;
   }
 
-  // --- A* navigation API ---
-
-  /** Compute A* path and start walking. Returns true if path found. */
-  navigateTo(tx: number, ty: number): boolean {
-    const path = findPath(this.x, this.y, tx, ty);
-    if (path.length < 2) return false;
-    this._path    = path;
-    this._pathIdx = 1; // skip start cell (we're already there)
-    return true;
-  }
-
-  /** Threat-aware navigation — avoids high-threat tiles. */
-  navigateToSafe(tx: number, ty: number): boolean {
-    const path = findPathThreatAware(this.x, this.y, tx, ty);
-    if (path.length < 2) return false;
-    this._path    = path;
-    this._pathIdx = 1;
-    return true;
-  }
-
-  /** Number of waypoints in current path (0 = idle). */
-  getPathLength(): number { return this._path.length; }
-
-  /** True if actively walking a path. */
-  isNavigating(): boolean { return this._pathIdx < this._path.length; }
-
-  /** Get remaining path waypoints for logging. */
-  getRemainingPath(): { x: number; y: number }[] {
-    return this._path.slice(this._pathIdx);
-  }
-
   /** Advance along path each tick. */
   private _advancePath(deltaMs: number): void {
-    if (this._pathIdx >= this._path.length) return;
+    if (!this.pathfinding.isNavigating()) return;
 
-    const target = this._path[this._pathIdx];
-    const dx     = target.x - this.x;
-    const dy     = target.y - this.y;
+    const wp = this.pathfinding.getNextWaypoint();
+    if (!wp) return;
+
+    const dx     = wp.x - this.x;
+    const dy     = wp.y - this.y;
     const dist   = Math.sqrt(dx * dx + dy * dy);
     const step   = this._moveSpeed * (deltaMs / 1000);
 
     if (dist <= step) {
-      this.x = target.x;
-      this.y = target.y;
-      this._pathIdx++;
+      this.x = wp.x;
+      this.y = wp.y;
     } else {
       this.x += (dx / dist) * step;
       this.y += (dy / dist) * step;
@@ -520,7 +504,6 @@ const COVER_POINTS = [
   { x:  72, y:  88 },                                            // Behind Alpha
 ];
 
-/** ICoverAccess: ambush = behind enemy, close = near self & far from enemy. */
 function createCoverAccess(_role: 'lead' | 'flanker'): ICoverAccess {
   return {
     findCover(x, y, enemyX, enemyY, type) {
@@ -554,57 +537,39 @@ function createCoverAccess(_role: 'lead' | 'flanker'): ICoverAccess {
 // GOAP setup — base action definitions (data-driven, personality-modified)
 // ---------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------
-// [IMPROVEMENT 7] Utility AI — dynamic GOAP action costs
-//
-// Instead of static costs, each action's cost is computed from the NPC's
-// current situation. This makes costs context-dependent:
-//   - RushAttack gets cheaper with each kill (momentum)
-//   - TakeCover gets MORE expensive if allies are all in cover (someone must push)
-//   - Flank gets cheaper when HP is high (healthy NPC can afford the risk)
-//   - Reload is cheap when safe, expensive when exposed
-// ---------------------------------------------------------------------------
-
 interface ActionTemplate {
   id: string;
   baseCost: number;
   preconditions: Record<string, boolean>;
   effects: Record<string, boolean>;
-  /** Dynamic cost modifier — receives NPC context, returns cost delta. */
   utilityCostFn?: (host: PathfindingNPCHost) => number;
 }
 
 const ACTION_TEMPLATES: ActionTemplate[] = [
-  // Movement
   {
     id: 'TakeCover', baseCost: 3, preconditions: {}, effects: { inCover: true },
-    // More expensive if all allies already in cover — someone needs to push
     utilityCostFn: (h) => {
       const squad = h.factionId === 'loner' ? alphaMembers : bravoMembers;
       const allInCover = squad.filter(m => m.isAlive() && m.state.hasTakenCover).length;
-      return allInCover >= 2 ? +2 : 0;  // "we're all hiding, someone attack!"
+      return allInCover >= 2 ? +2 : 0;
     },
   },
   {
     id: 'Flank', baseCost: 3, preconditions: { inCover: true }, effects: { hasFlankPosition: true },
-    // Cheaper when healthy (can afford the risk of moving)
     utilityCostFn: (h) => h.getHp() >= 70 ? -1 : +1,
   },
   {
     id: 'Pursue', baseCost: 2, preconditions: { enemyFleeing: true },
     effects: { enemyInRange: true, hasFlankPosition: true },
   },
-  // Memory
   {
     id: 'SearchLastKnown', baseCost: 4, preconditions: { hasMemoryOfEnemy: true },
     effects: { seeEnemy: true, enemyInRange: true },
   },
-  // Fire support
   {
     id: 'Suppress', baseCost: 3,
     preconditions: { inCover: true, hasAmmo: true, seeEnemy: true },
     effects: { enemySuppressed: true },
-    // More expensive when low ammo — conserve bullets
     utilityCostFn: (h) => h.ammo < 10 ? +2 : 0,
   },
   {
@@ -617,7 +582,6 @@ const ACTION_TEMPLATES: ActionTemplate[] = [
     preconditions: { hasGrenade: true, seeEnemy: true, enemyInCover: true },
     effects: { enemySuppressed: true, enemyInCover: false },
   },
-  // Attack
   {
     id: 'Attack', baseCost: 2,
     preconditions: { isHealthy: true, inCover: true, enemySuppressed: true, hasAmmo: true },
@@ -642,40 +606,28 @@ const ACTION_TEMPLATES: ActionTemplate[] = [
     id: 'RushAttack', baseCost: 6,
     preconditions: { isHealthy: true, hasAmmo: true, enemyInRange: true },
     effects: { targetEliminated: true },
-    // Gets cheaper with kills (momentum/confidence) and when enemy is reloading
     utilityCostFn: (h) => {
       let mod = 0;
-      mod -= h.totalKills * 2;        // -2 per kill (momentum!)
-      // Check if visible enemy is reloading
+      mod -= h.totalKills * 2;
       const enemies = h.perception.getVisibleEnemies();
       if (enemies.length > 0) {
         const eHost = npcHosts.get(enemies[0].id);
-        if (eHost?.isReloading) mod -= 3;  // enemy reloading = huge opportunity!
+        if (eHost?.isReloading) mod -= 3;
       }
       return mod;
     },
   },
-  // Support
   { id: 'HealSelf', baseCost: 1, preconditions: { hasMedkit: true }, effects: { isHealthy: true } },
-  // [IMPROVEMENT 5] Reload action
   {
     id: 'Reload', baseCost: 2,
     preconditions: { lowAmmo: true, inCover: true },
     effects: { hasAmmo: true, lowAmmo: false },
-    // Cheap in cover, expensive in the open
     utilityCostFn: (h) => h.state.hasTakenCover ? -1 : +3,
   },
 ];
 
 const combatGoal = WorldState.from({ targetEliminated: true });
 
-// --- [IMPROVEMENT 7] Utility AI planner (created fresh per replan) ---
-
-/**
- * [IMPROVEMENT 7] Utility AI — build a planner with dynamic costs.
- * Called on every replan (not cached) because costs depend on current NPC state.
- * Cost = baseCost + personalityMod + utilityCostFn(host)
- */
 function createUtilityPlanner(host: PathfindingNPCHost): GOAPPlanner {
   const p = new GOAPPlanner();
   const mods = PERSONALITY_COSTS[host.personality];
@@ -694,11 +646,6 @@ function createUtilityPlanner(host: PathfindingNPCHost): GOAPPlanner {
 
   return p;
 }
-
-// Also keep a default planner for shared use
-// Default planner created lazily — not used directly, utility planners are per-NPC per-replan
-const _defaultPlanner = new GOAPPlanner();
-for (const t of ACTION_TEMPLATES) _defaultPlanner.registerAction({ id: t.id, cost: t.baseCost, preconditions: t.preconditions, effects: t.effects });
 
 // ---------------------------------------------------------------------------
 // Squad coordination — SquadSharedTargetTable + evaluateSituation()
@@ -742,6 +689,8 @@ const bravoLead  = new PathfindingNPCHost('bravo_lead',  'bandit', 'human', 30 *
 const bravoGuard = new PathfindingNPCHost('bravo_guard', 'bandit', 'human', 30 * TILE + 8, 15 * TILE + 8, 'cautious');
 
 const allNPCs = [alphaLead, alphaFlank, bravoLead, bravoGuard];
+const alphaMembers = [alphaLead, alphaFlank];
+const bravoMembers = [bravoLead, bravoGuard];
 
 // Equip: rifle + 1 grenade + 1 medkit. Pre-expire cover cooldown.
 for (const npc of allNPCs) {
@@ -751,34 +700,25 @@ for (const npc of allNPCs) {
   npc.state.lastSeekCoverMs  = -3_000;
 }
 
-// Wire cover (lead vs flanker role).
+// Wire cover, danger, squad.
 alphaLead.cover  = createCoverAccess('lead');
 alphaFlank.cover = createCoverAccess('flanker');
 bravoLead.cover  = createCoverAccess('lead');
 bravoGuard.cover = createCoverAccess('flanker');
 
-// Wire danger.
 for (const npc of allNPCs) npc.danger = createDangerAccess();
 
-// Wire squad.
 alphaLead.squad  = createSquadAccess('alpha_lead',  'alpha_lead');
 alphaFlank.squad = createSquadAccess('alpha_flank', 'alpha_lead');
 bravoLead.squad  = createSquadAccess('bravo_lead',  'bravo_lead');
 bravoGuard.squad = createSquadAccess('bravo_guard', 'bravo_lead');
 
 // ---------------------------------------------------------------------------
-// GOAP helpers
+// NPC host lookup + squad helpers
 // ---------------------------------------------------------------------------
 
-const _LEADS = new Set(['alpha_lead', 'bravo_lead']);
-
-/** NPC host lookup — shared by all GOAP handlers */
 const npcHosts = new Map<string, PathfindingNPCHost>();
 for (const npc of allNPCs) npcHosts.set(npc.npcId, npc);
-
-// ---------------------------------------------------------------------------
-// Squad awareness helpers — NPC reads its squad mate's state
-// ---------------------------------------------------------------------------
 
 function getSquadMate(npcId: string): PathfindingNPCHost | null {
   const pairs: Record<string, string> = {
@@ -796,46 +736,46 @@ function isSquadMateAlive(npcId: string): boolean {
 function isSquadMateFlanking(npcId: string): boolean {
   const mate = getSquadMate(npcId);
   if (!mate || !mate.isAlive()) return false;
-  const mateDriver = drivers.get(mate.npcId);
-  return mateDriver?.currentStateId === 'GOAP_FLANK';
+  return ((mate.state.custom ?? {}) as Record<string, unknown>).__goapActiveHandler === 'Flank';
 }
 
 function isSquadMateInPosition(npcId: string): boolean {
   const mate = getSquadMate(npcId);
   if (!mate || !mate.isAlive()) return false;
-  const mateDriver = drivers.get(mate.npcId);
-  return mateDriver?.currentStateId === 'GOAP_ATTACK';
+  const handler = ((mate.state.custom ?? {}) as Record<string, unknown>).__goapActiveHandler;
+  return handler === 'Attack' || handler === 'FlankAttack' || handler === 'CoordinatedAttack' ||
+         handler === 'SoloAssault' || handler === 'RushAttack';
 }
 
 // ---------------------------------------------------------------------------
-// Build WorldState — squad-aware + memory + threat + comms
+// Build WorldState from INPCContext (SDK GOAPDirector passes ctx, not host)
 // ---------------------------------------------------------------------------
 
-function buildNpcWorldState(host: PathfindingNPCHost, currentTick: number): WorldState {
-  const enemies = host.perception.getVisibleEnemies();
-  const inCover = host.state.hasTakenCover;
+let currentTick = 0;
+
+function buildNpcWorldState(ctx: INPCContext): WorldState {
+  const host = npcHosts.get(ctx.npcId)!;
+  const enemies = ctx.perception?.getVisibleEnemies() ?? [];
+  const inCover = ctx.state.hasTakenCover;
 
   let enemyFleeing = false, enemyInCover = false, enemyInRange = false;
   if (enemies.length > 0) {
     const enemyHost = npcHosts.get(enemies[0].id);
     if (enemyHost) {
-      const enemyDriver = drivers.get(enemyHost.npcId);
-      enemyFleeing = enemyHost.state.moraleState === 'PANICKED' ||
-                     (enemyDriver?.currentStateId === 'FLEE') ||
-                     (enemyDriver?.currentStateId === 'RETREAT');
+      enemyFleeing = enemyHost.state.moraleState === 'PANICKED';
       enemyInCover = enemyHost.state.hasTakenCover;
-      const dx = enemies[0].x - host.x, dy = enemies[0].y - host.y;
+      const dx = enemies[0].x - ctx.x, dy = enemies[0].y - ctx.y;
       enemyInRange = Math.sqrt(dx * dx + dy * dy) < 200;
     }
   }
 
-  const allyFlanking   = isSquadMateFlanking(host.npcId);
-  const allyInPosition = isSquadMateInPosition(host.npcId);
-  const allyDead       = !isSquadMateAlive(host.npcId);
+  const allyFlanking   = isSquadMateFlanking(ctx.npcId);
+  const allyInPosition = isSquadMateInPosition(ctx.npcId);
+  const allyDead       = !isSquadMateAlive(ctx.npcId);
 
-  const startX = host.npcId.startsWith('alpha') ? 2 * TILE + 8 : 30 * TILE + 8;
-  const startY = (host.npcId.includes('flank') || host.npcId.includes('guard')) ? 15 * TILE + 8 : 5 * TILE + 8;
-  const moved = Math.sqrt((host.x - startX) ** 2 + (host.y - startY) ** 2);
+  const startX = ctx.npcId.startsWith('alpha') ? 2 * TILE + 8 : 30 * TILE + 8;
+  const startY = (ctx.npcId.includes('flank') || ctx.npcId.includes('guard')) ? 15 * TILE + 8 : 5 * TILE + 8;
+  const moved = Math.sqrt((ctx.x - startX) ** 2 + (ctx.y - startY) ** 2);
 
   const mySquad = host.factionId === 'loner' ? alphaMembers : bravoMembers;
   const enemySquad = host.factionId === 'loner' ? bravoMembers : alphaMembers;
@@ -843,455 +783,225 @@ function buildNpcWorldState(host: PathfindingNPCHost, currentTick: number): Worl
 
   const bestMemory = host.memory.getMostConfident();
   const hasMemoryOfEnemy = bestMemory !== undefined && bestMemory.confidence > 0.2;
-  const dangerousArea = isInDangerousArea(host.x, host.y);
-  const mateComm = getLatestCommFromMate(host.npcId, currentTick);
+  const dangerousArea = isInDangerousArea(ctx.x, ctx.y);
+  const mateComm = getLatestCommFromMate(ctx.npcId, currentTick);
   const allyRequestingCover = mateComm !== null && (mateComm.type === 'FLANKING' || mateComm.type === 'NEED_HELP');
+
+  const suppressShots = ((ctx.state.custom ?? {}) as Record<string, unknown>).suppressShotsFired as number ?? 0;
 
   return WorldState.from({
     isHealthy: host.getHp() >= 50, inCover,
     hasAmmo: host.ammo > 0 && !host.isReloading,
     lowAmmo: host.ammo <= 5 && host.ammo > 0,
-    hasMedkit: host.state.medkitCount > 0, hasGrenade: host.state.grenadeCount > 0,
+    hasMedkit: ctx.state.medkitCount > 0, hasGrenade: ctx.state.grenadeCount > 0,
     hasFlankPosition: moved > 120,
     seeEnemy: enemies.length > 0, enemyFleeing, enemyInCover, enemyInRange,
-    enemySuppressed: (host.goapSuppressShotsFired ?? 0) >= 4,
+    enemySuppressed: suppressShots >= 4,
     allyFlanking: allyFlanking || (allyRequestingCover && mateComm?.type === 'FLANKING'),
     allyInPosition, allyDead, outnumbered,
     hasMemoryOfEnemy, dangerousArea,
   });
 }
 
-function getPlannerForNpc(npcId: string): GOAPPlanner {
-  const host = npcHosts.get(npcId);
-  if (!host) return _defaultPlanner;
-  return createUtilityPlanner(host);
-}
-
 // ---------------------------------------------------------------------------
-// GOAP Director — COMBAT handler, replans on every entry
+// GOAP Action Handlers (IGOAPActionHandler) — stateless, use ctx.state.custom
 // ---------------------------------------------------------------------------
 
-class GOAPDirector implements IOnlineStateHandler {
-  constructor(
-    private hosts: Map<string, PathfindingNPCHost>,
-    private getPlanner: (npcId: string) => GOAPPlanner,
-    private buildWS: (host: PathfindingNPCHost, tick: number) => WorldState,
-    private goal: WorldState,
-  ) {}
+const SUPPRESS_SHOTS_NEEDED = 4;
 
-  enter(ctx: INPCContext): void {
-    const host = this.hosts.get(ctx.npcId)!;
-    const ws = this.buildWS(host, currentTick);
-    const plan = this.getPlanner(ctx.npcId).plan(ws, this.goal);
-    host.goapPlan = plan ?? [];
-    host.goapActionIndex = 0;
-    host.goapSuppressShotsFired = 0;
-
-    const planStr = host.goapPlan!.map(a => a.id).join(' -> ');
-    console.log(`  [GOAP ${ctx.npcId} (${host.personality})] replan: ${planStr || '(empty)'}`);
-
-    // --- [IMPROVEMENT 1] Log memory influence on plan ---
-    const bestMem = host.memory.getMostConfident();
-    if (bestMem && bestMem.confidence > 0.2) {
-      console.log(
-        `  [MEMORY ${ctx.npcId}] enemy last seen at ` +
-        `(${bestMem.position.x.toFixed(0)},${bestMem.position.y.toFixed(0)}), ` +
-        `confidence ${bestMem.confidence.toFixed(2)}`,
-      );
-    }
-  }
-
-  update(ctx: INPCContext, _deltaMs: number): void {
-    const host = this.hosts.get(ctx.npcId)!;
-
-    // Interrupt checks (highest priority)
-    if (ctx.state.moraleState === 'PANICKED') { ctx.transition('FLEE'); return; }
-    if (ctx.state.moraleState === 'SHAKEN') { ctx.transition('RETREAT'); return; }
-    if (ctx.health && ctx.health.hpPercent < 0.2) { ctx.transition('WOUNDED'); return; }
-
-    // Check grenade danger
-    const grenade = ctx.danger?.getGrenadeDanger(ctx.x, ctx.y);
-    if (grenade?.active) { ctx.transition('EVADE_GRENADE'); return; }
-
-    // Execute next GOAP action
-    if (!host.goapPlan || host.goapActionIndex >= host.goapPlan.length) {
-      // Plan complete or empty — fallback combat behavior
-      this._fallbackCombat(ctx, host);
-      return;
-    }
-
-    const action = host.goapPlan[host.goapActionIndex];
-    const stateId = this._actionToState(action.id);
-    console.log(`  [GOAP:next ${ctx.npcId}] action[${host.goapActionIndex}]: ${action.id} -> ${stateId}`);
-    ctx.transition(stateId);
-  }
-
-  exit(_ctx: INPCContext): void {}
-
-  private _actionToState(actionId: string): string {
-    switch (actionId) {
-      case 'TakeCover':         return 'GOAP_TAKE_COVER';
-      case 'Suppress':          return 'GOAP_SUPPRESS';
-      case 'CoverAlly':         return 'GOAP_SUPPRESS';   // same behavior, different intent
-      case 'Flank':             return 'GOAP_FLANK';
-      case 'Pursue':            return 'GOAP_PURSUE';
-      case 'Attack':            return 'GOAP_ATTACK';
-      case 'CoordinatedAttack': return 'GOAP_ATTACK';
-      case 'FlankAttack':       return 'GOAP_ATTACK';
-      case 'SoloAssault':       return 'GOAP_ATTACK';
-      case 'RushAttack':        return 'GOAP_ATTACK';
-      case 'ThrowGrenade':      return 'GOAP_THROW_GRENADE';
-      case 'HealSelf':          return 'GOAP_HEAL';
-      case 'SearchLastKnown':   return 'GOAP_SEARCH';
-      case 'Reload':            return 'GOAP_RELOAD';
-      default:                  return 'GOAP_ATTACK';
-    }
-  }
-
-  /** [IMPROVEMENT 1] Fallback uses memory when no enemies visible. */
-  private _fallbackCombat(ctx: INPCContext, host: PathfindingNPCHost): void {
+const takeCoverHandler: IGOAPActionHandler = {
+  enter(ctx) {
     const enemies = ctx.perception?.getVisibleEnemies() ?? [];
-    if (enemies.length > 0) {
-      // Simple: shoot if enemy visible
-      const enemy = enemies[0];
-      const now = ctx.now();
-      if (now - ctx.state.lastShootMs >= 500) {
-        ctx.state.lastShootMs = now;
-        ctx.emitShoot({
-          npcId: ctx.npcId, x: ctx.x, y: ctx.y,
-          targetX: enemy.x, targetY: enemy.y, weaponType: 'rifle',
-        });
-      }
-    } else {
-      // No enemy visible — check memory for last known position
-      const bestMem = host.memory.getMostConfident();
-      if (bestMem && bestMem.confidence > 0.15 && !host.isNavigating()) {
-        console.log(
-          `  [MEMORY ${ctx.npcId}] searching last known pos ` +
-          `(${bestMem.position.x.toFixed(0)},${bestMem.position.y.toFixed(0)}), ` +
-          `conf=${bestMem.confidence.toFixed(2)}`,
-        );
-        host.navigateToSafe(bestMem.position.x, bestMem.position.y);
-      }
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// GOAP execution states
-// ---------------------------------------------------------------------------
-
-/** GOAP_TAKE_COVER: pathfind to nearest cover point shielded from enemy. */
-class GOAPTakeCover implements IOnlineStateHandler {
-  constructor(private hosts: Map<string, PathfindingNPCHost>) {}
-
-  enter(ctx: INPCContext): void {
-    const host = this.hosts.get(ctx.npcId)!;
-    const enemies = ctx.perception?.getVisibleEnemies() ?? [];
-    if (enemies.length === 0) { ctx.transition('COMBAT'); return; }
-
+    if (enemies.length === 0) return;
     const enemy = enemies[0];
     const coverPt = ctx.cover?.findCover(ctx.x, ctx.y, enemy.x, enemy.y, 'close');
     if (coverPt) {
-      host.goapCoverTarget = coverPt;
-      // [IMPROVEMENT 3] Use threat-aware pathfinding for cover movement
-      host.navigateToSafe(coverPt.x, coverPt.y);
-      console.log(`  [GOAP:TakeCover ${ctx.npcId}] -> cover (${coverPt.x},${coverPt.y}), ${host.getPathLength()} wp`);
-    } else {
-      // No cover found — skip this action
-      host.goapActionIndex++;
-      ctx.transition('COMBAT');
+      ctx.state.custom = { ...(ctx.state.custom ?? {}), coverTarget: coverPt };
+      ctx.pathfinding?.findPath(coverPt.x, coverPt.y);
+      const host = npcHosts.get(ctx.npcId)!;
+      console.log(`  [GOAP:TakeCover ${ctx.npcId}] -> cover (${coverPt.x},${coverPt.y}), ${host.pathfinding.isNavigating() ? 'navigating' : 'no path'}`);
     }
-  }
-
-  update(ctx: INPCContext, _deltaMs: number): void {
-    const host = this.hosts.get(ctx.npcId)!;
-    // Interrupts
-    if (ctx.state.moraleState === 'PANICKED') { ctx.transition('FLEE'); return; }
-    if (ctx.health && ctx.health.hpPercent < 0.2) { ctx.transition('WOUNDED'); return; }
-
-    const grenade = ctx.danger?.getGrenadeDanger(ctx.x, ctx.y);
-    if (grenade?.active) { ctx.transition('EVADE_GRENADE'); return; }
-
-    // Check if arrived at cover
-    if (!host.isNavigating() && host.goapCoverTarget) {
-      const dx = ctx.x - host.goapCoverTarget.x;
-      const dy = ctx.y - host.goapCoverTarget.y;
+  },
+  update(ctx, _dt) {
+    const coverTarget = (ctx.state.custom ?? {}).coverTarget as { x: number; y: number } | undefined;
+    if (!coverTarget) return 'failure';
+    if (!ctx.pathfinding?.isNavigating()) {
+      const dx = ctx.x - coverTarget.x;
+      const dy = ctx.y - coverTarget.y;
       if (dx * dx + dy * dy < 20 * 20) {
         console.log(`  [GOAP:TakeCover ${ctx.npcId}] arrived at cover`);
         ctx.state.hasTakenCover = true;
-        host.goapActionIndex++;
-        ctx.transition('COMBAT'); // back to director
-        return;
+        return 'success';
       }
+      // Re-path if not arrived but path exhausted
+      ctx.pathfinding?.findPath(coverTarget.x, coverTarget.y);
     }
-    // Still moving — path follower handles movement in tick()
-  }
+    return 'running';
+  },
+  exit(_ctx) {},
+};
 
-  exit(_ctx: INPCContext): void {}
-}
-
-/** GOAP_SUPPRESS: shoot N times from cover before advancing plan. */
-class GOAPSuppress implements IOnlineStateHandler {
-  private static SHOTS_NEEDED = 4;
-
-  constructor(private hosts: Map<string, PathfindingNPCHost>) {}
-
-  enter(ctx: INPCContext): void {
-    const host = this.hosts.get(ctx.npcId)!;
-    host.goapSuppressShotsFired = 0;
-    console.log(`  [GOAP:Suppress ${ctx.npcId}] beginning suppressive fire (0/${GOAPSuppress.SHOTS_NEEDED})`);
-    // [IMPROVEMENT 4] Broadcast suppression to squad mate
+const suppressHandler: IGOAPActionHandler = {
+  enter(ctx) {
+    ctx.state.custom = { ...(ctx.state.custom ?? {}), suppressShotsFired: 0 };
+    console.log(`  [GOAP:Suppress ${ctx.npcId}] beginning suppressive fire (0/${SUPPRESS_SHOTS_NEEDED})`);
     broadcast(ctx.npcId, 'SUPPRESSING', currentTick);
-  }
-
-  update(ctx: INPCContext, _deltaMs: number): void {
-    const host = this.hosts.get(ctx.npcId)!;
-    // Interrupts
-    if (ctx.state.moraleState === 'PANICKED') { ctx.transition('FLEE'); return; }
-    if (ctx.health && ctx.health.hpPercent < 0.2) { ctx.transition('WOUNDED'); return; }
-
-    const grenade = ctx.danger?.getGrenadeDanger(ctx.x, ctx.y);
-    if (grenade?.active) { ctx.transition('EVADE_GRENADE'); return; }
-
+  },
+  update(ctx, _dt) {
     const enemies = ctx.perception?.getVisibleEnemies() ?? [];
-    if (enemies.length === 0) { ctx.transition('COMBAT'); return; }
+    if (enemies.length === 0) return 'failure';
 
-    // Mid-action replan: enemy fleeing -> Pursue, ally in position -> push
+    // Mid-action replan triggers
     const enemyHost = npcHosts.get(enemies[0].id);
-    if (enemyHost) {
-      const enemyDriver = drivers.get(enemyHost.npcId);
-      if (enemyHost.state.moraleState === 'PANICKED' || enemyDriver?.currentStateId === 'FLEE') {
-        console.log(`  [GOAP:Suppress ${ctx.npcId}] enemy fleeing! -> replanning`);
-        ctx.transition('COMBAT'); return;
-      }
+    if (enemyHost?.state.moraleState === 'PANICKED') {
+      console.log(`  [GOAP:Suppress ${ctx.npcId}] enemy fleeing! -> replanning`);
+      return 'failure';
     }
     if (isSquadMateInPosition(ctx.npcId)) {
       console.log(`  [GOAP:Suppress ${ctx.npcId}] ally in position! -> replanning`);
-      ctx.transition('COMBAT'); return;
+      return 'failure';
     }
 
-    const enemy = enemies[0];
     const now = ctx.now();
-
-    // Fire at fire rate
     if (now - ctx.state.lastShootMs >= 500) {
       ctx.state.lastShootMs = now;
-      host.goapSuppressShotsFired++;
-      ctx.emitShoot({
-        npcId: ctx.npcId, x: ctx.x, y: ctx.y,
-        targetX: enemy.x, targetY: enemy.y, weaponType: 'rifle',
-      });
-      console.log(`  [GOAP:Suppress ${ctx.npcId}] shot ${host.goapSuppressShotsFired}/${GOAPSuppress.SHOTS_NEEDED}`);
+      const shotsFired = ((ctx.state.custom ?? {}).suppressShotsFired as number ?? 0) + 1;
+      ctx.state.custom = { ...(ctx.state.custom ?? {}), suppressShotsFired: shotsFired };
+      const enemy = enemies[0];
+      ctx.emitShoot({ npcId: ctx.npcId, x: ctx.x, y: ctx.y, targetX: enemy.x, targetY: enemy.y, weaponType: 'rifle' });
+      console.log(`  [GOAP:Suppress ${ctx.npcId}] shot ${shotsFired}/${SUPPRESS_SHOTS_NEEDED}`);
 
-      if (host.goapSuppressShotsFired >= GOAPSuppress.SHOTS_NEEDED) {
+      if (shotsFired >= SUPPRESS_SHOTS_NEEDED) {
         console.log(`  [GOAP:Suppress ${ctx.npcId}] suppression complete`);
-        host.goapActionIndex++;
-        ctx.transition('COMBAT'); // back to director
+        return 'success';
       }
     }
-  }
+    return 'running';
+  },
+  exit(_ctx) {},
+};
 
-  exit(_ctx: INPCContext): void {}
-}
-
-/** GOAP_FLANK: pathfind to ambush position behind enemy via corridors. */
-class GOAPFlank implements IOnlineStateHandler {
-  constructor(private hosts: Map<string, PathfindingNPCHost>) {}
-
-  enter(ctx: INPCContext): void {
-    const host = this.hosts.get(ctx.npcId)!;
+const flankHandler: IGOAPActionHandler = {
+  enter(ctx) {
     const enemies = ctx.perception?.getVisibleEnemies() ?? [];
-    if (enemies.length === 0) { ctx.transition('COMBAT'); return; }
-
+    if (enemies.length === 0) return;
     const enemy = enemies[0];
     const ambush = ctx.cover?.findCover(ctx.x, ctx.y, enemy.x, enemy.y, 'ambush');
     if (ambush) {
-      host.goapFlankTarget = ambush;
-      // [IMPROVEMENT 3] Use threat-aware pathfinding for flanking
-      host.navigateToSafe(ambush.x, ambush.y);
+      ctx.state.custom = { ...(ctx.state.custom ?? {}), flankTarget: ambush };
+      ctx.pathfinding?.findPath(ambush.x, ambush.y);
       const route = describeRoute(findPath(ctx.x, ctx.y, ambush.x, ambush.y));
-      console.log(
-        `  [GOAP:Flank ${ctx.npcId}] -> ambush (${ambush.x},${ambush.y}), ` +
-        `${host.getPathLength()} wp, ${route}`,
-      );
-      // [IMPROVEMENT 4] Broadcast flanking intention to squad mate
+      console.log(`  [GOAP:Flank ${ctx.npcId}] -> ambush (${ambush.x},${ambush.y}), ${route}`);
       broadcast(ctx.npcId, 'FLANKING', currentTick);
-    } else {
-      host.goapActionIndex++;
-      ctx.transition('COMBAT');
     }
-  }
-
-  update(ctx: INPCContext, _deltaMs: number): void {
-    const host = this.hosts.get(ctx.npcId)!;
-    // Interrupts
-    if (ctx.state.moraleState === 'PANICKED') { ctx.transition('FLEE'); return; }
-    if (ctx.health && ctx.health.hpPercent < 0.2) { ctx.transition('WOUNDED'); return; }
-
-    const grenade = ctx.danger?.getGrenadeDanger(ctx.x, ctx.y);
-    if (grenade?.active) { ctx.transition('EVADE_GRENADE'); return; }
+  },
+  update(ctx, _dt) {
+    const flankTarget = (ctx.state.custom ?? {}).flankTarget as { x: number; y: number } | undefined;
+    if (!flankTarget) return 'failure';
 
     if (!isSquadMateAlive(ctx.npcId)) {
       console.log(`  [GOAP:Flank ${ctx.npcId}] squad mate down! -> replanning solo`);
       broadcast(ctx.npcId, 'NEED_HELP', currentTick);
-      ctx.transition('COMBAT');
-      return;
+      return 'failure';
     }
 
-    // Check arrival
-    if (!host.isNavigating() && host.goapFlankTarget) {
-      const dx = ctx.x - host.goapFlankTarget.x;
-      const dy = ctx.y - host.goapFlankTarget.y;
+    if (!ctx.pathfinding?.isNavigating()) {
+      const dx = ctx.x - flankTarget.x;
+      const dy = ctx.y - flankTarget.y;
       if (dx * dx + dy * dy < 30 * 30) {
         console.log(`  [GOAP:Flank ${ctx.npcId}] arrived at ambush position!`);
-        // [IMPROVEMENT 4] Broadcast arrival to squad mate
         broadcast(ctx.npcId, 'IN_POSITION', currentTick);
-        host.goapActionIndex++;
-        ctx.transition('COMBAT'); // back to director -> next action
-        return;
+        return 'success';
       }
     }
-    // Still moving — path follower handles movement in tick()
-  }
+    return 'running';
+  },
+  exit(_ctx) {},
+};
 
-  exit(_ctx: INPCContext): void {}
-}
-
-/** GOAP_ATTACK: move toward enemy and shoot. Terminal action — stays until interrupted. */
-class GOAPAttack implements IOnlineStateHandler {
-  constructor(private hosts: Map<string, PathfindingNPCHost>) {}
-
-  enter(ctx: INPCContext): void {
+const attackHandler: IGOAPActionHandler = {
+  enter(ctx) {
     console.log(`  [GOAP:Attack ${ctx.npcId}] engaging enemy`);
-    const host = this.hosts.get(ctx.npcId)!;
     const enemies = ctx.perception?.getVisibleEnemies() ?? [];
     if (enemies.length > 0) {
-      host.navigateTo(enemies[0].x, enemies[0].y);
+      ctx.pathfinding?.findPath(enemies[0].x, enemies[0].y);
     }
-    // [IMPROVEMENT 4] Broadcast pushing to squad mate
     broadcast(ctx.npcId, 'PUSHING', currentTick);
-  }
-
-  update(ctx: INPCContext, _deltaMs: number): void {
-    const host = this.hosts.get(ctx.npcId)!;
-    // Interrupts
-    if (ctx.state.moraleState === 'PANICKED') { ctx.transition('FLEE'); return; }
-    if (ctx.state.moraleState === 'SHAKEN') { ctx.transition('RETREAT'); return; }
-    if (ctx.health && ctx.health.hpPercent < 0.2) { ctx.transition('WOUNDED'); return; }
-
-    const grenade = ctx.danger?.getGrenadeDanger(ctx.x, ctx.y);
-    if (grenade?.active) { ctx.transition('EVADE_GRENADE'); return; }
-
+  },
+  update(ctx, _dt) {
     const enemies = ctx.perception?.getVisibleEnemies() ?? [];
-    if (enemies.length === 0) { ctx.transition('COMBAT'); return; } // lost target, replan
+    if (enemies.length === 0) return 'failure';
 
     const enemy = enemies[0];
-
-    // Move toward enemy (re-pathfind periodically when path runs out)
-    if (!host.isNavigating()) {
-      host.navigateTo(enemy.x, enemy.y);
+    if (!ctx.pathfinding?.isNavigating()) {
+      ctx.pathfinding?.findPath(enemy.x, enemy.y);
     }
 
-    // Shoot
     const now = ctx.now();
     if (now - ctx.state.lastShootMs >= 500) {
       ctx.state.lastShootMs = now;
-      ctx.emitShoot({
-        npcId: ctx.npcId, x: ctx.x, y: ctx.y,
-        targetX: enemy.x, targetY: enemy.y, weaponType: 'rifle',
-      });
+      ctx.emitShoot({ npcId: ctx.npcId, x: ctx.x, y: ctx.y, targetX: enemy.x, targetY: enemy.y, weaponType: 'rifle' });
     }
-  }
+    return 'running'; // terminal action — stays until interrupted
+  },
+  exit(_ctx) {},
+};
 
-  exit(_ctx: INPCContext): void {}
-}
-
-/** GOAP_HEAL: use medkit and return to director. */
-class GOAPHeal implements IOnlineStateHandler {
-  constructor(private hosts: Map<string, PathfindingNPCHost>) {}
-
-  enter(ctx: INPCContext): void {
+const healHandler: IGOAPActionHandler = {
+  enter(ctx) {
     console.log(`  [GOAP:Heal ${ctx.npcId}] using medkit`);
-  }
-
-  update(ctx: INPCContext, _deltaMs: number): void {
-    const host = this.hosts.get(ctx.npcId)!;
+  },
+  update(ctx, _dt) {
     if (ctx.state.medkitCount > 0 && ctx.health) {
       ctx.state.medkitCount--;
       ctx.health.heal(35);
       console.log(`  [GOAP:Heal ${ctx.npcId}] healed! HP=${ctx.health.hp}`);
     }
-    host.goapActionIndex++;
-    ctx.transition('COMBAT'); // back to director
-  }
+    return 'success';
+  },
+  exit(_ctx) {},
+};
 
-  exit(_ctx: INPCContext): void {}
-}
-
-// ---------------------------------------------------------------------------
-// GOAPPursue — chase a fleeing enemy
-// ---------------------------------------------------------------------------
-
-class GOAPPursue implements IOnlineStateHandler {
-  constructor(private hosts: Map<string, PathfindingNPCHost>) {}
-
-  enter(ctx: INPCContext): void {
-    const host = this.hosts.get(ctx.npcId)!;
+const pursueHandler: IGOAPActionHandler = {
+  enter(ctx) {
     const enemies = ctx.perception?.getVisibleEnemies() ?? [];
     if (enemies.length > 0) {
-      host.navigateTo(enemies[0].x, enemies[0].y);
+      ctx.pathfinding?.findPath(enemies[0].x, enemies[0].y);
       console.log(`  [GOAP:Pursue ${ctx.npcId}] chasing fleeing enemy at (${enemies[0].x.toFixed(0)},${enemies[0].y.toFixed(0)})`);
     }
-  }
-
-  update(ctx: INPCContext, _deltaMs: number): void {
-    const host = this.hosts.get(ctx.npcId)!;
-    if (ctx.state.moraleState === 'PANICKED') { ctx.transition('FLEE'); return; }
-
+  },
+  update(ctx, _dt) {
     const enemies = ctx.perception?.getVisibleEnemies() ?? [];
-    if (enemies.length === 0) { ctx.transition('COMBAT'); return; }
+    if (enemies.length === 0) return 'failure';
 
-    // Re-pathfind toward fleeing enemy
-    if (!host.isNavigating()) {
-      host.navigateTo(enemies[0].x, enemies[0].y);
+    if (!ctx.pathfinding?.isNavigating()) {
+      ctx.pathfinding?.findPath(enemies[0].x, enemies[0].y);
     }
 
-    // Shoot while pursuing
     const now = ctx.now();
     if (now - ctx.state.lastShootMs >= 500) {
       ctx.state.lastShootMs = now;
       ctx.emitShoot({ npcId: ctx.npcId, x: ctx.x, y: ctx.y, targetX: enemies[0].x, targetY: enemies[0].y, weaponType: 'rifle' });
     }
 
-    // Close enough -> action done
     const dx = ctx.x - enemies[0].x;
     const dy = ctx.y - enemies[0].y;
     if (dx * dx + dy * dy < 80 * 80) {
       console.log(`  [GOAP:Pursue ${ctx.npcId}] caught up to enemy!`);
-      host.goapActionIndex++;
-      ctx.transition('COMBAT');
+      return 'success';
     }
-  }
+    return 'running';
+  },
+  exit(_ctx) {},
+};
 
-  exit(_ctx: INPCContext): void {}
-}
-
-// ---------------------------------------------------------------------------
-// GOAPThrowGrenade — throw grenade at enemy position
-// ---------------------------------------------------------------------------
-
-class GOAPThrowGrenade implements IOnlineStateHandler {
-  constructor(private hosts: Map<string, PathfindingNPCHost>) {}
-
-  enter(ctx: INPCContext): void {
+const throwGrenadeHandler: IGOAPActionHandler = {
+  enter(ctx) {
     console.log(`  [GOAP:Grenade ${ctx.npcId}] preparing to throw grenade`);
-  }
-
-  update(ctx: INPCContext, _deltaMs: number): void {
-    const host = this.hosts.get(ctx.npcId)!;
+  },
+  update(ctx, _dt) {
     const enemies = ctx.perception?.getVisibleEnemies() ?? [];
-    if (enemies.length === 0) { ctx.transition('COMBAT'); return; }
+    if (enemies.length === 0) return 'failure';
 
     if (ctx.state.grenadeCount > 0) {
       ctx.state.grenadeCount--;
@@ -1299,7 +1009,6 @@ class GOAPThrowGrenade implements IOnlineStateHandler {
       ctx.emitShoot({ npcId: ctx.npcId, x: ctx.x, y: ctx.y, targetX: enemy.x, targetY: enemy.y, weaponType: 'GRENADE' });
       console.log(`  [GOAP:Grenade ${ctx.npcId}] grenade thrown at (${enemy.x.toFixed(0)},${enemy.y.toFixed(0)})!`);
 
-      // Register danger for the target
       dangers.addDanger({
         id: `grenade_${ctx.npcId}_${ctx.now()}`,
         type: DangerType.GRENADE,
@@ -1308,63 +1017,19 @@ class GOAPThrowGrenade implements IOnlineStateHandler {
         threatScore: 0.9,
         remainingMs: 2_000,
       });
-
-      // [IMPROVEMENT 3] Record threat at grenade impact
       recordThreat(enemy.x, enemy.y, 0.6);
     }
+    return 'success';
+  },
+  exit(_ctx) {},
+};
 
-    host.goapActionIndex++;
-    ctx.transition('COMBAT'); // back to director
-  }
-
-  exit(_ctx: INPCContext): void {}
-}
-
-// ---------------------------------------------------------------------------
-// [IMPROVEMENT 5] GOAP_RELOAD — take cover and reload weapon
-// ---------------------------------------------------------------------------
-
-class GOAPReload implements IOnlineStateHandler {
-  constructor(private hosts: Map<string, PathfindingNPCHost>) {}
-
-  enter(ctx: INPCContext): void {
-    const host = this.hosts.get(ctx.npcId)!;
-    host.startReload();
-  }
-
-  update(ctx: INPCContext, _deltaMs: number): void {
-    const host = this.hosts.get(ctx.npcId)!;
-    // Interrupts — even reloading can be interrupted
-    if (ctx.state.moraleState === 'PANICKED') { ctx.transition('FLEE'); return; }
-    const grenade = ctx.danger?.getGrenadeDanger(ctx.x, ctx.y);
-    if (grenade?.active) { ctx.transition('EVADE_GRENADE'); return; }
-
-    // Reload complete? (checked in host.tick already, but verify)
-    if (!host.isReloading) {
-      console.log(`  [GOAP:Reload ${ctx.npcId}] ready! ammo=${host.ammo}`);
-      host.goapActionIndex++;
-      ctx.transition('COMBAT');
-    }
-    // Otherwise wait — tick() handles reload timer
-  }
-
-  exit(_ctx: INPCContext): void {}
-}
-
-// ---------------------------------------------------------------------------
-// [IMPROVEMENT 1] GOAP_SEARCH — move to last known enemy position from memory
-// ---------------------------------------------------------------------------
-
-class GOAPSearch implements IOnlineStateHandler {
-  constructor(private hosts: Map<string, PathfindingNPCHost>) {}
-
-  enter(ctx: INPCContext): void {
-    const host = this.hosts.get(ctx.npcId)!;
+const searchHandler: IGOAPActionHandler = {
+  enter(ctx) {
+    const host = npcHosts.get(ctx.npcId)!;
     const bestMem = host.memory.getMostConfident();
     if (!bestMem || bestMem.confidence < 0.1) {
       console.log(`  [GOAP:Search ${ctx.npcId}] no memory to search, skipping`);
-      host.goapActionIndex++;
-      ctx.transition('COMBAT');
       return;
     }
     console.log(
@@ -1372,69 +1037,145 @@ class GOAPSearch implements IOnlineStateHandler {
       `(${bestMem.position.x.toFixed(0)},${bestMem.position.y.toFixed(0)}), ` +
       `confidence=${bestMem.confidence.toFixed(2)}`,
     );
-    host.navigateToSafe(bestMem.position.x, bestMem.position.y);
-  }
+    ctx.pathfinding?.findPath(bestMem.position.x, bestMem.position.y);
+  },
+  update(ctx, _dt) {
+    const host = npcHosts.get(ctx.npcId)!;
+    const bestMem = host.memory.getMostConfident();
+    if (!bestMem || bestMem.confidence < 0.1) return 'failure';
 
-  update(ctx: INPCContext, _deltaMs: number): void {
-    const host = this.hosts.get(ctx.npcId)!;
-    // Interrupts
-    if (ctx.state.moraleState === 'PANICKED') { ctx.transition('FLEE'); return; }
-    if (ctx.health && ctx.health.hpPercent < 0.2) { ctx.transition('WOUNDED'); return; }
-
-    const grenade = ctx.danger?.getGrenadeDanger(ctx.x, ctx.y);
-    if (grenade?.active) { ctx.transition('EVADE_GRENADE'); return; }
-
-    // Found enemy during search -> replan
     const enemies = ctx.perception?.getVisibleEnemies() ?? [];
     if (enemies.length > 0) {
       console.log(`  [GOAP:Search ${ctx.npcId}] enemy spotted during search! -> replanning`);
-      host.goapActionIndex++;
-      ctx.transition('COMBAT');
-      return;
+      return 'success';
     }
 
-    // Arrived at search location
-    if (!host.isNavigating()) {
+    if (!ctx.pathfinding?.isNavigating()) {
       console.log(`  [GOAP:Search ${ctx.npcId}] reached last known position, no enemy found`);
-      host.goapActionIndex++;
-      ctx.transition('COMBAT');
+      return 'success';
     }
-  }
+    return 'running';
+  },
+  exit(_ctx) {},
+};
 
-  exit(_ctx: INPCContext): void {}
+const reloadHandler: IGOAPActionHandler = {
+  enter(ctx) {
+    const host = npcHosts.get(ctx.npcId)!;
+    host.startReload();
+  },
+  update(ctx, _dt) {
+    const host = npcHosts.get(ctx.npcId)!;
+    if (!host.isReloading) {
+      console.log(`  [GOAP:Reload ${ctx.npcId}] ready! ammo=${host.ammo}`);
+      return 'success';
+    }
+    return 'running';
+  },
+  exit(_ctx) {},
+};
+
+// ---------------------------------------------------------------------------
+// SDK GOAPDirector — COMBAT handler, replans on every entry
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates the SDK GOAPDirector for a specific NPC. Each NPC gets its own
+ * director because the planner is rebuilt per-replan with utility costs.
+ */
+function createGoapDirector(host: PathfindingNPCHost): GOAPDirector {
+  // Dynamic planner wrapper — rebuilds utility costs on each plan() call.
+  // Uses IGOAPPlannerLike interface (not concrete GOAPPlanner class).
+  const dynamicPlanner = {
+    plan(ws: WorldState, goal: WorldState) {
+      return createUtilityPlanner(host).plan(ws, goal);
+    },
+  };
+
+  return new GOAPDirector(dynamicPlanner, {
+    buildWorldState: (ctx: INPCContext) => {
+      // Log memory influence only when no direct visual and memory drives plan
+      const enemies = ctx.perception?.getVisibleEnemies() ?? [];
+      if (enemies.length === 0) {
+        const bestMem = host.memory.getMostConfident();
+        if (bestMem && bestMem.confidence > 0.2) {
+          console.log(
+            `  [MEMORY ${ctx.npcId}] enemy last seen at ` +
+            `(${bestMem.position.x.toFixed(0)},${bestMem.position.y.toFixed(0)}), ` +
+            `confidence ${bestMem.confidence.toFixed(2)}`,
+          );
+        }
+      }
+      return buildNpcWorldState(ctx);
+    },
+    goal: combatGoal,
+    actionHandlers: {
+      TakeCover:         takeCoverHandler,
+      Suppress:          suppressHandler,
+      CoverAlly:         suppressHandler,
+      Flank:             flankHandler,
+      Pursue:            pursueHandler,
+      Attack:            attackHandler,
+      CoordinatedAttack: attackHandler,
+      FlankAttack:       attackHandler,
+      SoloAssault:       attackHandler,
+      RushAttack:        attackHandler,
+      ThrowGrenade:      throwGrenadeHandler,
+      HealSelf:          healHandler,
+      SearchLastKnown:   searchHandler,
+      Reload:            reloadHandler,
+    },
+    interrupts: [
+      { condition: (ctx: INPCContext) => ctx.state.moraleState === 'PANICKED', targetState: 'FLEE' },
+      { condition: (ctx: INPCContext) => ctx.state.moraleState === 'SHAKEN', targetState: 'RETREAT' },
+      { condition: (ctx: INPCContext) => ctx.health !== null && ctx.health.hpPercent < 0.2, targetState: 'WOUNDED' },
+      { condition: (ctx: INPCContext) => ctx.danger?.getGrenadeDanger(ctx.x, ctx.y)?.active ?? false, targetState: 'EVADE_GRENADE' },
+    ],
+    onNoPlan: (ctx: INPCContext, _dt: number) => {
+      // Fallback uses memory when no enemies visible
+      const enemies = ctx.perception?.getVisibleEnemies() ?? [];
+      if (enemies.length > 0) {
+        const enemy = enemies[0];
+        const now = ctx.now();
+        if (now - ctx.state.lastShootMs >= 500) {
+          ctx.state.lastShootMs = now;
+          ctx.emitShoot({
+            npcId: ctx.npcId, x: ctx.x, y: ctx.y,
+            targetX: enemy.x, targetY: enemy.y, weaponType: 'rifle',
+          });
+        }
+      } else {
+        const bestMem = host.memory.getMostConfident();
+        if (bestMem && bestMem.confidence > 0.15 && !ctx.pathfinding?.isNavigating()) {
+          console.log(
+            `  [MEMORY ${ctx.npcId}] searching last known pos ` +
+            `(${bestMem.position.x.toFixed(0)},${bestMem.position.y.toFixed(0)}), ` +
+            `conf=${bestMem.confidence.toFixed(2)}`,
+          );
+          ctx.pathfinding?.findPath(bestMem.position.x, bestMem.position.y);
+        }
+      }
+    },
+  });
 }
 
 // ---------------------------------------------------------------------------
-// FSM drivers — GOAPDirector replaces CombatState as COMBAT handler
+// FSM drivers — one SDK GOAPDirector per NPC as COMBAT handler
 // ---------------------------------------------------------------------------
 
-const goapDirector      = new GOAPDirector(npcHosts, getPlannerForNpc, buildNpcWorldState, combatGoal);
-const goapTakeCover     = new GOAPTakeCover(npcHosts);
-const goapSuppress      = new GOAPSuppress(npcHosts);
-const goapFlank         = new GOAPFlank(npcHosts);
-const goapAttack        = new GOAPAttack(npcHosts);
-const goapHeal          = new GOAPHeal(npcHosts);
-const goapPursue        = new GOAPPursue(npcHosts);
-const goapThrowGrenade  = new GOAPThrowGrenade(npcHosts);
-const goapSearch        = new GOAPSearch(npcHosts);
-
-function makeHandlers() {
+function makeHandlers(host: PathfindingNPCHost) {
   return buildDefaultHandlerMap({ combatRange: 500, fireRateMs: 500 })
-    .register(ONLINE_STATE.COMBAT, goapDirector)      // GOAPDirector replaces CombatState!
-    .register('GOAP_TAKE_COVER', goapTakeCover)
-    .register('GOAP_SUPPRESS',   goapSuppress)
-    .register('GOAP_FLANK',      goapFlank)
-    .register('GOAP_ATTACK',          goapAttack)
-    .register('GOAP_HEAL',            goapHeal)
-    .register('GOAP_PURSUE',          goapPursue)
-    .register('GOAP_THROW_GRENADE',   goapThrowGrenade)
-    .register('GOAP_SEARCH',          goapSearch)
-    .register('GOAP_RELOAD',          new GOAPReload(npcHosts));
+    .register(ONLINE_STATE.COMBAT, createGoapDirector(host));
 }
 
 const drivers = new Map<string, OnlineAIDriver>();
 for (const npc of allNPCs) {
-  drivers.set(npc.npcId, new OnlineAIDriver(npc, makeHandlers(), ONLINE_STATE.IDLE));
+  const driver = new OnlineAIDriver(npc, makeHandlers(npc), ONLINE_STATE.IDLE);
+  // Use driver.onTransition() instead of manual prevState/currentState comparison
+  driver.onTransition((from: string, to: string) => {
+    console.log(`  [t=${currentTick}] ${npc.npcId}: ${from} -> ${to}`);
+  });
+  drivers.set(npc.npcId, driver);
 }
 
 // ---------------------------------------------------------------------------
@@ -1472,12 +1213,10 @@ function evaluateSquad(
 // ---------------------------------------------------------------------------
 
 function renderArena(tick: number): void {
-  // Build character grid
   const grid: string[][] = [];
   for (let r = 0; r < ROWS; r++) {
     grid.push([]);
     for (let c = 0; c < COLS; c++) {
-      // [IMPROVEMENT 3] Show high-threat tiles as 'x'
       const threat = threatMap.get(`${c},${r}`) ?? 0;
       if (MATRIX[r][c] === 1) {
         grid[r].push('#');
@@ -1489,7 +1228,6 @@ function renderArena(tick: number): void {
     }
   }
 
-  // Place NPC markers: A=alpha_lead, a=alpha_flank, B=bravo_lead, b=bravo_guard
   const markers: [PathfindingNPCHost, string][] = [
     [alphaLead,  'A'],
     [alphaFlank, 'a'],
@@ -1522,11 +1260,7 @@ console.log('');
 const TOTAL_TICKS = 800;
 const DELTA_MS    = 16;
 
-const alphaMembers = [alphaLead, alphaFlank];
-const bravoMembers = [bravoLead, bravoGuard];
-
 let grenadeThrown = false;
-let currentTick = 0;
 
 // Render initial arena
 renderArena(0);
@@ -1550,16 +1284,11 @@ for (let tick = 1; tick <= TOTAL_TICKS; tick++) {
     }
   }
 
-  // 2. Update FSM drivers
+  // 2. Update FSM drivers (onTransition callback handles logging)
   for (const npc of allNPCs) {
     if (!npc.isAlive()) continue;
     const driver = drivers.get(npc.npcId)!;
-    const prevState = driver.currentStateId;
     npc.tick(driver, DELTA_MS);
-    const newState = driver.currentStateId;
-    if (prevState !== newState) {
-      console.log(`  [t=${tick}] ${npc.npcId}: ${prevState} -> ${newState}`);
-    }
   }
 
   // 3. Process shoots — ammo consumption, anticipation, threat recording
@@ -1567,7 +1296,6 @@ for (let tick = 1; tick <= TOTAL_TICKS; tick++) {
     while (npc.shoots.length > 0) {
       const shot = npc.shoots.shift()!;
 
-      // [IMPROVEMENT 5] Consume ammo. If empty → auto-start reload.
       if (shot.weaponType !== 'GRENADE') {
         npc.ammo--;
         if (npc.ammo <= 0 && !npc.isReloading) {
@@ -1580,14 +1308,11 @@ for (let tick = 1; tick <= TOTAL_TICKS; tick++) {
       );
       if (!target) continue;
 
-      // [IMPROVEMENT 6] Anticipation — predict where enemy will be and adjust accuracy.
-      // If shooter tracks enemy velocity, shots at moving targets are more accurate.
-      const predicted = npc.predictEnemyPos(200);  // 200ms lead time
+      const predicted = npc.predictEnemyPos(200);
       let accuracy = 0.67;
       if (predicted) {
-        // If NPC shoots at predicted position, accuracy bonus
         const predDist = Math.sqrt((predicted.x - target.x) ** 2 + (predicted.y - target.y) ** 2);
-        if (predDist < 30) accuracy += 0.1;  // good prediction = better aim
+        if (predDist < 30) accuracy += 0.1;
       }
 
       const hit = npc.random() < accuracy;
@@ -1685,10 +1410,13 @@ console.log('\n=== Final Status ===');
 for (const npc of allNPCs) {
   const driver = drivers.get(npc.npcId)!;
   const host = npcHosts.get(npc.npcId)!;
-  const plan = host.goapPlan?.map((a, i) => i === host.goapActionIndex ? `[${a.id}]` : a.id).join('->') ?? '(none)';
+  const custom = (host.state.custom ?? {}) as Record<string, unknown>;
+  const plan = (custom.__goapPlan as Array<{ id: string }> | undefined);
+  const idx  = (custom.__goapIndex as number | undefined) ?? 0;
+  const planStr = plan?.map((a, i) => i === idx ? `[${a.id}]` : a.id).join('->') ?? '(none)';
   const best = host.memory.getMostConfident();
   const mem = best ? `mem=${host.memory.size}(${best.sourceId}@${best.confidence.toFixed(2)})` : `mem=0`;
-  console.log(`  ${npc.npcId}[${host.personality}] HP=${npc.getHp()} state=${driver.currentStateId} morale=${npc.state.morale.toFixed(2)} ${mem} plan=${plan}`);
+  console.log(`  ${npc.npcId}[${host.personality}] HP=${npc.getHp()} state=${driver.currentStateId} morale=${npc.state.morale.toFixed(2)} ${mem} plan=${planStr}`);
 }
 if (squadComms.length > 0) {
   console.log(`\n=== Last ${Math.min(8, squadComms.length)} Comms ===`);
