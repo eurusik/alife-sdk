@@ -1,5 +1,15 @@
 # @alife-sdk/phaser
 
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies [624728d]
+  - @alife-sdk/core@0.4.1
+  - @alife-sdk/ai@0.4.1
+  - @alife-sdk/simulation@0.4.1
+  - @alife-sdk/social@0.4.1
+
 ## 0.4.0
 
 ### Patch Changes
