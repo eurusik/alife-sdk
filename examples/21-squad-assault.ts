@@ -1,8 +1,45 @@
 /**
- * 21-squad-assault.ts — 2v2 squad tactical combat with SDK GOAPDirector, A* pathfinding,
- * MemoryBank, personality-driven GOAP costs, threat mapping, and squad comms.
+ * 21-squad-assault.ts
  *
- * Run: npx tsx --tsconfig examples/tsconfig.json examples/21-squad-assault.ts
+ * 2v2 squad tactical combat — the capstone example showing how all SDK AI
+ * systems work together in a grid-based arena with obstacles.
+ *
+ * Run:
+ *   npx tsx --tsconfig examples/tsconfig.json examples/21-squad-assault.ts
+ *
+ * What we build here:
+ *   - Two 2-man squads (Alpha loners vs Bravo bandits) fight in a 40x20 arena
+ *   - SDK GOAPDirector drives each NPC: plan → execute action → replan
+ *   - A* pathfinding (PathFinding.js) routes NPCs around walls
+ *   - Bresenham LOS — walls block visual contact (no more seeing through walls)
+ *   - isInFOV() — 120° field of view cone with 500px range
+ *   - Sound detection — gunshots heard through walls, confidence decays with distance
+ *   - MemoryBank — NPCs remember where they last saw/heard the enemy
+ *   - Personality system — aggressive/cautious/balanced/flanker modify GOAP costs
+ *   - Threat mapping — tiles where NPCs were hit/killed get higher A* cost
+ *   - Squad comms — SUPPRESSING/FLANKING/IN_POSITION/PUSHING broadcasts
+ *   - Utility AI — action costs change dynamically (ammo, kills, cover saturation)
+ *   - Ammo + reload — 12-round magazine, 2s reload time
+ *
+ * Architecture:
+ *   GOAP decides WHAT to do (TakeCover → Suppress → Attack).
+ *   FSM executes HOW via GOAPDirector action handlers.
+ *   PathFinding.js computes WHERE to go (A* around walls).
+ *   Sensors determine WHO is visible (FOV + LOS + sound).
+ *
+ * What's SDK vs what's game code:
+ *   SDK provides:  GOAPDirector, GOAPPlanner, OnlineAIDriver, buildDefaultHandlerMap,
+ *                  MemoryBank, DangerManager, SquadSharedTargetTable, evaluateSituation,
+ *                  isInFOV, NPCPerception, IPathfindingAccess, ICoverAccess, state.custom
+ *   Game code:     Arena grid, A* pathfinding, Bresenham LOS, threat map, personality
+ *                  costs, ammo/reload, cover point placement, action handler logic,
+ *                  squad comms protocol, game loop, damage/morale processing
+ *
+ * File structure (use these markers to navigate):
+ *   PART 1: GAME WORLD        — arena, pathfinding, LOS, perception helpers
+ *   PART 2: GAME SYSTEMS      — personality, threat map, comms, host, cover
+ *   PART 3: SDK SETUP          — GOAP actions, WorldState, GOAPDirector, FSM drivers
+ *   PART 4: SIMULATION LOOP   — perception sync, FSM tick, damage, morale, rendering
  */
 
 // ---------------------------------------------------------------------------
@@ -50,6 +87,10 @@ import { SeededRandom } from '@alife-sdk/core';
 import { isInFOV } from '@alife-sdk/ai/perception';
 
 import PF from 'pathfinding';
+
+// ===========================================================================
+// PART 1: GAME WORLD — arena, pathfinding, LOS, perception helpers
+// ===========================================================================
 
 // ---------------------------------------------------------------------------
 // Arena constants — 40x20 tiles, 16px per tile = 640x320 px
@@ -176,6 +217,10 @@ function hashCode(str: string): number {
   }
   return hash;
 }
+
+// ===========================================================================
+// PART 2: GAME SYSTEMS — personality, threat map, comms, host, cover
+// ===========================================================================
 
 // ---------------------------------------------------------------------------
 // Personality system — GOAP cost modifiers per archetype
@@ -569,6 +614,10 @@ function createCoverAccess(_role: 'lead' | 'flanker'): ICoverAccess {
     },
   };
 }
+
+// ===========================================================================
+// PART 3: SDK SETUP — GOAP actions, WorldState, GOAPDirector, FSM drivers
+// ===========================================================================
 
 // ---------------------------------------------------------------------------
 // GOAP setup — base action definitions (data-driven, personality-modified)
@@ -1286,9 +1335,9 @@ function renderArena(tick: number): void {
   console.log('');
 }
 
-// ---------------------------------------------------------------------------
-// Simulation loop
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// PART 4: SIMULATION LOOP — perception, FSM tick, damage, morale, rendering
+// ===========================================================================
 
 console.log('=== 2v2 Squad Assault with GOAP + Intelligence ===');
 console.log(`  Arena: ${COLS}x${ROWS}, Alpha: lead[${alphaLead.personality}]+flank[${alphaFlank.personality}], Bravo: lead[${bravoLead.personality}]+guard[${bravoGuard.personality}]`);
