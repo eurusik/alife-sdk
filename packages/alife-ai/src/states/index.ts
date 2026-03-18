@@ -26,6 +26,7 @@ export type {
   ISquadAccess,
   IConditionAccess,
   ISuspicionAccess,
+  IPathfindingAccess,
   IShootPayload,
   IMeleeHitPayload,
   INPCContext,

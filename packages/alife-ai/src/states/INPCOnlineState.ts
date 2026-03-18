@@ -343,4 +343,31 @@ export interface INPCOnlineState {
    * - PANICKED : morale <= panicMoraleThreshold
    */
   moraleState: 'STABLE' | 'SHAKEN' | 'PANICKED';
+
+  // -------------------------------------------------------------------------
+  // Extensible game-specific state
+  // -------------------------------------------------------------------------
+
+  /**
+   * Extensible key-value bag for game-specific data.
+   *
+   * Use this for data that doesn't fit the built-in fields: GOAP plans,
+   * ammo counts, personality tags, enemy velocity tracking, etc.
+   *
+   * Handlers access it via `ctx.state.custom?.myKey`. The SDK never
+   * reads or writes this field — it's entirely owned by the game layer.
+   *
+   * **Key namespacing:** To avoid collisions between different systems
+   * writing to `custom`, prefix your keys. The SDK reserves the `__goap`
+   * prefix for the built-in GOAPDirector. Example: `custom.__goapPlan`.
+   * Game code should use its own prefix: `custom.myGame_ammo`.
+   *
+   * @example
+   * ```ts
+   * ctx.state.custom ??= {};
+   * ctx.state.custom.goapPlan = planner.plan(ws, goal);
+   * ctx.state.custom.ammo = 30;
+   * ```
+   */
+  custom?: Record<string, unknown>;
 }

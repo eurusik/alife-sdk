@@ -28,6 +28,7 @@ import type {
   ISquadAccess,
   IConditionAccess,
   ISuspicionAccess,
+  IPathfindingAccess,
   IPackAccess,
   IShootPayload,
   IMeleeHitPayload,
@@ -241,6 +242,8 @@ export interface IPhaserNPCSystemBundle {
   conditions?: IConditionAccess | null;
   /** Suspicion accumulator accessor for patrol/idle threat detection. */
   suspicion?: ISuspicionAccess | null;
+  /** Pathfinding system accessor (A*, NavMesh, etc.). */
+  pathfinding?: IPathfindingAccess | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -285,6 +288,7 @@ export class PhaserNPCContext implements INPCContext {
   readonly pack: IPackAccess | null;
   readonly conditions: IConditionAccess | null;
   readonly suspicion: ISuspicionAccess | null;
+  readonly pathfinding: IPathfindingAccess | null;
 
   constructor(
     host: IPhaserNPCHost,
@@ -302,6 +306,7 @@ export class PhaserNPCContext implements INPCContext {
     this.pack = systems?.pack ?? null;
     this.conditions = systems?.conditions ?? null;
     this.suspicion = systems?.suspicion ?? null;
+    this.pathfinding = systems?.pathfinding ?? null;
   }
 
   // -------------------------------------------------------------------------

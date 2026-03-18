@@ -7,3 +7,5 @@ export { GOAPController } from './GOAPController';
 export type { IGOAPUpdateResult, IGOAPControllerState } from './GOAPController';
 export type { IHazardZoneAccess } from './IHazardZoneAccess';
 export { EvadeHazardAction } from './EvadeHazardAction';
+export { GOAPDirector } from './GOAPDirector';
+export type { IGOAPDirectorConfig, IGOAPActionHandler, IGOAPInterrupt } from './GOAPDirector';

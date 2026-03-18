@@ -59,7 +59,7 @@ export class CoverAccessAdapter implements ICoverAccess {
     enemyY: number,
     type?: string,
   ): { x: number; y: number } | null {
-    const coverType: CoverType = (type as CoverType) ?? CoverTypeConst.BALANCED;
+    const coverType: CoverType = (type?.toLowerCase() as CoverType) ?? CoverTypeConst.BALANCED;
 
     const point = this._registry.findCover(
       coverType,
