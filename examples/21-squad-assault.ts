@@ -47,6 +47,8 @@ import type { ISquadTacticsConfig } from '@alife-sdk/ai/types';
 import { GOAPPlanner, WorldState, DangerManager, DangerType, MemoryBank, MemoryChannel } from '@alife-sdk/core/ai';
 import { SeededRandom } from '@alife-sdk/core';
 
+import { isInFOV } from '@alife-sdk/ai/perception';
+
 import PF from 'pathfinding';
 
 // ---------------------------------------------------------------------------
@@ -134,6 +136,33 @@ function describeRoute(path: { x: number; y: number }[]): string {
   if (minY < midY - 40) return 'routing north';
   if (maxY > midY + 40) return 'routing south';
   return 'direct path';
+}
+
+// ---------------------------------------------------------------------------
+// Line-of-sight — Bresenham raycast on the arena tile grid
+// ---------------------------------------------------------------------------
+
+/** Check if a straight line between two world positions passes through any wall tile. */
+function isLineOfSightClear(from: { x: number; y: number }, to: { x: number; y: number }): boolean {
+  let x0 = toTile(from.x, COLS);
+  let y0 = toTile(from.y, ROWS);
+  const x1 = toTile(to.x, COLS);
+  const y1 = toTile(to.y, ROWS);
+
+  const dx = Math.abs(x1 - x0);
+  const dy = Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1;
+  const sy = y0 < y1 ? 1 : -1;
+  let err = dx - dy;
+
+  while (true) {
+    if (MATRIX[y0]?.[x0] === 1) return false; // wall blocks LOS
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * err;
+    if (e2 > -dy) { err -= dy; x0 += sx; }
+    if (e2 < dx) { err += dx; y0 += sy; }
+  }
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -1262,6 +1291,21 @@ const DELTA_MS    = 16;
 
 let grenadeThrown = false;
 
+// Mission briefing — seed initial SOUND memories + force ALERT so squads advance.
+// Without this, proper FOV + LOS means NPCs never see past the center wall from spawn.
+for (const npc of alphaMembers) {
+  npc.memory.remember({ sourceId: 'bravo_lead', channel: MemoryChannel.SOUND, position: { x: bravoLead.x, y: bravoLead.y }, confidence: 0.6 });
+  npc.state.lastKnownEnemyX = bravoLead.x;
+  npc.state.lastKnownEnemyY = bravoLead.y;
+  drivers.get(npc.npcId)!.forceTransition(ONLINE_STATE.ALERT);
+}
+for (const npc of bravoMembers) {
+  npc.memory.remember({ sourceId: 'alpha_lead', channel: MemoryChannel.SOUND, position: { x: alphaLead.x, y: alphaLead.y }, confidence: 0.6 });
+  npc.state.lastKnownEnemyX = alphaLead.x;
+  npc.state.lastKnownEnemyY = alphaLead.y;
+  drivers.get(npc.npcId)!.forceTransition(ONLINE_STATE.ALERT);
+}
+
 // Render initial arena
 renderArena(0);
 
@@ -1269,19 +1313,55 @@ for (let tick = 1; tick <= TOTAL_TICKS; tick++) {
   currentTick = tick;
   sharedClock += DELTA_MS;
 
-  // 1. Perception sync + memory feed
-  for (const [squad, enemies] of [[alphaMembers, bravoMembers], [bravoMembers, alphaMembers]] as const) {
-    for (const npc of squad) {
-      if (!npc.isAlive()) continue;
-      const visible = enemies
-        .filter(e => e.isAlive())
-        .map(e => ({ id: e.npcId, x: e.x, y: e.y, factionId: e.factionId }));
-      npc.perception.sync(visible, [], []);
-      for (const enemy of visible) {
-        npc.memory.remember({ sourceId: enemy.id, channel: MemoryChannel.VISUAL, position: { x: enemy.x, y: enemy.y }, confidence: 0.95 });
+  // 1. Perception sync — FOV cone (120°) + Bresenham LOS + memory feed
+  for (const npc of allNPCs) {
+    if (!npc.isAlive()) continue;
+
+    const enemySquad = npc.factionId === 'loner' ? bravoMembers : alphaMembers;
+    const allySquad  = npc.factionId === 'loner' ? alphaMembers : bravoMembers;
+
+    // Compute facing angle from last known enemy direction or movement
+    const facingAngle = (npc.lastEnemyX !== 0 || npc.lastEnemyY !== 0)
+      ? Math.atan2(npc.lastEnemyY - npc.y, npc.lastEnemyX - npc.x)
+      : npc.factionId === 'loner' ? 0 : Math.PI; // default: face toward enemy side
+
+    // Vision: FOV cone (120° total = 60° half-angle) + range 500px + LOS through walls
+    const VISION_RANGE    = 500;  // px — covers cross-arena distance (448px between spawn points)
+    const VISION_HALF_FOV = Math.PI / 3; // 60° half-angle = 120° total FOV
+    const visibleEnemies: Array<{ id: string; x: number; y: number; factionId: string }> = [];
+    for (const enemy of enemySquad) {
+      if (!enemy.isAlive()) continue;
+
+      const inFOV = isInFOV(
+        { x: npc.x, y: npc.y },
+        facingAngle,
+        { x: enemy.x, y: enemy.y },
+        VISION_RANGE,
+        VISION_HALF_FOV,
+      );
+
+      if (inFOV) {
+        if (isLineOfSightClear({ x: npc.x, y: npc.y }, { x: enemy.x, y: enemy.y })) {
+          visibleEnemies.push({ id: enemy.npcId, x: enemy.x, y: enemy.y, factionId: enemy.factionId });
+        } else if (tick % 60 === 1) {
+          console.log(`  [LOS] ${npc.npcId} cannot see ${enemy.npcId} (wall blocks view)`);
+        }
       }
-      npc.memory.update(DELTA_MS / 1000);
     }
+
+    // Allies: always visible (same-faction comms)
+    const visibleAllies = allySquad
+      .filter(a => a.isAlive() && a.npcId !== npc.npcId)
+      .map(a => ({ id: a.npcId, x: a.x, y: a.y }));
+
+    npc.perception.sync(visibleEnemies, visibleAllies, []);
+
+    // Feed visual memories for seen enemies
+    for (const enemy of visibleEnemies) {
+      npc.memory.remember({ sourceId: enemy.id, channel: MemoryChannel.VISUAL, position: { x: enemy.x, y: enemy.y }, confidence: 0.95 });
+    }
+
+    npc.memory.update(DELTA_MS / 1000);
   }
 
   // 2. Update FSM drivers (onTransition callback handles logging)
@@ -1328,6 +1408,19 @@ for (let tick = 1; tick <= TOTAL_TICKS; tick++) {
         const targetSquad = target.factionId === 'loner' ? alphaMembers : bravoMembers;
         for (const member of targetSquad) {
           if (member.npcId !== target.npcId) member.state.morale = Math.max(-1, member.state.morale - 0.12);
+        }
+      }
+
+      // Sound: enemies within 500px hear the shot (omnidirectional, no LOS needed)
+      for (const other of allNPCs) {
+        if (other.npcId === npc.npcId || !other.isAlive()) continue;
+        if (other.factionId === npc.factionId) continue; // allies don't register as threat
+        const sdx = other.x - npc.x;
+        const sdy = other.y - npc.y;
+        const sDist = Math.sqrt(sdx * sdx + sdy * sdy);
+        if (sDist < 500) {
+          const confidence = Math.max(0, 1.0 - sDist / 500);
+          other.memory.remember({ sourceId: npc.npcId, channel: MemoryChannel.SOUND, position: { x: npc.x, y: npc.y }, confidence });
         }
       }
     }
