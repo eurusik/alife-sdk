@@ -1,9 +1,9 @@
 /**
- * 12-behavior-tree.ts
+ * 06-behavior-tree.ts
  *
  * Behavior Tree — composable code-first AI execution logic.
  * Runs in Node.js with:
- *   npx tsx --tsconfig examples/tsconfig.json examples/12-behavior-tree.ts
+ *   npx tsx --tsconfig examples/tsconfig.json examples/06-behavior-tree.ts
  *
  * What we build here:
  *   - A Blackboard to hold shared NPC state

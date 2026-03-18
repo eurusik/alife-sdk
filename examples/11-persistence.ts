@@ -1,9 +1,9 @@
 /**
- * 04-persistence.ts
+ * 11-persistence.ts
  *
  * Save / load game state with @alife-sdk/persistence.
  * Runs in Node.js with:
- *   npx tsx --tsconfig examples/tsconfig.json examples/04-persistence.ts
+ *   npx tsx --tsconfig examples/tsconfig.json examples/11-persistence.ts
  *
  * What we build here:
  *   - The same kernel setup as example 01 (two factions, one terrain, two NPCs)

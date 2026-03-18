@@ -1,9 +1,9 @@
 /**
- * 22-goap-director.ts
+ * 18-goap-director.ts
  *
  * Teaching example: GOAPDirector step by step.
  * Runs in Node.js with:
- *   npx tsx --tsconfig examples/tsconfig.json examples/22-goap-director.ts
+ *   npx tsx --tsconfig examples/tsconfig.json examples/18-goap-director.ts
  *
  * What we build here:
  *   - Phase 1: Minimal GOAPDirector — 1 NPC, 2 actions, plan executes
@@ -69,7 +69,7 @@ import { GOAPPlanner, WorldState } from '@alife-sdk/core/ai';
 // ---------------------------------------------------------------------------
 // SimpleNPCHost — minimal IOnlineDriverHost for Node.js
 //
-// Identical to example 07. In a Phaser game you replace this with
+// Identical to example 15. In a Phaser game you replace this with
 // PhaserNPCContext which delegates to the game engine's physics body,
 // health component, and animation system.
 // ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 /**
- * 09-phaser.ts
+ * 19-phaser.ts
  *
  * Reference template: integrating @alife-sdk/phaser into a Phaser 3 scene.
  *

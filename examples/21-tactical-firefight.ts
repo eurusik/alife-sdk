@@ -1,11 +1,11 @@
 /**
- * 20-tactical-firefight.ts
+ * 21-tactical-firefight.ts
  *
  * Tactical combat with grid-based pathfinding — grenades, evasion routes,
  * wounded crawl behind cover, and movement around obstacles via PathFinding.js.
  *
  * Runs in Node.js with:
- *   npx tsx --tsconfig examples/tsconfig.json examples/20-tactical-firefight.ts
+ *   npx tsx --tsconfig examples/tsconfig.json examples/21-tactical-firefight.ts
  *
  * What we build here:
  *   - 30x20 grid arena (16 px tiles) with wall obstacles

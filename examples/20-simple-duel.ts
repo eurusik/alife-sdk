@@ -1,11 +1,11 @@
 /**
- * 19-simple-duel.ts
+ * 20-simple-duel.ts
  *
  * Grid-based arena duel -- two NPCs in a firefight with A* pathfinding,
  * wall obstacles, and cover points that require navigation around walls.
  *
  * Runs in Node.js with:
- *   npx tsx --tsconfig examples/tsconfig.json examples/19-simple-duel.ts
+ *   npx tsx --tsconfig examples/tsconfig.json examples/20-simple-duel.ts
  *
  * What we build here:
  *   - A 30x20 tile grid arena (480x320 px) with symmetrical wall blocks

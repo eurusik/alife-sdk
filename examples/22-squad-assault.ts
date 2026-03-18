@@ -1,11 +1,11 @@
 /**
- * 21-squad-assault.ts
+ * 22-squad-assault.ts
  *
  * 2v2 squad tactical combat — the capstone example showing how all SDK AI
  * systems work together in a grid-based arena with obstacles.
  *
  * Run:
- *   npx tsx --tsconfig examples/tsconfig.json examples/21-squad-assault.ts
+ *   npx tsx --tsconfig examples/tsconfig.json examples/22-squad-assault.ts
  *
  * What we build here:
  *   - Two 2-man squads (Alpha loners vs Bravo bandits) fight in a 40x20 arena

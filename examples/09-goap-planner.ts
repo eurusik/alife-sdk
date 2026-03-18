@@ -1,9 +1,9 @@
 /**
- * 17-goap-planner.ts
+ * 09-goap-planner.ts
  *
  * GOAPPlanner — A* goal-oriented action planning for dynamic NPC strategies.
  * Runs in Node.js with:
- *   npx tsx --tsconfig examples/tsconfig.json examples/17-goap-planner.ts
+ *   npx tsx --tsconfig examples/tsconfig.json examples/09-goap-planner.ts
  *
  * GOAP (Goal-Oriented Action Planning) lets an NPC figure out HOW to achieve
  * a goal by searching through available actions — like A* pathfinding, but

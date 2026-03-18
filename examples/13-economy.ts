@@ -1,9 +1,9 @@
 /**
- * 06-economy.ts
+ * 13-economy.ts
  *
  * Trade, inventory, and quests with @alife-sdk/economy.
  * Runs in Node.js with:
- *   npx tsx --tsconfig examples/tsconfig.json examples/06-economy.ts
+ *   npx tsx --tsconfig examples/tsconfig.json examples/13-economy.ts
  *
  * What we build here:
  *   - EconomyPlugin wired to a kernel

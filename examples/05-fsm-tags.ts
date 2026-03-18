@@ -1,9 +1,9 @@
 /**
- * 11-fsm-tags.ts
+ * 05-fsm-tags.ts
  *
  * Extended FSM — tags, metadata, event subscriptions, and transition history.
  * Runs in Node.js with:
- *   npx tsx --tsconfig examples/tsconfig.json examples/11-fsm-tags.ts
+ *   npx tsx --tsconfig examples/tsconfig.json examples/05-fsm-tags.ts
  *
  * What we build here:
  *   - A 4-state guard NPC FSM: IDLE → ALERT → COMBAT → RETREAT
