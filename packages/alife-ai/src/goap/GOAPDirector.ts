@@ -144,7 +144,8 @@ export class GOAPDirector implements IOnlineStateHandler {
         prevHandler?.exit(ctx);
       }
       handler.enter(ctx);
-      ctx.state.custom = { ...custom, [GOAP_HANDLER_KEY]: action.id };
+      // Re-read custom AFTER enter() — the handler may have written to it.
+      ctx.state.custom = { ...(ctx.state.custom ?? {}), [GOAP_HANDLER_KEY]: action.id };
     }
 
     // 4. Tick the action handler.
