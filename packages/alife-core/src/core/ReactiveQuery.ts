@@ -52,7 +52,7 @@ export type QueryChangeListener<T> = (changes: QueryChanges<T>) => void;
  * the matched set changes.
  */
 export class ReactiveQuery<T> {
-  private readonly matched = new Set<T>();
+  private matched = new Set<T>();
   private readonly listeners = new Set<QueryChangeListener<T>>();
 
   constructor(private readonly predicate: (entity: T) => boolean) {}
@@ -88,8 +88,7 @@ export class ReactiveQuery<T> {
     }
 
     // Commit new matched set
-    this.matched.clear();
-    for (const e of nextMatched) this.matched.add(e);
+    this.matched = nextMatched;
 
     if (added.length > 0 || removed.length > 0) {
       const changes: QueryChanges<T> = {

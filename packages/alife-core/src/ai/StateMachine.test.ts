@@ -620,6 +620,213 @@ describe('StateMachine', () => {
       fsm.transition('locked');
       expect(fsm.getHistory()).toHaveLength(0);
     });
+
+    // -----------------------------------------------------------------------
+    // maxHistoryLength cap
+    // -----------------------------------------------------------------------
+
+    it('history never exceeds the default cap of 100', () => {
+      // Build a two-state registry and bounce between them 110 times.
+      const registry = buildRegistry({ a: {}, b: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'a');
+
+      for (let i = 0; i < 110; i++) {
+        fsm.transition(i % 2 === 0 ? 'b' : 'a');
+      }
+
+      expect(fsm.getHistory().length).toBe(100);
+    });
+
+    it('respects a custom maxHistoryLength passed to the constructor', () => {
+      const registry = buildRegistry({ a: {}, b: {} });
+      const customMax = 5;
+      const fsm = new StateMachine(
+        createMockEntity(),
+        registry,
+        'a',
+        Date.now,
+        customMax,
+      );
+
+      for (let i = 0; i < 10; i++) {
+        fsm.transition(i % 2 === 0 ? 'b' : 'a');
+      }
+
+      expect(fsm.getHistory().length).toBe(customMax);
+    });
+
+    it('evicts oldest entries first (FIFO) when the cap is reached', () => {
+      // Use a tiny cap of 3 so the eviction is easy to inspect.
+      const registry = buildRegistry({ a: {}, b: {}, c: {}, d: {} });
+      const clock = (() => {
+        let t = 0;
+        return { timeFn: () => ++t };
+      })();
+
+      const fsm = new StateMachine(
+        createMockEntity(),
+        registry,
+        'a',
+        clock.timeFn,
+        3, // maxHistoryLength = 3
+      );
+
+      // Transitions 1-3 fill the log exactly.
+      fsm.transition('b'); // entry 1: a→b
+      fsm.transition('c'); // entry 2: b→c
+      fsm.transition('d'); // entry 3: c→d
+
+      const full = fsm.getHistory() as StateTransitionEvent[];
+      expect(full).toHaveLength(3);
+      expect(full[0]).toMatchObject({ from: 'a', to: 'b' });
+      expect(full[2]).toMatchObject({ from: 'c', to: 'd' });
+
+      // Transition 4 must evict entry 1 (a→b) and append d→a.
+      fsm.transition('a'); // entry 4: d→a
+
+      const trimmed = fsm.getHistory() as StateTransitionEvent[];
+      expect(trimmed).toHaveLength(3);
+      // Oldest surviving entry is now entry 2 (b→c).
+      expect(trimmed[0]).toMatchObject({ from: 'b', to: 'c' });
+      // Newest entry is the one just added (d→a).
+      expect(trimmed[2]).toMatchObject({ from: 'd', to: 'a' });
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Injectable clock (timeFn)
+  // -------------------------------------------------------------------------
+
+  describe('injectable clock (timeFn)', () => {
+    // Helper that returns a mutable fake clock and a timeFn closure over it.
+    function makeClock(startMs = 1_000): { tick: (ms: number) => void; timeFn: () => number } {
+      let now = startMs;
+      return {
+        tick: (ms: number) => { now += ms; },
+        timeFn: () => now,
+      };
+    }
+
+    it('default constructor uses Date.now and returns a non-negative duration', () => {
+      // No timeFn supplied — backward-compatible default.
+      const registry = buildRegistry({ idle: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle');
+
+      // Duration must be a non-negative finite number sourced from real time.
+      expect(fsm.currentStateDuration).toBeGreaterThanOrEqual(0);
+      expect(Number.isFinite(fsm.currentStateDuration)).toBe(true);
+    });
+
+    it('stateEnterTime is captured via timeFn at construction', () => {
+      // When the FSM is constructed at clock=1000, currentStateDuration at
+      // clock=1000 is 0 because timeFn() - stateEnterTime = 1000 - 1000.
+      const clock = makeClock(1_000);
+      const registry = buildRegistry({ idle: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle', clock.timeFn);
+
+      expect(fsm.currentStateDuration).toBe(0);
+    });
+
+    it('currentStateDuration reflects time elapsed according to timeFn', () => {
+      const clock = makeClock(0);
+      const registry = buildRegistry({ idle: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle', clock.timeFn);
+
+      clock.tick(250);
+      expect(fsm.currentStateDuration).toBe(250);
+
+      clock.tick(750);
+      expect(fsm.currentStateDuration).toBe(1_000);
+    });
+
+    it('currentStateDuration does not drift when the real wall clock advances', () => {
+      // Freeze the fake clock after construction; duration must stay at exactly
+      // 0 regardless of how many real milliseconds pass.
+      const clock = makeClock(5_000);
+      const registry = buildRegistry({ idle: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle', clock.timeFn);
+
+      // Do NOT tick — frozen clock must yield a stable, deterministic 0.
+      expect(fsm.currentStateDuration).toBe(0);
+      expect(fsm.currentStateDuration).toBe(0);
+    });
+
+    it('stateEnterTime is reset via timeFn on transition', () => {
+      const clock = makeClock(1_000);
+      const registry = buildRegistry({ idle: {}, patrol: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle', clock.timeFn);
+
+      // Advance 500 ms while in idle.
+      clock.tick(500);
+      expect(fsm.currentStateDuration).toBe(500);
+
+      // Transition at t=1500; stateEnterTime resets to 1500.
+      fsm.transition('patrol');
+      expect(fsm.currentStateDuration).toBe(0);
+
+      // Advance 200 ms in the new state.
+      clock.tick(200);
+      expect(fsm.currentStateDuration).toBe(200);
+    });
+
+    it('history timestamp uses timeFn value at the moment of transition', () => {
+      const clock = makeClock(2_000);
+      const registry = buildRegistry({ idle: {}, patrol: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle', clock.timeFn);
+
+      clock.tick(300);
+      fsm.transition('patrol');
+
+      const [entry] = fsm.getHistory() as StateTransitionEvent[];
+      expect(entry.timestamp).toBe(2_300);
+    });
+
+    it('manual deterministic clock advancement produces predictable durations', () => {
+      // Simulate a multi-step game loop with a fully controlled clock.
+      const clock = makeClock(0);
+      const registry = buildRegistry({ idle: {}, combat: {}, retreat: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'idle', clock.timeFn);
+
+      // Step 1: advance 100 ms — still in idle.
+      clock.tick(100);
+      expect(fsm.state).toBe('idle');
+      expect(fsm.currentStateDuration).toBe(100);
+
+      // Step 2: transition to combat at t=100.
+      fsm.transition('combat');
+      expect(fsm.currentStateDuration).toBe(0);
+
+      // Step 3: advance 400 ms — in combat.
+      clock.tick(400);
+      expect(fsm.currentStateDuration).toBe(400);
+
+      // Step 4: transition to retreat at t=500.
+      fsm.transition('retreat');
+      expect(fsm.currentStateDuration).toBe(0);
+
+      // Step 5: advance 50 ms — in retreat.
+      clock.tick(50);
+      expect(fsm.currentStateDuration).toBe(50);
+
+      // History timestamps must be exact clock values at each transition.
+      const history = fsm.getHistory() as StateTransitionEvent[];
+      expect(history).toHaveLength(2);
+      expect(history[0]).toMatchObject({ from: 'idle',   to: 'combat',  timestamp: 100 });
+      expect(history[1]).toMatchObject({ from: 'combat', to: 'retreat', timestamp: 500 });
+    });
+
+    it('multiple sequential transitions each reset duration to 0 at transition time', () => {
+      const clock = makeClock(0);
+      const registry = buildRegistry({ a: {}, b: {}, c: {}, d: {} });
+      const fsm = new StateMachine(createMockEntity(), registry, 'a', clock.timeFn);
+
+      for (const [target, advance] of [['b', 10], ['c', 20], ['d', 30]] as const) {
+        clock.tick(advance);
+        fsm.transition(target);
+        // Immediately after each transition the duration must be 0.
+        expect(fsm.currentStateDuration).toBe(0);
+      }
+    });
   });
 
   // -------------------------------------------------------------------------

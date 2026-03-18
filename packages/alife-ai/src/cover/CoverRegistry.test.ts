@@ -280,4 +280,74 @@ describe('CoverRegistry', () => {
       expect(p.id).toBe('cover_0000');
     });
   });
+
+  // -------------------------------------------------------------------
+  // getAll – immutable cache (shallow-copy fix)
+  // -------------------------------------------------------------------
+  describe('getAll immutable cache', () => {
+    it('two consecutive calls return equal content but different array references', () => {
+      const reg = makeRegistry();
+      reg.addPoints([{ x: 0, y: 0 }, { x: 10, y: 10 }]);
+      const first = reg.getAll();
+      const second = reg.getAll();
+      expect(first).not.toBe(second);
+      expect(first).toEqual(second);
+    });
+
+    it('array returned before addPoint is not mutated by the addition', () => {
+      const reg = makeRegistry();
+      reg.addPoint(0, 0);
+      const snapshot = reg.getAll();
+      const lengthBefore = snapshot.length;
+      reg.addPoint(10, 10);
+      expect(snapshot.length).toBe(lengthBefore);
+    });
+
+    it('array returned before removePoint is not mutated by the removal', () => {
+      const reg = makeRegistry();
+      reg.addPoint(0, 0);
+      const p = reg.addPoint(10, 10);
+      const snapshot = reg.getAll();
+      const lengthBefore = snapshot.length;
+      reg.removePoint(p.id);
+      expect(snapshot.length).toBe(lengthBefore);
+    });
+
+    it('array returned before clear is not mutated by clear', () => {
+      const reg = makeRegistry();
+      reg.addPoints([{ x: 0, y: 0 }, { x: 10, y: 10 }, { x: 20, y: 20 }]);
+      const snapshot = reg.getAll();
+      const lengthBefore = snapshot.length;
+      reg.clear();
+      expect(snapshot.length).toBe(lengthBefore);
+    });
+
+    it('getAll reflects correct content after addPoint', () => {
+      const reg = makeRegistry();
+      reg.addPoint(0, 0);
+      reg.addPoint(10, 10);
+      expect(reg.getAll()).toHaveLength(2);
+      reg.addPoint(20, 20);
+      expect(reg.getAll()).toHaveLength(3);
+      expect(reg.getAll().map((p) => p.x)).toEqual(expect.arrayContaining([0, 10, 20]));
+    });
+
+    it('getAll reflects correct content after removePoint', () => {
+      const reg = makeRegistry();
+      reg.addPoint(0, 0);
+      const p = reg.addPoint(10, 10);
+      expect(reg.getAll()).toHaveLength(2);
+      reg.removePoint(p.id);
+      const after = reg.getAll();
+      expect(after).toHaveLength(1);
+      expect(after[0].x).toBe(0);
+    });
+
+    it('getAll returns empty array after clear', () => {
+      const reg = makeRegistry();
+      reg.addPoints([{ x: 0, y: 0 }, { x: 10, y: 10 }]);
+      reg.clear();
+      expect(reg.getAll()).toHaveLength(0);
+    });
+  });
 });

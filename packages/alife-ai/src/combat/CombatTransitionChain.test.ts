@@ -115,38 +115,86 @@ describe('CombatTransitionChain', () => {
   });
 
   describe('GrenadeOpportunityRule', () => {
-    it('triggers GRENADE when conditions met', () => {
-      const ctx = makeContext({
-        lostSightMs: 2500,
-        visibleEnemyCount: 2,
+    // Base context that satisfies all three conditions for GRENADE:
+    // grenades > 0, visibleEnemyCount >= grenadeMinEnemies (2), distanceToEnemy in [80, 250].
+    function makeGrenadeContext(overrides?: Partial<ICombatContext>): ICombatContext {
+      return makeContext({
+        loadout: makeLoadout({ grenades: 2 }),
+        visibleEnemyCount: cfg.grenadeMinEnemies,
         distanceToEnemy: 150,
-        loadout: makeLoadout({ grenades: 1 }),
+        ...overrides,
       });
+    }
+
+    it('triggers GRENADE when has grenades, enough visible enemies and enemy in range', () => {
+      const ctx = makeGrenadeContext();
       expect(GrenadeOpportunityRule.evaluate(ctx, cfg)).toBe('GRENADE');
     });
 
-    it('passes when lost sight too recently', () => {
-      const ctx = makeContext({ lostSightMs: 1000 });
+    it('triggers GRENADE with exactly grenadeMinEnemies visible enemies', () => {
+      const ctx = makeGrenadeContext({ visibleEnemyCount: cfg.grenadeMinEnemies });
+      expect(GrenadeOpportunityRule.evaluate(ctx, cfg)).toBe('GRENADE');
+    });
+
+    it('triggers GRENADE when more than grenadeMinEnemies enemies visible', () => {
+      const ctx = makeGrenadeContext({ visibleEnemyCount: cfg.grenadeMinEnemies + 2 });
+      expect(GrenadeOpportunityRule.evaluate(ctx, cfg)).toBe('GRENADE');
+    });
+
+    it('triggers GRENADE regardless of lostSightMs value', () => {
+      // lostSightMs is no longer part of the rule — any value must be irrelevant.
+      const ctxNoSight = makeGrenadeContext({ lostSightMs: 0 });
+      const ctxLongLost = makeGrenadeContext({ lostSightMs: 10_000 });
+      expect(GrenadeOpportunityRule.evaluate(ctxNoSight, cfg)).toBe('GRENADE');
+      expect(GrenadeOpportunityRule.evaluate(ctxLongLost, cfg)).toBe('GRENADE');
+    });
+
+    it('passes when grenades = 0', () => {
+      const ctx = makeGrenadeContext({ loadout: makeLoadout({ grenades: 0 }) });
       expect(GrenadeOpportunityRule.evaluate(ctx, cfg)).toBeNull();
     });
 
-    it('passes when lost sight too long (search takes over)', () => {
-      const ctx = makeContext({ lostSightMs: 4000 });
+    it('passes when grenades < 0', () => {
+      const ctx = makeGrenadeContext({ loadout: makeLoadout({ grenades: -1 }) });
       expect(GrenadeOpportunityRule.evaluate(ctx, cfg)).toBeNull();
     });
 
-    it('passes when no grenades', () => {
-      const ctx = makeContext({
-        lostSightMs: 2500,
-        visibleEnemyCount: 2,
-        loadout: makeLoadout({ grenades: 0 }),
-      });
+    it('passes when visibleEnemyCount is below grenadeMinEnemies', () => {
+      const ctx = makeGrenadeContext({ visibleEnemyCount: cfg.grenadeMinEnemies - 1 });
       expect(GrenadeOpportunityRule.evaluate(ctx, cfg)).toBeNull();
     });
 
-    it('passes when enemy out of throw range', () => {
-      const ctx = makeContext({ lostSightMs: 2500, distanceToEnemy: 500 });
+    it('passes when visibleEnemyCount is zero', () => {
+      const ctx = makeGrenadeContext({ visibleEnemyCount: 0 });
       expect(GrenadeOpportunityRule.evaluate(ctx, cfg)).toBeNull();
+    });
+
+    it('passes when enemy is closer than grenadeMinDistance', () => {
+      const ctx = makeGrenadeContext({ distanceToEnemy: cfg.grenadeMinDistance - 1 });
+      expect(GrenadeOpportunityRule.evaluate(ctx, cfg)).toBeNull();
+    });
+
+    it('triggers GRENADE at exactly grenadeMinDistance boundary (inclusive)', () => {
+      // Rule blocks on strict < only, so distance === grenadeMinDistance is in range.
+      const ctx = makeGrenadeContext({ distanceToEnemy: cfg.grenadeMinDistance });
+      expect(GrenadeOpportunityRule.evaluate(ctx, cfg)).toBe('GRENADE');
+    });
+
+    it('passes when enemy is farther than grenadeMaxDistance', () => {
+      const ctx = makeGrenadeContext({ distanceToEnemy: cfg.grenadeMaxDistance + 1 });
+      expect(GrenadeOpportunityRule.evaluate(ctx, cfg)).toBeNull();
+    });
+
+    it('triggers GRENADE at exactly grenadeMaxDistance boundary (inclusive)', () => {
+      // Rule blocks on strict > only, so distance === grenadeMaxDistance is in range.
+      const ctx = makeGrenadeContext({ distanceToEnemy: cfg.grenadeMaxDistance });
+      expect(GrenadeOpportunityRule.evaluate(ctx, cfg)).toBe('GRENADE');
+    });
+
+    it('returns GRENADE — correct transition result string', () => {
+      const ctx = makeGrenadeContext();
+      const result = GrenadeOpportunityRule.evaluate(ctx, cfg);
+      expect(result).toBe('GRENADE');
     });
   });
 

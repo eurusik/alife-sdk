@@ -38,6 +38,9 @@ export class IdleState implements IOnlineStateHandler {
     ctx.halt();
     // Seed the zone check timer so the check fires on the first update tick.
     ctx.state.lastIdleAnimChangeMs = ctx.now() - this.cfg.restrictedZoneCheckIntervalMs;
+    // Reset per-entry corpse deduplication so corpses not yet reacted to
+    // can still add suspicion when re-entering IDLE from another state.
+    ctx.state.seenCorpseIds = undefined;
   }
 
   update(ctx: INPCContext, _deltaMs: number): void {
@@ -91,13 +94,13 @@ export class IdleState implements IOnlineStateHandler {
 
         const safe = ctx.restrictedZones.filterAccessible(candidates);
         if (safe.length > 0) {
-          const dest = safe[0];
-          ctx.state.lastKnownEnemyX = dest.x;
-          ctx.state.lastKnownEnemyY = dest.y;
-          moveToward(ctx, dest.x, dest.y, this.cfg.approachSpeed);
+          // Walk toward the safe exit without touching lastKnownEnemyX/Y —
+          // writing those fields would broadcast a false enemy position to the
+          // pack and cause all nearby NPCs to converge on this coordinate.
+          // The NPC stays in IDLE; the throttle ensures we re-check each
+          // restrictedZoneCheckIntervalMs until it has cleared the zone.
+          moveToward(ctx, safe[0].x, safe[0].y, this.cfg.approachSpeed);
         }
-
-        ctx.transition(this.tr.idleOnEnemy);
         return;
       }
     }
@@ -129,8 +132,13 @@ export class IdleState implements IOnlineStateHandler {
 
     // --- Corpse detection (opt-in via getVisibleCorpses + suspicion) ---
     // Feeds suspicion accumulator; the existing suspicion check above handles transition.
+    // Each corpse only contributes suspicion once per IDLE entry (seenCorpseIds is
+    // cleared in enter()) to prevent the same static corpse from filling the accumulator
+    // every frame and causing an IDLE→ALERT→IDLE oscillation.
     if (ctx.suspicion) {
       for (const c of ctx.perception?.getVisibleCorpses?.() ?? []) {
+        if (ctx.state.seenCorpseIds?.has(c.id)) continue;
+        (ctx.state.seenCorpseIds ??= new Set()).add(c.id);
         ctx.suspicion.add(SuspicionStimuli.BODY_FOUND, this.cfg.corpseFoundSuspicion, c.x, c.y);
       }
     }

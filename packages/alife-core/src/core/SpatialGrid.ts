@@ -282,8 +282,10 @@ export class SpatialGrid<T> {
    * Supports cell indices in the range [-512, +511].
    */
   private cellKeyInt(x: number, y: number): number {
-    const cx = Math.floor(x / this.cellSize);
-    const cy = Math.floor(y / this.cellSize);
+    let cx = Math.floor(x / this.cellSize);
+    let cy = Math.floor(y / this.cellSize);
+    cx = Math.max(-512, Math.min(511, cx));
+    cy = Math.max(-512, Math.min(511, cy));
     return (cx + SpatialGrid.CELL_OFFSET) * SpatialGrid.CELL_STRIDE + (cy + SpatialGrid.CELL_OFFSET);
   }
 

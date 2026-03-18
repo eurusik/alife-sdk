@@ -278,7 +278,7 @@ describe('buildMonsterHandlerMap()', () => {
 // ---------------------------------------------------------------------------
 
 describe('createDefaultTransitionMap()', () => {
-  it('all 65 keys have correct defaults', () => {
+  it('all 66 keys have correct defaults', () => {
     expect(createDefaultTransitionMap()).toEqual({
       idleOnEnemy:              'ALERT',
       idleOnTired:              'CAMP',
@@ -300,6 +300,7 @@ describe('createDefaultTransitionMap()', () => {
       takeCoverOnPanicked:      'FLEE',
       takeCoverOnShaken:        'RETREAT',
       fleeOnCalmed:             'ALERT',
+      fleeOnSafe:               'PATROL',
       searchOnEnemy:            'ALERT',
       searchOnTimeout:          'IDLE',
       grenadeOnComplete:        'COMBAT',

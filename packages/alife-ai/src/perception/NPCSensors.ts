@@ -169,18 +169,18 @@ export class NPCSensors {
    *
    * O(h) where h = hearer count.
    *
-   * @param sourcePos        - World-space origin of the sound.
-   * @param soundRange       - Maximum propagation range in world units.
-   * @param sourceId         - Entity id of the sound source (excluded from results).
-   * @param _sourceFactionId - Faction of the sound source (unused — sound is omnidirectional).
-   * @param hearers          - Candidate entities that may hear the sound.
+   * @param sourcePos       - World-space origin of the sound.
+   * @param soundRange      - Maximum propagation range in world units.
+   * @param sourceId        - Entity id of the sound source (excluded from results).
+   * @param sourceFactionId - Faction of the sound source (unused — sound is omnidirectional).
+   * @param hearers         - Candidate entities that may hear the sound.
    */
   detectSound(
     sourcePos: Vec2,
     soundRange: number,
     sourceId: string,
-    _sourceFactionId: string,
-    hearers: readonly IPerceptibleEntity[],
+    _sourceFactionId?: string,
+    hearers: readonly IPerceptibleEntity[] = [],
   ): IDetectionEvent[] {
     if (soundRange <= 0) return [];
 

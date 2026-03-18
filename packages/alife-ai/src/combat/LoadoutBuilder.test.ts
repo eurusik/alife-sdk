@@ -43,6 +43,70 @@ describe('LoadoutBuilder', () => {
     expect(loadout.primary!.ammo).toBe(5);
   });
 
+  // -------------------------------------------------------------------------
+  // maxAmmo fix (round-4): Math.max(ammo, defaultAmmo)
+  // -------------------------------------------------------------------------
+
+  it('maxAmmo fix — ammoOverride > defaultAmmo: maxAmmo equals the override, not defaultAmmo', () => {
+    // RIFLE defaultAmmo = 30. Passing 60 must yield maxAmmo = 60.
+    const riffleDefault = config.weapons[WeaponCategory.RIFLE].defaultAmmo; // 30
+    const override = riffleDefault + 30; // 60 — strictly above default
+    const loadout = new LoadoutBuilder(config)
+      .withPrimary(WeaponCategory.RIFLE, override)
+      .build();
+    expect(loadout.primary!.ammo).toBe(override);
+    expect(loadout.primary!.maxAmmo).toBe(override);
+    expect(loadout.primary!.maxAmmo).toBeGreaterThan(riffleDefault);
+  });
+
+  it('maxAmmo fix — ammoOverride < defaultAmmo: maxAmmo equals defaultAmmo', () => {
+    // RIFLE defaultAmmo = 30. Passing 5 must yield maxAmmo = 30 (the floor).
+    const riffleDefault = config.weapons[WeaponCategory.RIFLE].defaultAmmo; // 30
+    const override = 5; // strictly below default
+    const loadout = new LoadoutBuilder(config)
+      .withPrimary(WeaponCategory.RIFLE, override)
+      .build();
+    expect(loadout.primary!.ammo).toBe(override);
+    expect(loadout.primary!.maxAmmo).toBe(riffleDefault);
+  });
+
+  it('maxAmmo fix — no override: maxAmmo equals defaultAmmo', () => {
+    // Covered by the existing "uses default ammo from config" test; repeated
+    // here explicitly for the fix contract to make it easy to see all four cases.
+    const riffleDefault = config.weapons[WeaponCategory.RIFLE].defaultAmmo;
+    const loadout = new LoadoutBuilder(config)
+      .withPrimary(WeaponCategory.RIFLE)
+      .build();
+    expect(loadout.primary!.ammo).toBe(riffleDefault);
+    expect(loadout.primary!.maxAmmo).toBe(riffleDefault);
+  });
+
+  it('maxAmmo fix — ammo <= maxAmmo invariant holds for every weapon category', () => {
+    // For both ammoOverride below and above defaultAmmo, ammo must never exceed maxAmmo.
+    const cases: Array<{ category: WeaponCategory; override: number | undefined }> = [
+      { category: WeaponCategory.PISTOL,  override: undefined }, // no override
+      { category: WeaponCategory.PISTOL,  override: 1 },         // below default (15)
+      { category: WeaponCategory.PISTOL,  override: 30 },        // above default (15)
+      { category: WeaponCategory.SHOTGUN, override: undefined },
+      { category: WeaponCategory.SHOTGUN, override: 2 },         // below default (8)
+      { category: WeaponCategory.SHOTGUN, override: 20 },        // above default (8)
+      { category: WeaponCategory.RIFLE,   override: undefined },
+      { category: WeaponCategory.RIFLE,   override: 5 },         // below default (30)
+      { category: WeaponCategory.RIFLE,   override: 60 },        // above default (30)
+      { category: WeaponCategory.SNIPER,  override: undefined },
+      { category: WeaponCategory.SNIPER,  override: 2 },         // below default (10)
+      { category: WeaponCategory.SNIPER,  override: 25 },        // above default (10)
+    ];
+
+    for (const { category, override } of cases) {
+      const loadout = new LoadoutBuilder(config)
+        .withPrimary(category as WeaponCategory, override)
+        .build();
+      const slot = loadout.primary!;
+      expect(slot.ammo).toBeLessThanOrEqual(slot.maxAmmo);
+    }
+  });
+
   it('clamps grenades to 0 minimum', () => {
     const loadout = new LoadoutBuilder(config).withGrenades(-1).build();
     expect(loadout.grenades).toBe(0);

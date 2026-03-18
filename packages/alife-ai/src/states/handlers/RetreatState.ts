@@ -59,19 +59,23 @@ export class RetreatState implements IOnlineStateHandler {
         ctx.state.coverPointY = coverPoint.y;
         ctx.state.hasTakenCover = false;
       } else {
+        // Lock contested — signal "no cover" so update() uses awayFrom().
         ctx.state.hasTakenCover = false;
-        ctx.state.coverPointX = ctx.x;
-        ctx.state.coverPointY = ctx.y;
+        ctx.state.coverPointX = NaN;
+        ctx.state.coverPointY = NaN;
       }
     } else {
-      // No cover found — mark as unavailable; update() will flee from threat.
+      // No cover found — signal "no cover" so update() uses awayFrom().
       ctx.state.hasTakenCover = false;
-      ctx.state.coverPointX = ctx.x;
-      ctx.state.coverPointY = ctx.y;
+      ctx.state.coverPointX = NaN;
+      ctx.state.coverPointY = NaN;
     }
 
     // Allow an immediate first suppressive burst on enter.
-    ctx.state.lastSupressiveFireMs = 0;
+    ctx.state.lastSuppressiveFireMs = 0;
+
+    // Record entry time so the no-cover flee path can be time-bounded.
+    ctx.state.retreatStartMs = ctx.now();
   }
 
   update(ctx: INPCContext, _deltaMs: number): void {
@@ -90,13 +94,19 @@ export class RetreatState implements IOnlineStateHandler {
 
     if (!arrived) {
       // --- Move toward the FAR cover point at normal approach speed ---
-      const hasCoverDest =
-        ctx.state.coverPointX !== ctx.x || ctx.state.coverPointY !== ctx.y;
+      const hasCoverDest = !Number.isNaN(ctx.state.coverPointX);
 
       if (hasCoverDest) {
         moveToward(ctx, ctx.state.coverPointX, ctx.state.coverPointY, this.cfg.approachSpeed);
       } else {
         // No cover destination — run away from last known enemy.
+        // Enforce a maximum duration so the NPC eventually stops fleeing and
+        // transitions to SEARCH rather than running forever.
+        if (now - ctx.state.retreatStartMs >= this.cfg.retreatMaxDurationMs) {
+          ctx.halt();
+          ctx.transition(this.tr.retreatOnNoEnemy);
+          return;
+        }
         awayFrom(
           ctx,
           ctx.state.lastKnownEnemyX,
@@ -111,9 +121,9 @@ export class RetreatState implements IOnlineStateHandler {
     ctx.halt();
 
     // --- Suppressive fire: emit shoot every retreatFireIntervalMs ---
-    const timeSinceFire = now - ctx.state.lastSupressiveFireMs;
+    const timeSinceFire = now - ctx.state.lastSuppressiveFireMs;
     if (timeSinceFire >= this.cfg.retreatFireIntervalMs) {
-      ctx.state.lastSupressiveFireMs = now;
+      ctx.state.lastSuppressiveFireMs = now;
 
       // Use visible enemy position or fall back to last known.
       let targetX = ctx.state.lastKnownEnemyX;

@@ -273,6 +273,109 @@ describe('TraderInventory', () => {
     });
   });
 
+  // -------------------------------------------------------------------------
+  // Restock baseline fix: baseline set only on first addStock
+  // -------------------------------------------------------------------------
+  describe('restock baseline fix -- baseline set on first addStock only', () => {
+    it('first addStock sets the restock baseline to the supplied quantity', () => {
+      const traders = new TraderInventory(config, makeRandom([0.5]));
+      traders.register('t1', 'loner', 5000);
+      traders.addStock('t1', 'medkit', 5);
+
+      // Deplete fully, then restock — baseline must be the original 5.
+      traders.deductStock('t1', 'medkit', 5);
+      traders.restock(config.restockIntervalMs + 1);
+
+      expect(traders.hasStock('t1', 'medkit', 5)).toBe(true);
+      expect(traders.hasStock('t1', 'medkit', 6)).toBe(false);
+    });
+
+    it('second addStock does NOT increase the restock baseline', () => {
+      const traders = new TraderInventory(config, makeRandom([0.5]));
+      traders.register('t1', 'loner', 5000);
+      traders.addStock('t1', 'medkit', 5); // first call — baseline = 5
+      traders.addStock('t1', 'medkit', 3); // second call — must NOT change baseline
+
+      // Running stock is now 8, but baseline must remain 5.
+      traders.deductStock('t1', 'medkit', 8); // deplete everything
+      traders.restock(config.restockIntervalMs + 1);
+
+      // Restock must restore to 5, not 8.
+      expect(traders.hasStock('t1', 'medkit', 5)).toBe(true);
+      expect(traders.hasStock('t1', 'medkit', 6)).toBe(false);
+    });
+
+    it('restock restores to original baseline, not accumulated quantity', () => {
+      const traders = new TraderInventory(config, makeRandom([0.5]));
+      traders.register('t1', 'loner', 5000);
+      traders.addStock('t1', 'ammo', 10); // baseline = 10
+
+      // Simulate several top-up calls (e.g. from different load paths).
+      traders.addStock('t1', 'ammo', 10);
+      traders.addStock('t1', 'ammo', 10);
+      // Stock is now 30, but baseline must still be 10.
+
+      traders.deductStock('t1', 'ammo', 30);
+      traders.restock(config.restockIntervalMs + 1);
+
+      const snapshot = traders.getTrader('t1')!;
+      expect(snapshot.stock.get('ammo')?.quantity).toBe(10);
+    });
+
+    it('different items maintain independent baselines', () => {
+      const traders = new TraderInventory(config, makeRandom([0.5]));
+      traders.register('t1', 'loner', 5000);
+      traders.addStock('t1', 'medkit', 3); // baseline medkit = 3
+      traders.addStock('t1', 'bandage', 7); // baseline bandage = 7
+
+      // Second call for medkit only — must not touch bandage baseline.
+      traders.addStock('t1', 'medkit', 5);
+
+      // Deplete both.
+      traders.deductStock('t1', 'medkit', 8);
+      traders.deductStock('t1', 'bandage', 7);
+      traders.restock(config.restockIntervalMs + 1);
+
+      // medkit restores to 3, bandage to 7.
+      expect(traders.hasStock('t1', 'medkit', 3)).toBe(true);
+      expect(traders.hasStock('t1', 'medkit', 4)).toBe(false);
+      expect(traders.hasStock('t1', 'bandage', 7)).toBe(true);
+      expect(traders.hasStock('t1', 'bandage', 8)).toBe(false);
+    });
+
+    it('baseline is preserved across multiple restock cycles', () => {
+      const traders = new TraderInventory(config, makeRandom([0.5]));
+      traders.register('t1', 'loner', 5000);
+      traders.addStock('t1', 'medkit', 4); // baseline = 4
+
+      // Cycle 1.
+      traders.deductStock('t1', 'medkit', 4);
+      traders.restock(config.restockIntervalMs + 1);
+      expect(traders.hasStock('t1', 'medkit', 4)).toBe(true);
+      expect(traders.hasStock('t1', 'medkit', 5)).toBe(false);
+
+      // Cycle 2 — restock again after the interval elapses.
+      traders.deductStock('t1', 'medkit', 4);
+      traders.restock(config.restockIntervalMs * 2 + 2);
+      expect(traders.hasStock('t1', 'medkit', 4)).toBe(true);
+      expect(traders.hasStock('t1', 'medkit', 5)).toBe(false);
+    });
+
+    it('addStock before register is silently ignored and does not corrupt baseline', () => {
+      const traders = new TraderInventory(config, makeRandom([0.5]));
+      // Call addStock for a trader that does not exist yet — must be a no-op.
+      traders.addStock('ghost', 'medkit', 99);
+
+      traders.register('ghost', 'loner', 5000);
+      traders.addStock('ghost', 'medkit', 2); // first valid call — baseline = 2
+      traders.deductStock('ghost', 'medkit', 2);
+      traders.restock(config.restockIntervalMs + 1);
+
+      expect(traders.hasStock('ghost', 'medkit', 2)).toBe(true);
+      expect(traders.hasStock('ghost', 'medkit', 3)).toBe(false);
+    });
+  });
+
   describe('negative quantity validation', () => {
     it('addStock throws on negative quantity', () => {
       const traders = new TraderInventory(config, makeRandom());

@@ -175,6 +175,8 @@ describe('Full Combat FSM Flow (integration)', () => {
       };
 
       host.perception.sync([enemy], [], []);
+      // Pre-set lastSeekCoverMs so the cooldown (coverSeekCooldownMs=3000ms) is already elapsed.
+      host.state.lastSeekCoverMs = -cfg.coverSeekCooldownMs;
 
       const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.COMBAT);
       tick(host, driver, 16);

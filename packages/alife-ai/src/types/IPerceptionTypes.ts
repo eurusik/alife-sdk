@@ -88,6 +88,17 @@ export interface INPCWorldSnapshot {
   readonly enemyWounded: boolean;
   readonly nearAnomalyZone: boolean;
   /**
+   * True when an enemy has line-of-sight on this NPC.
+   * Optional for backward-compatibility — falls back to `seeEnemy` in WorldStateBuilder
+   * when not provided.
+   */
+  readonly enemySeeMe?: boolean;
+  /**
+   * HP ratio threshold below which the NPC is considered critically wounded.
+   * Optional — WorldStateBuilder defaults to 0.3 when absent.
+   */
+  readonly healHpThreshold?: number;
+  /**
    * True when the NPC's morale has collapsed to a panicked state (morale <= -0.7).
    * When set, the goal selector promotes the DANGER/flee goal above ENEMY_PRESENT
    * so the NPC runs away rather than continuing to fight.

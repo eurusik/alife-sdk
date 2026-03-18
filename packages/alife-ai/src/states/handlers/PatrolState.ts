@@ -45,6 +45,9 @@ export class PatrolState implements IOnlineStateHandler {
   enter(ctx: INPCContext): void {
     // Velocity will be set in update once we resolve the patrol target.
     ctx.halt();
+    // Reset per-entry corpse deduplication so corpses not yet reacted to
+    // can still add suspicion when re-entering PATROL from another state.
+    ctx.state.seenCorpseIds = undefined;
   }
 
   update(ctx: INPCContext, _deltaMs: number): void {
@@ -114,8 +117,13 @@ export class PatrolState implements IOnlineStateHandler {
 
     // --- Corpse detection (opt-in via getVisibleCorpses + suspicion) ---
     // Feeds suspicion accumulator; the existing suspicion check above handles transition.
+    // Each corpse only contributes suspicion once per PATROL entry (seenCorpseIds is
+    // cleared in enter()) to prevent the same static corpse from filling the accumulator
+    // every frame and causing a PATROL→ALERT→PATROL oscillation.
     if (ctx.suspicion) {
       for (const c of ctx.perception?.getVisibleCorpses?.() ?? []) {
+        if (ctx.state.seenCorpseIds?.has(c.id)) continue;
+        (ctx.state.seenCorpseIds ??= new Set()).add(c.id);
         ctx.suspicion.add(SuspicionStimuli.BODY_FOUND, this.cfg.corpseFoundSuspicion, c.x, c.y);
       }
     }

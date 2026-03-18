@@ -229,7 +229,7 @@ export class CampfireFSM implements IGatheringFSM {
   }
 
   private tickReactions(_deltaMs: number): IBubbleRequest[] {
-    if (this._pendingReactionCount === 0) return this._reactionBubbles;
+    if (this._pendingReactionCount === 0) return [];
 
     this._reactionBubbles.length = 0;
     const category = this.wasJoke
@@ -253,7 +253,7 @@ export class CampfireFSM implements IGatheringFSM {
       this._pendingReactionCount--;
     }
 
-    return this._reactionBubbles;
+    return [...this._reactionBubbles];
   }
 
   private randomRange(min: number, max: number): number {

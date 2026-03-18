@@ -231,10 +231,23 @@ export class Clock {
 
     const currentHour = this.hour;
 
-    // --- Hour boundary ---
+    // --- Hour boundaries (loop to fire every crossed hour, not just the last) ---
     if (currentHour !== this.previousHour) {
+      // Walk each hour between previousHour (exclusive) and currentHour
+      // (inclusive), wrapping at 24.  We derive the day number for each
+      // boundary by back-computing the game-seconds at the exact start of that
+      // hour, so midnight crossings always report the correct day.
+      const hoursAdvanced = ((currentHour - this.previousHour) + 24) % 24;
+      let h = this.previousHour;
+      for (let step = 1; step <= hoursAdvanced; step++) {
+        h = (h + 1) % 24;
+        // game-seconds at the moment hour h began (i.e. step hours before now,
+        // rounded to the hour boundary).
+        const gsAtHour = this.gameSeconds - (hoursAdvanced - step) * SECONDS_PER_HOUR;
+        const dayAtHour = Math.floor(gsAtHour / SECONDS_PER_DAY) + 1;
+        this.onHourChanged?.(h, dayAtHour);
+      }
       this.previousHour = currentHour;
-      this.onHourChanged?.(currentHour, this.day);
     }
 
     // --- Day/night transition (inline to avoid recomputing hour via isDay getter) ---

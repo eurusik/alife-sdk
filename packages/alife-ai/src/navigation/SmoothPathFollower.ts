@@ -43,9 +43,16 @@ export class SmoothPathFollower {
 
   /**
    * Advance the cursor if the NPC is close enough to the current target.
+   * Also steps the velocity multiplier lerp exactly once per frame.
    * @returns `true` if the cursor advanced, `false` if not yet arrived.
    */
   updatePosition(x: number, y: number): boolean {
+    const targetMultiplier = this.isComplete()
+      ? 1.0
+      : (this.velocityMultipliers[this.currentIndex] ?? 1.0);
+    this.currentVelocityMultiplier +=
+      (targetMultiplier - this.currentVelocityMultiplier) * this.transitionRate;
+
     if (this.isComplete()) return false;
 
     const target = this.points[this.currentIndex];
@@ -75,13 +82,10 @@ export class SmoothPathFollower {
    * Smoothed velocity multiplier for the current path segment.
    * Value in approximately [velocitySlow, velocityFast] — transitions
    * gradually between speed bands.
+   *
+   * Pure read — the lerp step is advanced once per frame by updatePosition().
    */
   getCurrentVelocityMultiplier(): number {
-    if (this.isComplete()) return 1.0;
-
-    const target = this.velocityMultipliers[this.currentIndex] ?? 1.0;
-    this.currentVelocityMultiplier +=
-      (target - this.currentVelocityMultiplier) * this.transitionRate;
     return this.currentVelocityMultiplier;
   }
 

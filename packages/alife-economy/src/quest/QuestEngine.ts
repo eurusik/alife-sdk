@@ -248,6 +248,8 @@ export class QuestEngine {
     const obj = state.objectives.find((o) => o.id === objectiveId);
     if (!obj || obj.completed) return false;
 
+    if (increment <= 0) return false;
+
     obj.current = Math.min(obj.current + increment, obj.count);
     this.emit('objective:progress', { questId, objectiveId, current: obj.current, total: obj.count });
 

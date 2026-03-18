@@ -242,42 +242,45 @@ describe('EvadeGrenadeState', () => {
   });
 
   describe('update() — grenade danger cleared early', () => {
-    it('transitions to COMBAT when enemy visible after danger clears', () => {
+    // The NPC always runs the full evadeGrenadeDurationMs even when danger clears early.
+    // Transitions only fire once elapsed >= evadeGrenadeDurationMs (2000ms by default).
+    it('transitions to COMBAT when enemy visible after danger clears and timer expires', () => {
       const ctx = makeCtx({
         x: 100, y: 100,
-        now: 1500,
+        now: 3000,
         danger: makeDanger({ active: false }),
         perception: makePerception(true),
       });
-      ctx.state.evadeStartMs = 1000;
+      ctx.state.evadeStartMs = 1000; // 2000ms elapsed — at the threshold
 
       handler.update(ctx, 16);
 
       expect(ctx.transitions).toContain('COMBAT');
     });
 
-    it('transitions to SEARCH when no enemy visible after danger clears', () => {
+    it('transitions to COMBAT (evadeOnTimeout default) when no enemy visible after danger clears and timer expires', () => {
       const ctx = makeCtx({
         x: 100, y: 100,
-        now: 1500,
+        now: 3000,
         danger: makeDanger({ active: false }),
         perception: makePerception(false),
       });
-      ctx.state.evadeStartMs = 1000;
+      ctx.state.evadeStartMs = 1000; // 2000ms elapsed — at the threshold
 
       handler.update(ctx, 16);
 
-      expect(ctx.transitions).toContain('SEARCH');
+      // evadeOnTimeout defaults to 'COMBAT' — override with { evadeOnTimeout: 'SEARCH' } to get SEARCH
+      expect(ctx.transitions).toContain('COMBAT');
     });
 
-    it('halts before transitioning when danger clears early', () => {
+    it('halts before transitioning when danger clears and timer expires', () => {
       const ctx = makeCtx({
         x: 100, y: 100,
-        now: 1500,
+        now: 3000,
         danger: makeDanger({ active: false }),
         perception: makePerception(false),
       });
-      ctx.state.evadeStartMs = 1000;
+      ctx.state.evadeStartMs = 1000; // 2000ms elapsed — at the threshold
       ctx.velocityX = 200;
       ctx.velocityY = 200;
 
@@ -343,7 +346,7 @@ describe('EvadeGrenadeState', () => {
       expect(ctx.transitions).toContain('COMBAT');
     });
 
-    it('transitions to SEARCH after timer when danger cleared and no enemy visible', () => {
+    it('transitions to COMBAT (evadeOnTimeout default) after timer when danger cleared and no enemy visible', () => {
       const ctx = makeCtx({
         x: 100, y: 100,
         now: 3100,
@@ -354,7 +357,8 @@ describe('EvadeGrenadeState', () => {
 
       handler.update(ctx, 16);
 
-      expect(ctx.transitions).toContain('SEARCH');
+      // evadeOnTimeout defaults to 'COMBAT' — use { evadeOnTimeout: 'SEARCH' } to get SEARCH
+      expect(ctx.transitions).toContain('COMBAT');
     });
   });
 
@@ -408,11 +412,11 @@ describe('EvadeGrenadeState', () => {
       const customHandler = new EvadeGrenadeState(cfg, { evadeOnClear: 'fight_back' });
       const ctx = makeCtx({
         x: 100, y: 100,
-        now: 1500,
+        now: 3000,
         danger: makeDanger({ active: false }),
         perception: makePerception(true),
       });
-      ctx.state.evadeStartMs = 1000;
+      ctx.state.evadeStartMs = 1000; // 2000ms elapsed — at the threshold
 
       customHandler.update(ctx, 16);
 
@@ -458,9 +462,9 @@ describe('WoundedState', () => {
     it('heals NPC when medkitCount > 0 and HP critically low', () => {
       const health = makeHealth(15, 100); // 15% — below woundedHpThreshold(0.2)
       const ctx = makeCtx({
-        now: 1000,
+        now: 4000,
         health,
-        state: { woundedStartMs: 1000, medkitCount: 2 },
+        state: { woundedStartMs: 1000, medkitCount: 2, lastMedkitMs: 0 },
       });
 
       handler.update(ctx, 16);
@@ -472,9 +476,9 @@ describe('WoundedState', () => {
     it('consumes one medkit when healing', () => {
       const health = makeHealth(15, 100);
       const ctx = makeCtx({
-        now: 1000,
+        now: 4000,
         health,
-        state: { woundedStartMs: 1000, medkitCount: 3 },
+        state: { woundedStartMs: 1000, medkitCount: 3, lastMedkitMs: 0 },
       });
 
       handler.update(ctx, 16);
@@ -486,9 +490,9 @@ describe('WoundedState', () => {
       // HP at 15%, maxHp=100, healRatio=0.5 → heals 50 HP → 65% > 20% threshold
       const health = makeHealth(15, 100);
       const ctx = makeCtx({
-        now: 1000,
+        now: 4000,
         health,
-        state: { woundedStartMs: 1000, medkitCount: 1, moraleState: 'STABLE' },
+        state: { woundedStartMs: 1000, medkitCount: 1, moraleState: 'STABLE', lastMedkitMs: 0 },
       });
 
       handler.update(ctx, 16);
@@ -505,9 +509,9 @@ describe('WoundedState', () => {
       // HP=10%, heals 5%: 15% still below 50% threshold
       const health = makeHealth(10, 100);
       const ctx = makeCtx({
-        now: 1000,
+        now: 4000,
         health,
-        state: { woundedStartMs: 1000, medkitCount: 1, moraleState: 'STABLE' },
+        state: { woundedStartMs: 1000, medkitCount: 1, moraleState: 'STABLE', lastMedkitMs: 0 },
       });
 
       smallHealHandler.update(ctx, 16);
@@ -749,9 +753,9 @@ describe('WoundedState', () => {
       const health = makeHealth(15, 100);
       const customHandler = new WoundedState(cfg, { woundedOnHealed: 'back_to_fight' });
       const ctx = makeCtx({
-        now: 1000,
+        now: 4000,
         health,
-        state: { woundedStartMs: 1000, medkitCount: 1, moraleState: 'STABLE' },
+        state: { woundedStartMs: 1000, medkitCount: 1, moraleState: 'STABLE', lastMedkitMs: 0 },
       });
 
       customHandler.update(ctx, 16);
@@ -789,20 +793,20 @@ describe('RetreatState', () => {
       expect(ctx.state.coverPointY).toBe(600);
     });
 
-    it('resets lastSupressiveFireMs to 0 for immediate first burst', () => {
+    it('resets lastSuppressiveFireMs to 0 for immediate first burst', () => {
       const cover = makeCover({ x: 400, y: 600 });
       const ctx = makeCtx({
         x: 100, y: 100,
         cover,
-        state: { lastSupressiveFireMs: 9999 },
+        state: { lastSuppressiveFireMs: 9999 },
       });
 
       handler.enter(ctx);
 
-      expect(ctx.state.lastSupressiveFireMs).toBe(0);
+      expect(ctx.state.lastSuppressiveFireMs).toBe(0);
     });
 
-    it('uses NPC current position as cover fallback when no cover found', () => {
+    it('signals no-cover with NaN destination when no cover found', () => {
       const ctx = makeCtx({
         x: 100, y: 200,
         cover: makeCover(null),
@@ -810,9 +814,9 @@ describe('RetreatState', () => {
 
       handler.enter(ctx);
 
-      // Cover fallback: stores NPC's own position
-      expect(ctx.state.coverPointX).toBe(100);
-      expect(ctx.state.coverPointY).toBe(200);
+      // No cover found — coverPointX/Y are NaN so update() routes through awayFrom().
+      expect(Number.isNaN(ctx.state.coverPointX)).toBe(true);
+      expect(Number.isNaN(ctx.state.coverPointY)).toBe(true);
     });
 
     it('works without a cover system (null cover)', () => {
@@ -940,7 +944,7 @@ describe('RetreatState', () => {
         state: {
           moraleState: 'SHAKEN',
           coverPointX: 100, coverPointY: 100,
-          lastSupressiveFireMs: 0,
+          lastSuppressiveFireMs: 0,
           lastKnownEnemyX: 200, lastKnownEnemyY: 200,
           primaryWeapon: 'rifle',
         },
@@ -959,7 +963,7 @@ describe('RetreatState', () => {
         state: {
           moraleState: 'SHAKEN',
           coverPointX: 100, coverPointY: 100,
-          lastSupressiveFireMs: 0, // interval definitely elapsed
+          lastSuppressiveFireMs: 0, // interval definitely elapsed
           lastKnownEnemyX: 300, lastKnownEnemyY: 300,
           primaryWeapon: 'rifle',
         },
@@ -979,7 +983,7 @@ describe('RetreatState', () => {
         state: {
           moraleState: 'SHAKEN',
           coverPointX: 100, coverPointY: 100,
-          lastSupressiveFireMs: 0,
+          lastSuppressiveFireMs: 0,
           lastKnownEnemyX: 200, lastKnownEnemyY: 200,
           primaryWeapon: 'rifle',
         },
@@ -1000,7 +1004,7 @@ describe('RetreatState', () => {
         state: {
           moraleState: 'SHAKEN',
           coverPointX: 100, coverPointY: 100,
-          lastSupressiveFireMs: 0,
+          lastSuppressiveFireMs: 0,
           lastKnownEnemyX: 600, lastKnownEnemyY: 700,
           primaryWeapon: 'pistol',
         },
@@ -1021,7 +1025,7 @@ describe('RetreatState', () => {
         state: {
           moraleState: 'SHAKEN',
           coverPointX: 100, coverPointY: 100,
-          lastSupressiveFireMs: 0,
+          lastSuppressiveFireMs: 0,
           lastKnownEnemyX: 300, lastKnownEnemyY: 300,
           primaryWeapon: 'sniper',
         },
@@ -1040,7 +1044,7 @@ describe('RetreatState', () => {
         state: {
           moraleState: 'SHAKEN',
           coverPointX: 100, coverPointY: 100,
-          lastSupressiveFireMs: 0,
+          lastSuppressiveFireMs: 0,
           lastKnownEnemyX: 300, lastKnownEnemyY: 300,
           primaryWeapon: null,
         },
@@ -1058,7 +1062,7 @@ describe('RetreatState', () => {
         state: {
           moraleState: 'SHAKEN',
           coverPointX: 100, coverPointY: 100,
-          lastSupressiveFireMs: 1000, // only 500ms ago
+          lastSuppressiveFireMs: 1000, // only 500ms ago
           lastKnownEnemyX: 300, lastKnownEnemyY: 300,
         },
         perception: makePerception(false),
@@ -1069,7 +1073,7 @@ describe('RetreatState', () => {
       expect(ctx.shoots).toHaveLength(0);
     });
 
-    it('updates lastSupressiveFireMs after firing', () => {
+    it('updates lastSuppressiveFireMs after firing', () => {
       const ctx = makeCtx({
         x: 100, y: 100,
         now: 10000,
@@ -1077,7 +1081,7 @@ describe('RetreatState', () => {
         state: {
           moraleState: 'SHAKEN',
           coverPointX: 100, coverPointY: 100,
-          lastSupressiveFireMs: 0,
+          lastSuppressiveFireMs: 0,
           lastKnownEnemyX: 300, lastKnownEnemyY: 300,
           primaryWeapon: 'rifle',
         },
@@ -1085,7 +1089,7 @@ describe('RetreatState', () => {
 
       handler.update(ctx, 16);
 
-      expect(ctx.state.lastSupressiveFireMs).toBe(10000);
+      expect(ctx.state.lastSuppressiveFireMs).toBe(10000);
     });
 
     it('transitions to COMBAT when morale is STABLE at cover', () => {
@@ -1096,7 +1100,7 @@ describe('RetreatState', () => {
         state: {
           moraleState: 'STABLE',
           coverPointX: 100, coverPointY: 100,
-          lastSupressiveFireMs: 0,
+          lastSuppressiveFireMs: 0,
           lastKnownEnemyX: 300, lastKnownEnemyY: 300,
           primaryWeapon: 'rifle',
         },
@@ -1115,7 +1119,7 @@ describe('RetreatState', () => {
         state: {
           moraleState: 'SHAKEN',
           coverPointX: 100, coverPointY: 100,
-          lastSupressiveFireMs: 0,
+          lastSuppressiveFireMs: 0,
           lastKnownEnemyX: 300, lastKnownEnemyY: 300,
           primaryWeapon: 'rifle',
         },
@@ -1134,7 +1138,7 @@ describe('RetreatState', () => {
         state: {
           moraleState: 'SHAKEN',
           coverPointX: 100, coverPointY: 100,
-          lastSupressiveFireMs: 0,
+          lastSuppressiveFireMs: 0,
           lastKnownEnemyX: 300, lastKnownEnemyY: 300,
           primaryWeapon: 'rifle',
         },
@@ -1216,7 +1220,7 @@ describe('RetreatState', () => {
         state: {
           moraleState: 'SHAKEN',
           coverPointX: 100, coverPointY: 100,
-          lastSupressiveFireMs: 0,
+          lastSuppressiveFireMs: 0,
           lastKnownEnemyX: 100, // same as NPC X
           lastKnownEnemyY: 100, // same as NPC Y
           primaryWeapon: 'rifle',
@@ -1239,7 +1243,7 @@ describe('RetreatState', () => {
         state: {
           moraleState: 'STABLE',
           coverPointX: 100, coverPointY: 100,
-          lastSupressiveFireMs: 0,
+          lastSuppressiveFireMs: 0,
           lastKnownEnemyX: 300, lastKnownEnemyY: 300,
           primaryWeapon: 'rifle',
         },
@@ -1272,7 +1276,7 @@ describe('RetreatState', () => {
         state: {
           moraleState: 'SHAKEN',
           coverPointX: 100, coverPointY: 100,
-          lastSupressiveFireMs: 0,
+          lastSuppressiveFireMs: 0,
           lastKnownEnemyX: 300, lastKnownEnemyY: 300,
           primaryWeapon: 'rifle',
         },

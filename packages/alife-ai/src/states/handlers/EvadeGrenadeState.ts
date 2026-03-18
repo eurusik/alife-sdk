@@ -9,17 +9,16 @@
 //                - move AWAY from the danger origin at
 //                  approachSpeed × evadeSpeedMultiplier (sprint).
 //              Exit conditions:
-//                (a) Grenade danger is no longer active AND
+//                (a) Grenade danger inactive AND
 //                    elapsed >= evadeGrenadeDurationMs  → COMBAT or SEARCH
 //                (b) No danger system registered AND
 //                    elapsed >= evadeGrenadeDurationMs  → COMBAT
-//                (c) Grenade danger cleared early (active===false) →
-//                    check enemy visibility: enemy present → COMBAT,
-//                    else → SEARCH.
+//              The NPC always sprints for the full evadeGrenadeDurationMs
+//              even when the grenade is no longer active mid-evasion.
 //   exit()   — halt() so the NPC doesn't keep drifting.
 //
 // State ID: 'EVADE_GRENADE'
-// Transitions: → 'COMBAT' | 'SEARCH'
+// Transitions: → evadeOnClear (default: 'COMBAT') | evadeOnTimeout (default: 'COMBAT') | evadeOnNoSystem (default: 'COMBAT')
 
 import type { IOnlineStateHandler } from '../IOnlineStateHandler';
 import type { INPCContext } from '../INPCContext';
@@ -27,12 +26,6 @@ import type { IStateConfig } from '../IStateConfig';
 import { createDefaultTransitionMap } from '../IStateTransitionMap';
 import type { IStateTransitionMap } from '../IStateTransitionMap';
 import { awayFrom } from './_utils';
-
-/**
- * Default evasion sprint duration (ms).
- * Long enough to clear a grenade blast radius at sprint speed.
- */
-const EVADE_GRENADE_DURATION_MS = 2_000;
 
 /**
  * Stateless evade-grenade state handler.
@@ -70,7 +63,7 @@ export class EvadeGrenadeState implements IOnlineStateHandler {
     // --- No active grenade danger ---
     if (ctx.danger === null) {
       // No danger system at all — time out and return to COMBAT.
-      if (elapsed >= EVADE_GRENADE_DURATION_MS) {
+      if (elapsed >= this.cfg.evadeGrenadeDurationMs) {
         ctx.halt();
         ctx.transition(this.tr.evadeOnNoSystem);
       }
@@ -78,15 +71,11 @@ export class EvadeGrenadeState implements IOnlineStateHandler {
     }
 
     // Danger system present but grenade is no longer active (or was never found).
-    if (elapsed >= EVADE_GRENADE_DURATION_MS) {
+    if (elapsed >= this.cfg.evadeGrenadeDurationMs) {
       ctx.halt();
       this._exitToNextState(ctx);
       return;
     }
-
-    // Danger cleared early — transition immediately.
-    ctx.halt();
-    this._exitToNextState(ctx);
   }
 
   exit(ctx: INPCContext): void {
@@ -99,13 +88,13 @@ export class EvadeGrenadeState implements IOnlineStateHandler {
 
   /**
    * Choose the post-evade state based on whether an enemy is currently visible.
-   * enemy visible → evadeOnClear (default: 'COMBAT'), no enemy → SEARCH.
+   * enemy visible → evadeOnClear (default: 'COMBAT'), no enemy → evadeOnTimeout (default: 'COMBAT').
    */
   private _exitToNextState(ctx: INPCContext): void {
     if (ctx.perception?.hasVisibleEnemy()) {
       ctx.transition(this.tr.evadeOnClear);
     } else {
-      ctx.transition('SEARCH');
+      ctx.transition(this.tr.evadeOnTimeout);
     }
   }
 }

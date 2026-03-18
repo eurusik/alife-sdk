@@ -222,6 +222,8 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       host.state.medkitCount = 1;
       host.state.lastKnownEnemyX = 300;
       host.state.lastKnownEnemyY = 100;
+      // Pre-set lastMedkitMs so the cooldown (medkitUseDurationMs=3000ms) is already elapsed.
+      host.state.lastMedkitMs = -cfg.medkitUseDurationMs;
 
       const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
       tick(host, driver, 16);
@@ -239,6 +241,8 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       host.state.medkitCount = 2;
       host.state.lastKnownEnemyX = 300;
       host.state.lastKnownEnemyY = 100;
+      // Pre-set lastMedkitMs so the cooldown (medkitUseDurationMs=3000ms) is already elapsed.
+      host.state.lastMedkitMs = -cfg.medkitUseDurationMs;
 
       const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);
       tick(host, driver, 16);
@@ -256,6 +260,8 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       host.state.medkitCount = 1;
       host.state.lastKnownEnemyX = 200;
       host.state.lastKnownEnemyY = 100;
+      // Pre-set lastMedkitMs so the cooldown is already elapsed.
+      host.state.lastMedkitMs = -customCfg.medkitUseDurationMs;
 
       const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(customCfg), ONLINE_STATE.WOUNDED);
       tick(host, driver, 16);
@@ -358,9 +364,9 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       expect(lastVel[0]).toBeGreaterThan(0);
     });
 
-    it('immediately arrives at self-position and halts when no cover is available', () => {
-      // When cover=null, RetreatState.enter() sets coverPoint to NPC position.
-      // distSq=0 → arrived=true immediately on first update → halt() is called.
+    it('flees away from enemy and transitions to SEARCH after retreatMaxDurationMs when no cover is available', () => {
+      // When cover=null, RetreatState.enter() sets coverPointX/Y = NaN (sentinel).
+      // The NPC runs away from the enemy until retreatMaxDurationMs elapses, then transitions to SEARCH.
       const host = new TestNPCHost();
       host.x = 100;
       host.y = 100;
@@ -368,16 +374,17 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       host.state.lastKnownEnemyX = 300;
       host.state.lastKnownEnemyY = 100;
 
-      // No cover system → coverPointX/Y = NPC position → immediate "arrival".
+      // No cover system → coverPointX/Y = NaN → uses awayFrom() until retreatMaxDurationMs.
       host.cover = null;
 
-      // No enemies visible → after halt() the state transitions to SEARCH.
+      // No enemies visible.
       host.perception.sync([], [], []);
 
       const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.RETREAT);
-      tick(host, driver, cfg.retreatFireIntervalMs + 100);
+      // Must advance past retreatMaxDurationMs (8000ms) for the no-cover path to exit.
+      tick(host, driver, cfg.retreatMaxDurationMs + 100);
 
-      // Without visible enemies at the (immediate) cover, transitions to SEARCH.
+      // After the max duration, transitions to SEARCH (retreatOnNoEnemy).
       expect(driver.currentStateId).toBe(ONLINE_STATE.SEARCH);
     });
   });
@@ -560,6 +567,8 @@ describe('WoundedState + RetreatState mechanics (integration)', () => {
       host.state.moraleState = 'STABLE'; // NOT panicked
       host.state.lastKnownEnemyX = 200;
       host.state.lastKnownEnemyY = 100;
+      // Pre-set lastMedkitMs so the cooldown (medkitUseDurationMs=3000ms) is already elapsed.
+      host.state.lastMedkitMs = -cfg.medkitUseDurationMs;
 
       // With medkitHealRatio=0.5 → heal = 50; 10+50 = 60% > 20% → COMBAT.
       const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.WOUNDED);

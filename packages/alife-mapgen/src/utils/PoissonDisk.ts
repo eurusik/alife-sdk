@@ -88,12 +88,21 @@ export function poissonDisk(
     grid[gridIndex(x, y)] = idx;
   }
 
-  // Initial seed point
-  const sx = rng.float(0, width);
-  const sy = rng.float(0, height);
-  if (!accept || accept(sx, sy)) {
-    addPoint(sx, sy);
+  // Initial seed point.
+  // Retry up to maxAttempts times so that a restrictive `accept` predicate
+  // does not silently leave the active list empty (which would cause the
+  // algorithm to return zero points immediately).
+  for (let seedAttempt = 0; seedAttempt < maxAttempts; seedAttempt++) {
+    const sx = rng.float(0, width);
+    const sy = rng.float(0, height);
+    if (!accept || accept(sx, sy)) {
+      addPoint(sx, sy);
+      break;
+    }
   }
+  // If every seed candidate was rejected the domain either has no valid area
+  // or is extremely constrained; the algorithm returns an empty array, which
+  // is the correct result for a fully-rejected domain.
 
   while (active.length > 0) {
     const activeIdx = rng.int(0, active.length - 1);

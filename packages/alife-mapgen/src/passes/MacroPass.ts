@@ -35,7 +35,7 @@ const TEMPLATE_REGISTRY: Record<ZoneType, ZoneTemplate> = {
   bunker: new BunkerTemplate(),
   factory: new FactoryTemplate(),
   ruins: new RuinsTemplate(),
-  // Placeholder fallbacks to camp for unlisted types
+  // Placeholder fallbacks for unlisted types
   village: new CampTemplate(),
   outpost: new CheckpointTemplate(),
 };
@@ -135,8 +135,6 @@ export class MacroPass {
 
         if (!this.satisfiesConstraints(tx, ty, tw, th, placed, minDist)) continue;
 
-        const cx = tx + tw / 2;
-        const cy = ty + th / 2;
         const factionId = rng.pick(factionPool);
 
         const zone: ZoneDefinition = {
@@ -158,21 +156,13 @@ export class MacroPass {
         // Fill jobs from template (populated after evaluate below)
         placed.push(zone);
         placed_this = true;
-
-        // Place player spawn in first zone
-        if (i === 0) {
-          zone.isPlayerSpawnZone = true;
-        }
-
-        // Mark zone center for distance checking
-        void cx; void cy;
         break;
       }
 
       if (!placed_this && placed.length === 0) {
         // Must have at least one zone — force place at center
-        const tx = Math.floor(mapWidth / 2) - Math.floor(template.tileWidth / 2);
-        const ty = Math.floor(mapHeight / 2) - Math.floor(template.tileHeight / 2);
+        const tx = Math.max(0, Math.min(mapWidth - tw, Math.floor(mapWidth / 2) - Math.floor(template.tileWidth / 2)));
+        const ty = Math.max(0, Math.min(mapHeight - th, Math.floor(mapHeight / 2) - Math.floor(template.tileHeight / 2)));
         placed.push({
           id: `zone_0_${zoneType}`,
           type: zoneType,
@@ -284,8 +274,8 @@ export class MacroPass {
                                    TileType.ROAD_DIRT;
 
       // Build smooth waypoints directly (no A* grid-walk).
-      // Use L-shaped routing: go mostly along one axis then the other,
-      // with a smooth bend region in between + slight random offset for organic feel.
+      // Use S-curve routing: mostly-direct path with gentle perpendicular offsets
+      // for organic feel.
       const controlPoints = this.buildSmoothControlPoints(sx, sy, ex, ey, rng);
 
       // Convert to pixel-space waypoints
@@ -378,8 +368,8 @@ export class MacroPass {
   }
 
   /**
-   * Rasterize a smooth path onto the road grid using Bresenham-style line drawing.
-   * Paints tiles along interpolated segments between control points.
+   * Rasterize a smooth path onto the road grid using dense-point interpolation.
+   * Paints tiles around each interpolated point between control points.
    */
   private rasterizeSmoothRoad(
     controlPoints: { x: number; y: number }[],
@@ -418,6 +408,10 @@ export class MacroPass {
       const dx = pts[1].x - pts[0].x;
       const dy = pts[1].y - pts[0].y;
       const steps = Math.ceil(Math.sqrt(dx * dx + dy * dy));
+      if (steps === 0) {
+        result.push({ x: pts[0].x, y: pts[0].y });
+        return result;
+      }
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
         result.push({ x: pts[0].x + dx * t, y: pts[0].y + dy * t });

@@ -35,11 +35,13 @@ export function createDefaultNPCOnlineState(): INPCOnlineState {
     lastShootMs: 0,
     lastVocalizationMs: 0,
     lastGrenadeMs: 0,
-    lastSupressiveFireMs: 0,
+    lastSuppressiveFireMs: 0,
     grenadeThrowStartMs: 0,
     evadeStartMs: 0,
     woundedStartMs: 0,
-    psiPhaseStartMs: 0,
+    sleepReactionStartMs: 0,
+    retreatStartMs: 0,
+    lastMedkitMs: 0,
     investigateStartMs: 0,
     investigateLookAroundStartMs: -1,
 
@@ -61,10 +63,6 @@ export function createDefaultNPCOnlineState(): INPCOnlineState {
 
     packLastBroadcastMs: 0,
 
-    // Navigation
-    patrolWaypointIndex: 0,
-    searchWaypointIndex: 0,
-
     // Loadout
     primaryWeapon: null,
     secondaryWeapon: null,
@@ -74,9 +72,11 @@ export function createDefaultNPCOnlineState(): INPCOnlineState {
     // State flags
     isAlert: false,
     hasTakenCover: false,
+    lastSeekCoverMs: 0,
     coverPointX: 0,
     coverPointY: 0,
     loophole: null,
+    loopholeWaitEndMs: 0,
 
     // Morale
     morale: 0,

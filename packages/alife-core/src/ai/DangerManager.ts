@@ -152,9 +152,14 @@ export class DangerManager {
       const dist = Math.sqrt(dsq);
 
       if (dist < 1) {
-        // Directly on top of danger -- derive a direction from danger position
-        // to avoid a constant northeast bias.
-        const angle = ((danger.position.x * 73 + danger.position.y * 37) % 360) * (Math.PI / 180);
+        // Directly on top of danger -- derive a direction that varies per NPC
+        // by mixing both the danger position and the NPC's own position into
+        // the hash.  Without the NPC position, every NPC on the same danger
+        // shared an identical escape angle.
+        const angle =
+          ((danger.position.x * 73 + danger.position.y * 37 +
+            position.x * 17 + position.y * 53) % 360) *
+          (Math.PI / 180);
         repulsionX += Math.cos(angle) * danger.threatScore;
         repulsionY += Math.sin(angle) * danger.threatScore;
         continue;

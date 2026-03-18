@@ -151,6 +151,116 @@ describe('Clock', () => {
     });
   });
 
+  // ---------------------------------------------------------------------------
+  // onHourChanged — multi-hour skip fix
+  // ---------------------------------------------------------------------------
+  describe('onHourChanged — multi-hour skip', () => {
+    // Helper: build a clock that records every (hour, day) pair emitted.
+    function makeTrackedClock(
+      startHour: number,
+      startDay: number = 1,
+    ): { clock: Clock; calls: Array<{ hour: number; day: number }> } {
+      const calls: Array<{ hour: number; day: number }> = [];
+      const clock = new Clock({
+        // 1 real-millisecond = 1 game-second at factor 1000 → 1 real-second = 1 game-hour
+        timeFactor: 3600,
+        startHour,
+        startDay,
+        onHourChanged: (hour, day) => calls.push({ hour, day }),
+      });
+      return { clock, calls };
+    }
+
+    it('fires onHourChanged exactly once for a single-hour advance', () => {
+      const { clock, calls } = makeTrackedClock(10);
+
+      clock.update(1000); // +1 real-second → +1 game-hour → hour 11
+      expect(calls).toHaveLength(1);
+      expect(calls[0]).toEqual({ hour: 11, day: 1 });
+    });
+
+    it('does not fire onHourChanged when the hour does not change', () => {
+      const { clock, calls } = makeTrackedClock(10);
+
+      // Advance only half a game-hour (1800 real-ms at factor 3600 = 1800 game-seconds)
+      // — still within hour 10, not yet hour 11.
+      clock.update(500); // 0.5 game-hours
+      expect(calls).toHaveLength(0);
+    });
+
+    it('fires onHourChanged 3 times in sequence for a 3-hour advance', () => {
+      const { clock, calls } = makeTrackedClock(7);
+
+      // 3 real-seconds at timeFactor 3600 = 3 game-hours (7 → 10)
+      clock.update(3000);
+
+      expect(calls).toHaveLength(3);
+      expect(calls[0]).toEqual({ hour: 8, day: 1 });
+      expect(calls[1]).toEqual({ hour: 9, day: 1 });
+      expect(calls[2]).toEqual({ hour: 10, day: 1 });
+    });
+
+    it('fires 4 callbacks with correct hours when crossing midnight (hour 22 → 2)', () => {
+      const { clock, calls } = makeTrackedClock(22);
+
+      // 4 real-seconds at factor 3600 → cross hours 23, 0, 1, 2
+      clock.update(4000);
+
+      expect(calls).toHaveLength(4);
+      expect(calls[0].hour).toBe(23);
+      expect(calls[1].hour).toBe(0);
+      expect(calls[2].hour).toBe(1);
+      expect(calls[3].hour).toBe(2);
+    });
+
+    it('reports day 1 for pre-midnight hours and day 2 for post-midnight hours when crossing midnight', () => {
+      const { clock, calls } = makeTrackedClock(22, 1); // day 1, hour 22
+
+      clock.update(4000); // crosses 23 (day 1), 0, 1, 2 (day 2)
+
+      expect(calls[0]).toEqual({ hour: 23, day: 1 });
+      expect(calls[1]).toEqual({ hour: 0, day: 2 });
+      expect(calls[2]).toEqual({ hour: 1, day: 2 });
+      expect(calls[3]).toEqual({ hour: 2, day: 2 });
+    });
+
+    it('increments day number correctly across a midnight crossing mid-advance', () => {
+      // Start late on day 3, jump far enough to reach day 4.
+      const { clock, calls } = makeTrackedClock(23, 3);
+
+      clock.update(2000); // +2 game-hours: 23 → 0 (midnight) → 1
+
+      expect(calls).toHaveLength(2);
+      expect(calls[0]).toEqual({ hour: 0, day: 4 });
+      expect(calls[1]).toEqual({ hour: 1, day: 4 });
+    });
+
+    it('fires all 12 intermediate callbacks for a 12-hour advance', () => {
+      const { clock, calls } = makeTrackedClock(0);
+
+      clock.update(12000); // 12 game-hours: 0 → 12
+
+      expect(calls).toHaveLength(12);
+      // Verify every intermediate hour is present in order.
+      for (let i = 0; i < 12; i++) {
+        expect(calls[i]).toEqual({ hour: i + 1, day: 1 });
+      }
+    });
+
+    it('fires all intermediate callbacks across multiple update() calls independently', () => {
+      // Ensures that previousHour is updated correctly between frames so that
+      // two sequential single-hour advances each fire exactly one callback.
+      const { clock, calls } = makeTrackedClock(5);
+
+      clock.update(1000); // hour 5 → 6
+      clock.update(1000); // hour 6 → 7
+
+      expect(calls).toHaveLength(2);
+      expect(calls[0]).toEqual({ hour: 6, day: 1 });
+      expect(calls[1]).toEqual({ hour: 7, day: 1 });
+    });
+  });
+
   describe('onDayNightChanged callback', () => {
     it('fires when transitioning from day to night', () => {
       const calls: boolean[] = [];

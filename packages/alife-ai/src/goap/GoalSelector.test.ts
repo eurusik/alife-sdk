@@ -35,7 +35,9 @@ describe('selectGoal', () => {
     const result = selectGoal(makeSnapshot({ hpRatio: 0.2 }), config);
     expect(result.priority).toBe(GoalPriority.CRITICALLY_WOUNDED);
     expect(result.goal.get(WorldProperty.CRITICALLY_WOUNDED)).toBe(false);
-    expect(result.goal.get(WorldProperty.ENEMY_PRESENT)).toBe(false);
+    // ENEMY_PRESENT was removed from _criticalGoal so a GOAP plan can be
+    // found even when enemies are present. The property must be absent.
+    expect(result.goal.has(WorldProperty.ENEMY_PRESENT)).toBe(false);
   });
 
   it('selects CRITICALLY_WOUNDED even with enemy present', () => {
@@ -376,5 +378,49 @@ describe('selectGoal with full INPCWorldSnapshot', () => {
     const result = selectGoal(woundedEnemySnapshot, config, customRules);
     expect(result.reason).toBe('Enemy wounded — press attack');
     expect(result.goal.get(WorldProperty.READY_TO_KILL)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// _criticalGoal fix: ENEMY_PRESENT removed so critically wounded NPCs can
+// get a GOAP plan even when enemies are present.
+// ---------------------------------------------------------------------------
+
+describe('_criticalGoal ENEMY_PRESENT removal', () => {
+  it('critically wounded + enemy present → goal does NOT contain ENEMY_PRESENT', () => {
+    // Before the fix _criticalGoal had ENEMY_PRESENT=false which forced the
+    // planner to also neutralise the enemy before it could heal — making a
+    // plan impossible when enemies were active.  The property must be absent.
+    const result = selectGoal(makeSnapshot({ hpRatio: 0.15, enemyPresent: true }), config);
+    expect(result.priority).toBe(GoalPriority.CRITICALLY_WOUNDED);
+    expect(result.goal.has(WorldProperty.ENEMY_PRESENT)).toBe(false);
+  });
+
+  it('critically wounded + enemy present → goal only requires CRITICALLY_WOUNDED=false', () => {
+    // The sole exit condition for the heal goal must be clearing the wounded
+    // flag; no other termination condition should be imposed.
+    const result = selectGoal(makeSnapshot({ hpRatio: 0.15, enemyPresent: true }), config);
+    expect(result.priority).toBe(GoalPriority.CRITICALLY_WOUNDED);
+    expect(result.goal.get(WorldProperty.CRITICALLY_WOUNDED)).toBe(false);
+  });
+
+  it('critically wounded + no enemy → same goal (regression: fix did not break the no-enemy path)', () => {
+    // Ensure the friendly-fire-free path is unaffected: the goal must still
+    // target CRITICALLY_WOUNDED=false and must not reintroduce ENEMY_PRESENT.
+    const result = selectGoal(makeSnapshot({ hpRatio: 0.2, enemyPresent: false }), config);
+    expect(result.priority).toBe(GoalPriority.CRITICALLY_WOUNDED);
+    expect(result.goal.get(WorldProperty.CRITICALLY_WOUNDED)).toBe(false);
+    expect(result.goal.has(WorldProperty.ENEMY_PRESENT)).toBe(false);
+  });
+
+  it('critical goal WorldState has exactly 1 property set (not 2)', () => {
+    // Verifies the pre-allocated _criticalGoal object was not accidentally
+    // left with ENEMY_PRESENT alongside CRITICALLY_WOUNDED.  Both the
+    // enemy-present and no-enemy paths share the same pre-allocated instance,
+    // so one size check covers both scenarios.
+    const result = selectGoal(makeSnapshot({ hpRatio: 0.1, enemyPresent: true }), config);
+    expect(result.priority).toBe(GoalPriority.CRITICALLY_WOUNDED);
+    const propertyCount = [...result.goal.keys()].length;
+    expect(propertyCount).toBe(1);
   });
 });

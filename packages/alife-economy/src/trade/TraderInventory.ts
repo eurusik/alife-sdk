@@ -97,9 +97,12 @@ export class TraderInventory {
       trader.stock.set(itemId, { itemId, quantity });
     }
 
-    // Accumulate restock baseline.
-    const baseline = trader.restockBaseline.get(itemId) ?? 0;
-    trader.restockBaseline.set(itemId, baseline + quantity);
+    // Record restock baseline on first addStock call only.
+    // Subsequent calls (e.g. post-setup top-ups) must not inflate the baseline,
+    // which would cause exponential inventory growth across restock cycles.
+    if (!trader.restockBaseline.has(itemId)) {
+      trader.restockBaseline.set(itemId, quantity);
+    }
   }
 
   /**

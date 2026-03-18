@@ -17,6 +17,7 @@
 import type { IOnlineStateHandler } from '../IOnlineStateHandler';
 import type { INPCContext } from '../INPCContext';
 import type { IStateConfig } from '../IStateConfig';
+import type { IChargePhase } from '../INPCOnlineState';
 import type { IStateTransitionMap } from '../IStateTransitionMap';
 import { createDefaultTransitionMap } from '../IStateTransitionMap';
 import { moveToward, distanceTo } from './_utils';
@@ -45,12 +46,13 @@ export class ChargeState implements IOnlineStateHandler {
     const targetY = enemies.length > 0 ? enemies[0].y : ctx.state.lastKnownEnemyY;
 
     // Lazy-initialise charge phase data if not yet present.
-    ctx.state.chargePhase ??= { active: false, windupStartMs: 0, charging: false, targetX: 0, targetY: 0 };
-    ctx.state.chargePhase.active = true;
-    ctx.state.chargePhase.charging = false;
-    ctx.state.chargePhase.windupStartMs = now;
-    ctx.state.chargePhase.targetX = targetX;
-    ctx.state.chargePhase.targetY = targetY;
+    const phase: IChargePhase = ctx.state.chargePhase ??= { active: false, windupStartMs: 0, charging: false, chargeStartMs: 0, targetX: 0, targetY: 0 };
+    phase.active = true;
+    phase.charging = false;
+    phase.chargeStartMs = 0;
+    phase.windupStartMs = now;
+    phase.targetX = targetX;
+    phase.targetY = targetY;
 
     // Stop completely during the windup telegraph.
     ctx.halt();
@@ -92,11 +94,20 @@ export class ChargeState implements IOnlineStateHandler {
 
       // Windup complete — transition to charging phase.
       phase!.charging = true;
+      phase!.chargeStartMs = now;
     }
 
     // -----------------------------------------------------------------------
     // CHARGING phase — move toward locked target at charge speed
     // -----------------------------------------------------------------------
+
+    // Abort if the charge has taken too long (target unreachable, e.g. behind a wall).
+    if (now - phase!.chargeStartMs >= this.cfg.chargeTimeoutMs) {
+      ctx.halt();
+      ctx.transition(this.tr.chargeOnAbort);
+      return;
+    }
+
     const chargeSpeed = this.cfg.approachSpeed * this.cfg.chargeSpeedMultiplier;
     const dist = distanceTo(ctx.x, ctx.y, phase!.targetX, phase!.targetY);
 

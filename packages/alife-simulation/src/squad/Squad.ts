@@ -265,10 +265,11 @@ export class Squad {
     }
   }
 
-  onMemberKill(_npcId: string): void {
+  onMemberKill(npcId: string): void {
     if (!this.moraleLookup) return;
 
     for (const memberId of this.members) {
+      if (memberId === npcId) continue;
       this.moraleLookup(memberId)?.adjustMorale(this.config.moraleKillBonus);
     }
   }

@@ -146,8 +146,8 @@ describe('Sleep / Camp / Patrol state transitions (integration)', () => {
 
       // Reaction delay not yet elapsed — still in SLEEP
       expect(driver.currentStateId).toBe(ONLINE_STATE.SLEEP);
-      // woundedStartMs is used as the reaction-start timestamp (non-zero now)
-      expect(host.state.woundedStartMs).toBeGreaterThan(0);
+      // sleepReactionStartMs is used as the reaction-start timestamp (non-zero now)
+      expect(host.state.sleepReactionStartMs).toBeGreaterThan(0);
     });
 
     it('transitions to ALERT after campSleepReactionDelayMs has elapsed', () => {

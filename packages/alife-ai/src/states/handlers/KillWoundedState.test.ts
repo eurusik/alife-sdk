@@ -7,6 +7,7 @@ import { createDefaultStateConfig }   from '../IStateConfig';
 import type { INPCContext }            from '../INPCContext';
 import type { INPCOnlineState }        from '../INPCOnlineState';
 import type { IStateConfig }           from '../IStateConfig';
+import type { IShootPayload }          from '../INPCContext';
 import { KillWoundedState }            from './KillWoundedState';
 
 // ---------------------------------------------------------------------------
@@ -27,6 +28,7 @@ interface MockCtxOptions {
 
 function makeMockCtx(overrides: MockCtxOptions = {}) {
   const calls: string[] = [];
+  const shots: IShootPayload[] = [];
   const state: INPCOnlineState = createDefaultNPCOnlineState();
   if (overrides.moraleState) state.moraleState = overrides.moraleState;
   if (overrides.lastShootMs !== undefined) state.lastShootMs = overrides.lastShootMs;
@@ -58,7 +60,7 @@ function makeMockCtx(overrides: MockCtxOptions = {}) {
     teleport:           (x, y)   => { calls.push(`teleport:${x},${y}`); },
     disablePhysics:     ()       => { calls.push('disablePhysics'); },
     transition:         (s)      => { calls.push(`transition:${s}`); },
-    emitShoot:          (p)      => { calls.push(`shoot:${p.weaponType}`); },
+    emitShoot:          (p)      => { calls.push(`shoot:${p.weaponType}`); shots.push(p); },
     emitMeleeHit:       ()       => {},
     emitVocalization:   (t)      => { calls.push(`vocal:${t}`); },
     emitPsiAttackStart: ()       => {},
@@ -71,6 +73,7 @@ function makeMockCtx(overrides: MockCtxOptions = {}) {
   return {
     ctx,
     calls,
+    shots,
     state,
     setNow:          (ms: number)           => { nowMs = ms; },
     setEnemies:      (e: typeof enemies)    => { enemies = e; },
@@ -656,6 +659,235 @@ describe('KillWoundedState', () => {
       handler.exit(ctx);
       expect(ctx.state.killWoundedTargetX).toBe(0);
       expect(ctx.state.killWoundedTargetY).toBe(0);
+    });
+  });
+
+  // ── Round-4 fix: stale target position refresh ────────────────────────────
+  //
+  // Fix under test:
+  //   AIM phase and EXECUTE phase now re-query perception each frame via
+  //   ctx.perception?.getWoundedEnemies?.() and update killWoundedTargetX/Y
+  //   when the enemy is still visible. If the enemy leaves perception the last
+  //   known coordinates are preserved so the rotation and shot direction stay
+  //   meaningful.
+
+  describe('update() — stale target refresh (round-4 fix)', () => {
+    // Helper: drive the FSM from APPROACH all the way into the AIM phase.
+    // Returns with killWoundedAimStartMs set and the handler waiting in AIM.
+    function driveToAim(
+      ctx: INPCContext,
+      e: WoundedEnemy,
+      setNow: (ms: number) => void,
+    ): void {
+      ctx.state.killWoundedTargetId = e.id;
+      ctx.state.killWoundedTargetX  = e.x;
+      ctx.state.killWoundedTargetY  = e.y;
+      handler.enter(ctx);
+      // First update: NPC is within execute range → triggers AIM phase.
+      handler.update(ctx, 16);
+      // Now killWoundedAimStartMs is set. Advance time to stay inside AIM
+      // (half-way through the aim window) for subsequent test updates.
+      setNow(1 + cfg.killWoundedAimMs / 2);
+    }
+
+    // Helper: drive the FSM through APPROACH → AIM → TAUNT → EXECUTE.
+    // Returns with killWoundedExecuteStartMs set, shots not yet fired.
+    function driveToExecute(
+      ctx: INPCContext,
+      e: WoundedEnemy,
+      setNow: (ms: number) => void,
+    ): number {
+      ctx.state.killWoundedTargetId = e.id;
+      ctx.state.killWoundedTargetX  = e.x;
+      ctx.state.killWoundedTargetY  = e.y;
+      handler.enter(ctx);
+      handler.update(ctx, 16);                      // APPROACH → AIM
+      const aimDone = 1 + cfg.killWoundedAimMs + 1;
+      setNow(aimDone);
+      handler.update(ctx, 16);                      // AIM → TAUNT
+      const tauntDone = aimDone + cfg.killWoundedTauntMs + 1;
+      setNow(tauntDone);
+      handler.update(ctx, 16);                      // TAUNT → EXECUTE
+      return tauntDone;
+    }
+
+    // ── AIM phase ─────────────────────────────────────────────────────────
+
+    it('AIM: updates killWoundedTargetX/Y when enemy crawls during aim wind-up', () => {
+      const e: WoundedEnemy = {
+        id: 'e1',
+        x: 100 + cfg.killWoundedExecuteRange / 2,
+        y: 100,
+        hpPercent: 0.1,
+      };
+      const { ctx, state, setNow, setWounded } = makeMockCtx({
+        x: 100, y: 100, nowMs: 1,
+        woundedEnemies: [e],
+      });
+      driveToAim(ctx, e, setNow);
+
+      // Enemy crawls to a new position mid-aim.
+      setWounded([{ id: 'e1', x: e.x + 20, y: e.y + 10, hpPercent: 0.1 }]);
+      handler.update(ctx, 16);
+
+      expect(state.killWoundedTargetX).toBe(e.x + 20);
+      expect(state.killWoundedTargetY).toBe(e.y + 10);
+    });
+
+    it('AIM: rotation tracks updated enemy position, not stale one', () => {
+      const staleX = 100 + cfg.killWoundedExecuteRange / 2;
+      const staleY = 100;
+      const e: WoundedEnemy = { id: 'e1', x: staleX, y: staleY, hpPercent: 0.1 };
+      const npcX = 100;
+      const npcY = 100;
+      const { ctx, calls, setNow, setWounded } = makeMockCtx({
+        x: npcX, y: npcY, nowMs: 1,
+        woundedEnemies: [e],
+      });
+      driveToAim(ctx, e, setNow);
+
+      // Enemy moves significantly — enough that the angle changes noticeably.
+      const newX = staleX;
+      const newY = staleY + 40;
+      setWounded([{ id: 'e1', x: newX, y: newY, hpPercent: 0.1 }]);
+      calls.length = 0;
+      handler.update(ctx, 16);
+
+      const expectedAngle = Math.atan2(newY - npcY, newX - npcX).toFixed(4);
+      const staleAngle    = Math.atan2(staleY - npcY, staleX - npcX).toFixed(4);
+      const rotCall = calls.find(c => c.startsWith('rot:'));
+      expect(rotCall).toBeDefined();
+      expect(rotCall).toBe(`rot:${expectedAngle}`);
+      expect(rotCall).not.toBe(`rot:${staleAngle}`);
+    });
+
+    it('AIM: keeps last known position when enemy leaves perception mid-aim', () => {
+      const e: WoundedEnemy = {
+        id: 'e1',
+        x: 100 + cfg.killWoundedExecuteRange / 2,
+        y: 100,
+        hpPercent: 0.1,
+      };
+      const { ctx, state, setNow, setWounded } = makeMockCtx({
+        x: 100, y: 100, nowMs: 1,
+        woundedEnemies: [e],
+      });
+      driveToAim(ctx, e, setNow);
+      // Record what the coords were right after arrival.
+      const lastKnownX = state.killWoundedTargetX;
+      const lastKnownY = state.killWoundedTargetY;
+
+      // Enemy disappears from perception.
+      setWounded([]);
+      handler.update(ctx, 16);
+
+      // Coordinates must be preserved — not zeroed.
+      expect(state.killWoundedTargetX).toBe(lastKnownX);
+      expect(state.killWoundedTargetY).toBe(lastKnownY);
+    });
+
+    // ── EXECUTE phase ──────────────────────────────────────────────────────
+
+    it('EXECUTE: updates killWoundedTargetX/Y when enemy crawls between shots', () => {
+      const e: WoundedEnemy = {
+        id: 'e1',
+        x: 100 + cfg.killWoundedExecuteRange / 2,
+        y: 100,
+        hpPercent: 0.1,
+      };
+      const { ctx, state, setNow, setWounded } = makeMockCtx({
+        x: 100, y: 100, nowMs: 1, lastShootMs: 0,
+        woundedEnemies: [e],
+      });
+      const execStart = driveToExecute(ctx, e, setNow);
+
+      // Enemy crawls after EXECUTE begins.
+      const movedX = e.x + 15;
+      const movedY = e.y - 8;
+      setWounded([{ id: 'e1', x: movedX, y: movedY, hpPercent: 0.1 }]);
+      // Advance time past the fire-rate cooldown to trigger a shot.
+      setNow(execStart + cfg.fireRateMs + 1);
+      handler.update(ctx, 16);
+
+      expect(state.killWoundedTargetX).toBe(movedX);
+      expect(state.killWoundedTargetY).toBe(movedY);
+    });
+
+    it('EXECUTE: shot is fired at updated position, not stale one', () => {
+      const e: WoundedEnemy = {
+        id: 'e1',
+        x: 100 + cfg.killWoundedExecuteRange / 2,
+        y: 100,
+        hpPercent: 0.1,
+      };
+      const { ctx, shots, setNow, setWounded } = makeMockCtx({
+        x: 100, y: 100, nowMs: 1, lastShootMs: 0,
+        woundedEnemies: [e],
+      });
+      const execStart = driveToExecute(ctx, e, setNow);
+
+      // Enemy relocates.
+      const movedX = e.x + 30;
+      const movedY = e.y + 20;
+      setWounded([{ id: 'e1', x: movedX, y: movedY, hpPercent: 0.1 }]);
+      setNow(execStart + cfg.fireRateMs + 1);
+      handler.update(ctx, 16);
+
+      // The shot payload must use the updated coordinates.
+      expect(shots).toHaveLength(1);
+      expect(shots[0].targetX).toBe(movedX);
+      expect(shots[0].targetY).toBe(movedY);
+    });
+
+    it('EXECUTE: shot is NOT aimed at the original stale position', () => {
+      const originalX = 100 + cfg.killWoundedExecuteRange / 2;
+      const originalY = 100;
+      const e: WoundedEnemy = { id: 'e1', x: originalX, y: originalY, hpPercent: 0.1 };
+      const { ctx, shots, setNow, setWounded } = makeMockCtx({
+        x: 100, y: 100, nowMs: 1, lastShootMs: 0,
+        woundedEnemies: [e],
+      });
+      const execStart = driveToExecute(ctx, e, setNow);
+
+      // Enemy crawls away from original position.
+      setWounded([{ id: 'e1', x: originalX + 50, y: originalY + 30, hpPercent: 0.1 }]);
+      setNow(execStart + cfg.fireRateMs + 1);
+      handler.update(ctx, 16);
+
+      expect(shots).toHaveLength(1);
+      expect(shots[0].targetX).not.toBe(originalX);
+      expect(shots[0].targetY).not.toBe(originalY);
+    });
+
+    it('EXECUTE: keeps last known position when enemy leaves perception mid-execute', () => {
+      const e: WoundedEnemy = {
+        id: 'e1',
+        x: 100 + cfg.killWoundedExecuteRange / 2,
+        y: 100,
+        hpPercent: 0.1,
+      };
+      const { ctx, state, shots, setNow, setWounded } = makeMockCtx({
+        x: 100, y: 100, nowMs: 1, lastShootMs: 0,
+        woundedEnemies: [e],
+      });
+      driveToExecute(ctx, e, setNow);
+
+      // Record coordinates at the moment EXECUTE starts.
+      const lastKnownX = state.killWoundedTargetX;
+      const lastKnownY = state.killWoundedTargetY;
+
+      // Enemy disappears from perception.
+      setWounded([]);
+      // Push time past fire-rate so we actually fire a shot.
+      setNow(ctx.state.killWoundedExecuteStartMs + cfg.fireRateMs + 1);
+      handler.update(ctx, 16);
+
+      // Coordinates must be preserved, and the shot must use them.
+      expect(state.killWoundedTargetX).toBe(lastKnownX);
+      expect(state.killWoundedTargetY).toBe(lastKnownY);
+      expect(shots).toHaveLength(1);
+      expect(shots[0].targetX).toBe(lastKnownX);
+      expect(shots[0].targetY).toBe(lastKnownY);
     });
   });
 });

@@ -142,6 +142,86 @@ describe('QuestEngine', () => {
     });
   });
 
+  describe('updateObjectiveProgress — zero / negative increment guard', () => {
+    it('increment=0 returns false and does not mutate progress', () => {
+      const engine = new QuestEngine();
+      engine.registerQuest(makeKillQuest());
+      engine.startQuest('q_kill');
+
+      const result = engine.updateObjectiveProgress('q_kill', 'obj_kill', 0);
+
+      expect(result).toBe(false);
+      expect(engine.getQuestState('q_kill')?.objectives[0].current).toBe(0);
+    });
+
+    it('increment=0 does not emit objective:progress', () => {
+      const engine = new QuestEngine();
+      engine.registerQuest(makeKillQuest());
+      engine.startQuest('q_kill');
+
+      const progressCb = vi.fn();
+      engine.on('objective:progress', progressCb);
+
+      engine.updateObjectiveProgress('q_kill', 'obj_kill', 0);
+
+      expect(progressCb).not.toHaveBeenCalled();
+    });
+
+    it('increment=-1 returns false and does not mutate progress', () => {
+      const engine = new QuestEngine();
+      engine.registerQuest(makeKillQuest());
+      engine.startQuest('q_kill');
+
+      const result = engine.updateObjectiveProgress('q_kill', 'obj_kill', -1);
+
+      expect(result).toBe(false);
+      expect(engine.getQuestState('q_kill')?.objectives[0].current).toBe(0);
+    });
+
+    it('increment=-1 does not emit objective:progress', () => {
+      const engine = new QuestEngine();
+      engine.registerQuest(makeKillQuest());
+      engine.startQuest('q_kill');
+
+      const progressCb = vi.fn();
+      engine.on('objective:progress', progressCb);
+
+      engine.updateObjectiveProgress('q_kill', 'obj_kill', -1);
+
+      expect(progressCb).not.toHaveBeenCalled();
+    });
+
+    it('increment=1 returns true and advances progress normally', () => {
+      const engine = new QuestEngine();
+      engine.registerQuest(makeKillQuest());
+      engine.startQuest('q_kill');
+
+      const result = engine.updateObjectiveProgress('q_kill', 'obj_kill', 1);
+
+      expect(result).toBe(true);
+      expect(engine.getQuestState('q_kill')?.objectives[0].current).toBe(1);
+    });
+
+    it('increment=1 emits objective:progress with correct values', () => {
+      const engine = new QuestEngine();
+      engine.registerQuest(makeKillQuest());
+      engine.startQuest('q_kill');
+
+      const progressCb = vi.fn();
+      engine.on('objective:progress', progressCb);
+
+      engine.updateObjectiveProgress('q_kill', 'obj_kill', 1);
+
+      expect(progressCb).toHaveBeenCalledOnce();
+      expect(progressCb).toHaveBeenCalledWith({
+        questId: 'q_kill',
+        objectiveId: 'obj_kill',
+        current: 1,
+        total: 3,
+      });
+    });
+  });
+
   describe('updateObjectiveProgress', () => {
     it('increments kill count', () => {
       const engine = new QuestEngine();

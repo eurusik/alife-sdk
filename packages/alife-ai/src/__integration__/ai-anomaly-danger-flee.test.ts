@@ -218,7 +218,8 @@ describe('AI: hazard zone → RestrictedZone → FLEE (integration)', () => {
 
       driver.update(50);
 
-      expect(driver.currentStateId).toBe('FLEE');
+      // IdleState no longer transitions on zone exit — stays IDLE and uses moveToward().
+      expect(driver.currentStateId).toBe('IDLE');
     });
 
     it('HazardManager.getZoneAtPoint confirms NPC is inside hazard area', () => {
@@ -372,10 +373,11 @@ describe('AI: hazard zone → RestrictedZone → FLEE (integration)', () => {
       host.advanceMs(CHECK_INTERVAL_MS + 1);
       driver.update(50);
 
-      expect(driver.currentStateId).toBe('FLEE');
+      // IdleState no longer transitions on zone exit — stays IDLE and uses moveToward().
+      expect(driver.currentStateId).toBe('IDLE');
     });
 
-    it('multiple hazard zones — NPC triggers FLEE from any overlapping zone', () => {
+    it('multiple hazard zones — NPC triggers IDLE (moves toward safe exit) from any overlapping zone', () => {
       const { manager } = createStubHazardDeps();
       manager.addZone({
         id: 'chem_1',
@@ -427,17 +429,18 @@ describe('AI: hazard zone → RestrictedZone → FLEE (integration)', () => {
       host.advanceMs(CHECK_INTERVAL_MS + 1);
       driver.update(50);
 
-      expect(driver.currentStateId).toBe('FLEE');
+      // IdleState no longer transitions on zone exit — stays IDLE and uses moveToward().
+      expect(driver.currentStateId).toBe('IDLE');
     });
   });
 
   // -----------------------------------------------------------------------
-  // Scenario 4: Exiting hazard zone → NPC can return to IDLE
+  // Scenario 4: Zone handling — NPC stays in IDLE and moves toward safe exit
   // -----------------------------------------------------------------------
 
-  describe('scenario 4: after exiting hazard zone NPC returns to IDLE via search/flee cycle', () => {
-    it('FLEE state exists and is registered in the handler map', () => {
-      // Verify that the driver was constructed with FLEE as a reachable state.
+  describe('scenario 4: NPC in restricted zone stays in IDLE and navigates toward safe exit', () => {
+    it('NPC stays in IDLE and has velocity set toward safe exit when inside zone', () => {
+      // Verify that the driver stays in IDLE when in a restricted zone.
       const host = new TestNPCHost(ZONE_X, ZONE_Y);
 
       const zones = new RestrictedZoneManager(SAFE_MARGIN);
@@ -455,8 +458,8 @@ describe('AI: hazard zone → RestrictedZone → FLEE (integration)', () => {
       host.advanceMs(CHECK_INTERVAL_MS + 1);
       driver.update(50);
 
-      // Should be in FLEE after zone violation
-      expect(driver.currentStateId).toBe('FLEE');
+      // IdleState stays in IDLE and calls moveToward() toward a safe exit
+      expect(driver.currentStateId).toBe('IDLE');
     });
 
     it('deactivating zone → NPC position becomes accessible again', () => {
@@ -632,13 +635,13 @@ describe('AI: hazard zone → RestrictedZone → FLEE (integration)', () => {
 
       // IdleState.enter() seeds the timer: lastIdleAnimChangeMs = now - interval
       // So the first update() WILL fire the check (timeSinceCheck = now - (now - interval) = interval >= interval).
-      // Advance only a tiny bit so we test the SECOND update before the next interval fires.
+      // IdleState stays in IDLE and calls moveToward() — no transition.
       host.advanceMs(CHECK_INTERVAL_MS + 1);
-      driver.update(1); // first update fires the check → FLEE
-      expect(driver.currentStateId).toBe('FLEE');
+      driver.update(1); // first update fires the check → stays IDLE (moves toward safe exit)
+      expect(driver.currentStateId).toBe('IDLE');
     });
 
-    it('check re-arms after interval — subsequent violation fires again from IDLE', () => {
+    it('check re-arms after interval — subsequent zone violation stays in IDLE', () => {
       const zones = new RestrictedZoneManager(SAFE_MARGIN);
       zones.addZone({
         id: 'restrict_rearm',
@@ -658,11 +661,12 @@ describe('AI: hazard zone → RestrictedZone → FLEE (integration)', () => {
       driver.update(50);
       expect(driver.currentStateId).toBe('IDLE');
 
-      // Now teleport into zone and advance enough for re-check
+      // Now teleport into zone and advance enough for re-check — still stays IDLE
       host.teleport(ZONE_X, ZONE_Y);
       host.advanceMs(CHECK_INTERVAL_MS + 1);
       driver.update(50);
-      expect(driver.currentStateId).toBe('FLEE');
+      // IdleState no longer transitions on zone exit — stays IDLE and uses moveToward().
+      expect(driver.currentStateId).toBe('IDLE');
     });
   });
 });

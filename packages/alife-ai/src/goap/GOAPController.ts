@@ -92,11 +92,11 @@ export class GOAPController {
       const prevAction = this.currentPlan[this.currentIndex] ?? null;
       const worldState = buildWorldState(snapshot);
       replanned = this.replan(worldState, snapshot);
-      // Abort the previous action only if the replan switched to a different one.
-      // This preserves internal state (timers, phases) of long-running actions
-      // like AttackFromCover when periodic replans produce the same plan.
-      const newAction = this.currentPlan[this.currentIndex] ?? null;
-      if (prevAction && prevAction !== newAction) {
+      // Abort the previous action only if it is no longer present anywhere in
+      // the new plan.  Comparing against currentPlan[currentIndex] (always 0
+      // after replan) would cause a spurious abort when prevAction was mid-plan
+      // (index > 0) and the new plan still contains the same action object.
+      if (prevAction && !this.currentPlan.includes(prevAction)) {
         prevAction.abort(entity);
       }
     }
@@ -114,7 +114,6 @@ export class GOAPController {
       const status = action.execute(entity, deltaMs);
 
       if (status === ActionStatus.SUCCESS) {
-        action.abort(entity);
         this.currentIndex++;
         if (this.currentIndex >= this.currentPlan.length) {
           this.planInvalid = true;
@@ -204,7 +203,7 @@ export class GOAPController {
    */
   restore(state: IGOAPControllerState): void {
     this.currentPlan = [];
-    this.currentIndex = state.currentIndex;
+    this.currentIndex = 0;
     this.replanTimer = state.replanTimer;
     this.planInvalid = true;
     this.lastGoalResult = null;

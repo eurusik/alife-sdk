@@ -46,6 +46,7 @@ export interface IStateTransitionMap {
 
   // ── Flee ──────────────────────────────────────────────────────────────────
   fleeOnCalmed: string;          // default: 'ALERT'
+  fleeOnSafe: string;            // default: 'PATROL' – SHAKEN NPC fled far enough; resume patrol
 
   // ── Search ────────────────────────────────────────────────────────────────
   searchOnEnemy: string;         // default: 'ALERT'
@@ -153,6 +154,7 @@ export function createDefaultTransitionMap(
     takeCoverOnPanicked: 'FLEE',
     takeCoverOnShaken: 'RETREAT',
     fleeOnCalmed: 'ALERT',
+    fleeOnSafe: 'PATROL',
     searchOnEnemy: 'ALERT',
     searchOnTimeout: 'IDLE',
     grenadeOnComplete: 'COMBAT',

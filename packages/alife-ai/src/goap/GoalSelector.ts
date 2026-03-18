@@ -36,13 +36,14 @@ export interface IGoalRule {
 const _criticalGoal: WorldState = /* @__PURE__ */ (() => {
   const ws = new WorldState();
   ws.set(WorldProperty.CRITICALLY_WOUNDED, false);
-  ws.set(WorldProperty.ENEMY_PRESENT, false);
+  ws.freeze();
   return ws;
 })();
 
 const _enemyResult: IGoalResult = /* @__PURE__ */ (() => {
   const ws = new WorldState();
   ws.set(WorldProperty.ENEMY_PRESENT, false);
+  ws.freeze();
   return { goal: ws, priority: GoalPriority.ENEMY_PRESENT, reason: 'Enemy detected' };
 })();
 
@@ -51,24 +52,28 @@ const _enemyResult: IGoalResult = /* @__PURE__ */ (() => {
 const _panicFleeResult: IGoalResult = /* @__PURE__ */ (() => {
   const ws = new WorldState();
   ws.set(WorldProperty.DANGER, false);
+  ws.freeze();
   return { goal: ws, priority: GoalPriority.PANIC_FLEE, reason: 'Morale collapsed — flee immediately' };
 })();
 
 const _dangerResult: IGoalResult = /* @__PURE__ */ (() => {
   const ws = new WorldState();
   ws.set(WorldProperty.DANGER, false);
+  ws.freeze();
   return { goal: ws, priority: GoalPriority.DANGER, reason: 'Danger signal without visible enemy' };
 })();
 
 const _anomalyResult: IGoalResult = /* @__PURE__ */ (() => {
   const ws = new WorldState();
   ws.set(WorldProperty.ANOMALY_NEAR, false);
+  ws.freeze();
   return { goal: ws, priority: GoalPriority.ANOMALY_AVOID, reason: 'Anomaly zone detected' };
 })();
 
 const _defaultResult: IGoalResult = /* @__PURE__ */ (() => {
   const ws = new WorldState();
   ws.set(WorldProperty.AT_TARGET, true);
+  ws.freeze();
   return { goal: ws, priority: GoalPriority.DEFAULT, reason: 'No threats — patrol or idle' };
 })();
 
@@ -143,7 +148,7 @@ export const DEFAULT_GOAL_RULES: readonly IGoalRule[] = [
  * Select a GOAP goal based on the current NPC state.
  *
  * Rules are evaluated in order — first rule that returns a non-null result wins.
- * DEFAULT_GOAL_RULES provides the original 4-band hierarchy.
+ * DEFAULT_GOAL_RULES provides the 6-band hierarchy.
  *
  * @param snapshot - Pre-computed NPC world data
  * @param config - GOAP configuration (healHpThreshold)

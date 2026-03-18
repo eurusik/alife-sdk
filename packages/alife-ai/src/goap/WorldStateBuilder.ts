@@ -21,7 +21,7 @@ export interface IWorldPropertyBuilder {
 export const DEFAULT_WORLD_PROPERTY_BUILDERS: readonly IWorldPropertyBuilder[] = [
   // Direct properties
   { key: WorldProperty.ALIVE, build: (s) => s.isAlive },
-  { key: WorldProperty.CRITICALLY_WOUNDED, build: (s) => s.hpRatio <= 0.3 },
+  { key: WorldProperty.CRITICALLY_WOUNDED, build: (s) => s.hpRatio <= (s.healHpThreshold ?? 0.3) },
   { key: WorldProperty.HAS_WEAPON, build: (s) => s.hasWeapon },
   { key: WorldProperty.HAS_AMMO, build: (s) => s.hasAmmo },
   { key: WorldProperty.IN_COVER, build: (s) => s.inCover },
@@ -33,7 +33,7 @@ export const DEFAULT_WORLD_PROPERTY_BUILDERS: readonly IWorldPropertyBuilder[] =
   { key: WorldProperty.ENEMY_WOUNDED, build: (s) => s.enemyWounded },
   { key: WorldProperty.ANOMALY_NEAR, build: (s) => s.nearAnomalyZone },
   // Derived properties
-  { key: WorldProperty.ENEMY_SEE_ME, build: (s) => s.seeEnemy },
+  { key: WorldProperty.ENEMY_SEE_ME, build: (s) => s.enemySeeMe ?? s.seeEnemy },
   {
     key: WorldProperty.READY_TO_KILL,
     build: (s) => s.hasWeapon && s.hasAmmo && s.seeEnemy && s.enemyInRange,

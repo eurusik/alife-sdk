@@ -277,8 +277,8 @@ describe('SurgeManager', () => {
       events.flush();
 
       expect(received).toHaveLength(2);
-      expect(received[0]).toEqual({ npcId: 'npc_1', damage: 25 });
-      expect(received[1]).toEqual({ npcId: 'npc_2', damage: 25 });
+      expect(received[0]).toEqual({ npcId: 'ent_1', damage: 25 });
+      expect(received[1]).toEqual({ npcId: 'ent_2', damage: 25 });
     });
   });
 
@@ -398,7 +398,7 @@ describe('SurgeManager', () => {
       manager.update(500, npcs, emptyTerrains);
       events.flush();
 
-      expect(deadIds).toEqual(['npc_doomed']);
+      expect(deadIds).toEqual(['ent_doomed']);
     });
 
     it('does not adjust morale for dead NPCs', () => {
@@ -742,6 +742,156 @@ describe('SurgeManager', () => {
       expect(damagedIds).toContain('ent_exposed');
       expect(damagedIds).toContain('ent_unassigned');
       expect(damagedIds).not.toContain('ent_safe');
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // entityId fix: onSurgeDeath and SURGE_DAMAGE use record.entityId, not key
+  // -----------------------------------------------------------------------
+  describe('entityId fix -- record.entityId used instead of map key', () => {
+    /**
+     * Setup: map key deliberately differs from record.entityId so any
+     * accidental use of the key is detectable in assertions.
+     *
+     * Key:      'map_key_npc'
+     * entityId: 'real_entity_id'
+     */
+    const KEY = 'map_key_npc';
+    const ENTITY_ID = 'real_entity_id';
+
+    function buildNpcsWithMismatch(): Map<string, ISurgeNPCRecord> {
+      return new Map([[KEY, createNPC(ENTITY_ID, null)]]);
+    }
+
+    it('onSurgeDeath callback receives record.entityId, not the map key', () => {
+      const npcs = buildNpcsWithMismatch();
+      const deadIds: string[] = [];
+
+      const bridge = createStubBridge({
+        applyDamage: () => true, // fatal hit every time
+      });
+
+      const { manager, events } = createSurge({
+        bridge,
+        onSurgeDeath: (id) => deadIds.push(id),
+      });
+      manager.init();
+
+      advanceToActive(manager, npcs, emptyTerrains, events);
+      manager.update(500, npcs, emptyTerrains);
+      events.flush();
+
+      // Must be the entityId, never the map key.
+      expect(deadIds).toEqual([ENTITY_ID]);
+      expect(deadIds).not.toContain(KEY);
+    });
+
+    it('onSurgeDeath is NOT called with the map key', () => {
+      const npcs = buildNpcsWithMismatch();
+      const deadIds: string[] = [];
+
+      const bridge = createStubBridge({ applyDamage: () => true });
+      const { manager, events } = createSurge({
+        bridge,
+        onSurgeDeath: (id) => deadIds.push(id),
+      });
+      manager.init();
+
+      advanceToActive(manager, npcs, emptyTerrains, events);
+      manager.update(500, npcs, emptyTerrains);
+      events.flush();
+
+      expect(deadIds).not.toContain(KEY);
+    });
+
+    it('SURGE_DAMAGE event payload npcId equals record.entityId, not map key', () => {
+      const npcs = buildNpcsWithMismatch();
+
+      // NPC survives so the SURGE_DAMAGE event is emitted.
+      const bridge = createStubBridge({ applyDamage: () => false });
+
+      const received: Array<{ npcId: string; damage: number }> = [];
+      const { manager, events } = createSurge({ bridge });
+      manager.init();
+
+      events.on(ALifeEvents.SURGE_DAMAGE, (p) => received.push(p as { npcId: string; damage: number }));
+
+      advanceToActive(manager, npcs, emptyTerrains, events);
+      manager.update(500, npcs, emptyTerrains);
+      events.flush();
+
+      expect(received).toHaveLength(1);
+      expect(received[0]!.npcId).toBe(ENTITY_ID);
+      expect(received[0]!.npcId).not.toBe(KEY);
+    });
+
+    it('SURGE_DAMAGE npcId is not the map key when key and entityId differ', () => {
+      const npcs = buildNpcsWithMismatch();
+      const bridge = createStubBridge({ applyDamage: () => false });
+
+      const received: Array<{ npcId: string }> = [];
+      const { manager, events } = createSurge({ bridge });
+      manager.init();
+
+      events.on(ALifeEvents.SURGE_DAMAGE, (p) => received.push(p as { npcId: string }));
+
+      advanceToActive(manager, npcs, emptyTerrains, events);
+      manager.update(500, npcs, emptyTerrains);
+      events.flush();
+
+      for (const payload of received) {
+        expect(payload.npcId).not.toBe(KEY);
+      }
+    });
+
+    it('multiple NPCs: each SURGE_DAMAGE payload carries its own record.entityId', () => {
+      // Two entries whose map keys are completely different from their entityIds.
+      const npcs = new Map<string, ISurgeNPCRecord>([
+        ['key_alpha', createNPC('entity_alpha', null)],
+        ['key_beta', createNPC('entity_beta', null)],
+      ]);
+
+      const bridge = createStubBridge({ applyDamage: () => false });
+      const received: Array<{ npcId: string }> = [];
+      const { manager, events } = createSurge({ bridge });
+      manager.init();
+
+      events.on(ALifeEvents.SURGE_DAMAGE, (p) => received.push(p as { npcId: string }));
+
+      advanceToActive(manager, npcs, emptyTerrains, events);
+      manager.update(500, npcs, emptyTerrains);
+      events.flush();
+
+      expect(received).toHaveLength(2);
+      const npcIds = received.map((r) => r.npcId);
+      expect(npcIds).toContain('entity_alpha');
+      expect(npcIds).toContain('entity_beta');
+      expect(npcIds).not.toContain('key_alpha');
+      expect(npcIds).not.toContain('key_beta');
+    });
+
+    it('multiple NPCs: onSurgeDeath receives entityId for every killed NPC', () => {
+      const npcs = new Map<string, ISurgeNPCRecord>([
+        ['key_alpha', createNPC('entity_alpha', null)],
+        ['key_beta', createNPC('entity_beta', null)],
+      ]);
+
+      const deadIds: string[] = [];
+      const bridge = createStubBridge({ applyDamage: () => true });
+      const { manager, events } = createSurge({
+        bridge,
+        onSurgeDeath: (id) => deadIds.push(id),
+      });
+      manager.init();
+
+      advanceToActive(manager, npcs, emptyTerrains, events);
+      manager.update(500, npcs, emptyTerrains);
+      events.flush();
+
+      expect(deadIds).toContain('entity_alpha');
+      expect(deadIds).toContain('entity_beta');
+      expect(deadIds).not.toContain('key_alpha');
+      expect(deadIds).not.toContain('key_beta');
     });
   });
 });

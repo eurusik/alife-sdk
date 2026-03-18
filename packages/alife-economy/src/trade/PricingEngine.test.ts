@@ -36,18 +36,18 @@ describe('calculateBuyPrice', () => {
 
 describe('calculateSellPrice', () => {
   it('applies sell markup', () => {
-    const price = calculateSellPrice(100, config);
+    const price = calculateSellPrice(100, 0, config);
     expect(price).toBe(Math.round(100 * config.sellPriceMultiplier));
   });
 
   it('no ally bonus on sell', () => {
-    const price = calculateSellPrice(100, config);
+    const price = calculateSellPrice(100, 0, config);
     // Always flat markup.
     expect(price).toBe(Math.round(100 * config.sellPriceMultiplier));
   });
 
   it('returns at least 1', () => {
-    expect(calculateSellPrice(0, config)).toBeGreaterThanOrEqual(1);
+    expect(calculateSellPrice(0, 0, config)).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -89,22 +89,84 @@ describe('calculateBuyPrice modifier', () => {
 describe('calculateSellPrice modifier', () => {
   it('applies modifier after formula', () => {
     const double: IPriceModifier = (price) => price * 2;
-    const base = calculateSellPrice(100, config);
-    const boosted = calculateSellPrice(100, config, double);
+    const base = calculateSellPrice(100, 0, config);
+    const boosted = calculateSellPrice(100, 0, config, double);
     expect(boosted).toBe(Math.round(base * 2));
   });
 
-  it('passes basePrice in context (factionRelation=0 for sell)', () => {
+  it('passes basePrice and factionRelation in context', () => {
     const spy = vi.fn((price: number) => price);
-    calculateSellPrice(50, config, spy);
+    calculateSellPrice(50, 75, config, spy);
     const [, ctx] = spy.mock.calls[0];
     expect(ctx.basePrice).toBe(50);
-    expect(ctx.factionRelation).toBe(0);
+    expect(ctx.factionRelation).toBe(75);
   });
 
   it('clamps modifier result to minimum 1', () => {
     const zero: IPriceModifier = () => -10;
-    expect(calculateSellPrice(100, config, zero)).toBe(1);
+    expect(calculateSellPrice(100, 0, config, zero)).toBe(1);
+  });
+});
+
+describe('calculateSellPrice factionRelation fix', () => {
+  // Regression suite for the bug where factionRelation was hardcoded to 0
+  // inside calculateSellPrice, so modifiers never received the real value.
+
+  it('neutral relation (0) produces flat sell markup with no modifier', () => {
+    const price = calculateSellPrice(100, 0, config);
+    expect(price).toBe(Math.round(100 * config.sellPriceMultiplier));
+  });
+
+  it('positive factionRelation is forwarded to modifier context', () => {
+    const spy = vi.fn((price: number) => price);
+    calculateSellPrice(100, 80, config, spy);
+    expect(spy).toHaveBeenCalledOnce();
+    const [, ctx] = spy.mock.calls[0];
+    expect(ctx.factionRelation).toBe(80);
+  });
+
+  it('negative factionRelation is forwarded to modifier context', () => {
+    const spy = vi.fn((price: number) => price);
+    calculateSellPrice(100, -60, config, spy);
+    expect(spy).toHaveBeenCalledOnce();
+    const [, ctx] = spy.mock.calls[0];
+    expect(ctx.factionRelation).toBe(-60);
+  });
+
+  it('modifier that reads factionRelation actually changes the sell price', () => {
+    // Friendly bonus: allied traders pay 20% extra on sold goods.
+    const allyBonus: IPriceModifier = (price, { factionRelation }) =>
+      factionRelation > 50 ? price * 1.2 : price;
+
+    const basePrice = 100;
+    const neutralSell = calculateSellPrice(basePrice, 0, config, allyBonus);
+    const allySell = calculateSellPrice(basePrice, 75, config, allyBonus);
+
+    const expectedNeutral = Math.round(
+      Math.round(basePrice * config.sellPriceMultiplier) * 1.0,
+    );
+    const expectedAlly = Math.round(
+      Math.round(basePrice * config.sellPriceMultiplier) * 1.2,
+    );
+
+    expect(neutralSell).toBe(expectedNeutral);
+    expect(allySell).toBe(expectedAlly);
+    expect(allySell).toBeGreaterThan(neutralSell);
+  });
+
+  it('buy and sell prices both receive the same factionRelation value', () => {
+    const buySpy = vi.fn((price: number) => price);
+    const sellSpy = vi.fn((price: number) => price);
+    const relation = 42;
+
+    calculateBuyPrice(100, relation, config, buySpy);
+    calculateSellPrice(100, relation, config, sellSpy);
+
+    const [, buyCtx] = buySpy.mock.calls[0];
+    const [, sellCtx] = sellSpy.mock.calls[0];
+
+    expect(buyCtx.factionRelation).toBe(relation);
+    expect(sellCtx.factionRelation).toBe(relation);
   });
 });
 

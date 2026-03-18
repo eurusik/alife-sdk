@@ -363,21 +363,6 @@ describe('SearchState — integration via OnlineAIDriver', () => {
       expect(driver.currentStateId).toBe(ONLINE_STATE.IDLE);
     });
 
-    it('SearchState searchWaypointIndex is accessible in state bag', () => {
-      const host = new TestNPCHost(100, 100);
-      host.state.lastKnownEnemyX = 300;
-      host.state.lastKnownEnemyY = 100;
-      host.perception.sync([], [], []);
-
-      const driver = buildSearchDriver(host);
-
-      // searchWaypointIndex starts at 0
-      expect(host.state.searchWaypointIndex).toBe(0);
-      tick(host, driver, 50);
-      // Still in SEARCH
-      expect(driver.currentStateId).toBe(ONLINE_STATE.SEARCH);
-    });
-
     it('second search after returning to IDLE — SearchState resets searchStartMs', () => {
       const host = new TestNPCHost(100, 100);
       host.state.lastKnownEnemyX = 300;

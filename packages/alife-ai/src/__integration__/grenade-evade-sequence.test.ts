@@ -248,7 +248,9 @@ describe('Grenade + Evade Sequence (integration)', () => {
   // Scenario 4: EVADE_GRENADE -> COMBAT when danger clears and enemy visible
   // -------------------------------------------------------------------------
   describe('EVADE_GRENADE -> COMBAT when danger clears', () => {
-    it('transitions to COMBAT when danger clears and enemy is visible', () => {
+    // The NPC always runs the full evadeGrenadeDurationMs (2000ms) even if danger clears
+    // early. Transitions only fire once elapsed >= evadeGrenadeDurationMs.
+    it('transitions to COMBAT when danger clears and enemy is visible after full duration', () => {
       const host = new TestNPCHost();
       host.state.lastKnownEnemyX = 200;
       host.state.lastKnownEnemyY = 100;
@@ -263,13 +265,14 @@ describe('Grenade + Evade Sequence (integration)', () => {
       host.perception.sync([makeEnemy('e1', 200, 100)], [], []);
 
       const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.EVADE_GRENADE);
-      tick(host, driver, 16);
 
-      // Danger cleared early with visible enemy -> transition to evadeOnClear ('COMBAT').
+      // Must advance past evadeGrenadeDurationMs (2000ms) before transition fires.
+      tick(host, driver, cfg.evadeGrenadeDurationMs + 100);
+
       expect(driver.currentStateId).toBe(ONLINE_STATE.COMBAT);
     });
 
-    it('transitions to SEARCH when danger clears and no enemy visible', () => {
+    it('transitions to COMBAT (evadeOnTimeout default) when danger clears and no enemy visible after full duration', () => {
       const host = new TestNPCHost();
       host.state.lastKnownEnemyX = 200;
       host.state.lastKnownEnemyY = 100;
@@ -284,10 +287,12 @@ describe('Grenade + Evade Sequence (integration)', () => {
       host.perception.sync([], [], []);
 
       const driver = new OnlineAIDriver(host, buildDefaultHandlerMap(), ONLINE_STATE.EVADE_GRENADE);
-      tick(host, driver, 16);
 
-      // No enemy -> SEARCH.
-      expect(driver.currentStateId).toBe(ONLINE_STATE.SEARCH);
+      // Must advance past evadeGrenadeDurationMs (2000ms) before transition fires.
+      tick(host, driver, cfg.evadeGrenadeDurationMs + 100);
+
+      // evadeOnTimeout defaults to 'COMBAT'; use { evadeOnTimeout: 'SEARCH' } to get SEARCH
+      expect(driver.currentStateId).toBe(ONLINE_STATE.COMBAT);
     });
   });
 
@@ -317,7 +322,7 @@ describe('Grenade + Evade Sequence (integration)', () => {
       expect(driver.currentStateId).toBe(ONLINE_STATE.COMBAT);
     });
 
-    it('transitions to COMBAT via evadeOnClear when danger system clears after duration', () => {
+    it('transitions to COMBAT via evadeOnClear when danger system clears after full duration', () => {
       const host = new TestNPCHost();
       host.state.lastKnownEnemyX = 200;
       host.state.lastKnownEnemyY = 100;
@@ -339,9 +344,9 @@ describe('Grenade + Evade Sequence (integration)', () => {
       tick(host, driver, 1000);
       expect(driver.currentStateId).toBe(ONLINE_STATE.EVADE_GRENADE);
 
-      // Clear the danger.
+      // Clear the danger and advance past evadeGrenadeDurationMs (total elapsed must be >= 2000ms).
       dangerActive = false;
-      tick(host, driver, 16);
+      tick(host, driver, cfg.evadeGrenadeDurationMs); // 1000 + 2000 = 3000ms total
 
       // Danger cleared with enemy visible -> COMBAT.
       expect(driver.currentStateId).toBe(ONLINE_STATE.COMBAT);

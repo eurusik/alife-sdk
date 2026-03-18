@@ -1,5 +1,5 @@
 // states/handlers/_utils.ts
-// Internal utility helpers shared by passive state handlers.
+// Internal utility helpers shared by state handlers.
 // NOT exported from the handlers barrel — internal implementation detail.
 
 import type { INPCContext } from '../INPCContext';

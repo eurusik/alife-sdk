@@ -226,20 +226,20 @@ describe('Monster Ability Cycle (integration)', () => {
       expect(lastNonZero[0]).toBeGreaterThan(0); // moving right toward enemy
     });
 
-    it('transitions to COMBAT when within stalkUnclockDistance', () => {
+    it('transitions to COMBAT when within stalkUncloakDistance', () => {
       const host = new TestNPCHost();
       host.entityType = 'bloodsucker';
       host.x = 100;
       host.y = 100;
 
-      // Enemy at exactly stalkUnclockDistance away (80px default).
-      const enemyX = host.x + cfg.stalkUnclockDistance - 5; // within unclock distance
+      // Enemy at exactly stalkUncloakDistance away (80px default).
+      const enemyX = host.x + cfg.stalkUncloakDistance - 5; // within unclock distance
       const enemy = { id: 'prey_1', x: enemyX, y: host.y, factionId: 'human' };
       host.perception.sync([enemy], [], []);
 
       const driver = new OnlineAIDriver(host, buildChornobylMonsterHandlerMap(), ONLINE_STATE.STALK);
 
-      // First tick: dist < stalkUnclockDistance -> sets approaching=true.
+      // First tick: dist < stalkUncloakDistance -> sets approaching=true.
       tick(host, driver, 16);
       expect(host.state.stalkPhase?.approaching).toBe(true);
 
@@ -252,7 +252,7 @@ describe('Monster Ability Cycle (integration)', () => {
       const host = new TestNPCHost();
       host.entityType = 'bloodsucker';
 
-      const enemyX = host.x + cfg.stalkUnclockDistance - 5;
+      const enemyX = host.x + cfg.stalkUncloakDistance - 5;
       const enemy = { id: 'prey_1', x: enemyX, y: host.y, factionId: 'human' };
       host.perception.sync([enemy], [], []);
 

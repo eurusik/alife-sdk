@@ -38,8 +38,7 @@ export class SleepState implements IOnlineStateHandler {
   enter(ctx: INPCContext): void {
     ctx.halt();
     // Clear any stale delayed reaction from a previous SLEEP activation.
-    // We repurpose woundedStartMs as the sleep-reaction-start timestamp.
-    ctx.state.woundedStartMs = NO_PENDING;
+    ctx.state.sleepReactionStartMs = NO_PENDING;
     // Slightly dim the NPC to indicate sleep visually.
     ctx.setAlpha(0.8);
   }
@@ -48,10 +47,10 @@ export class SleepState implements IOnlineStateHandler {
     const now = ctx.now();
 
     // --- Pending delayed-reaction processing ---
-    const reactionStart = ctx.state.woundedStartMs;
+    const reactionStart = ctx.state.sleepReactionStartMs;
     if (reactionStart !== NO_PENDING) {
       if (now - reactionStart >= this.cfg.campSleepReactionDelayMs) {
-        ctx.state.woundedStartMs = NO_PENDING;
+        ctx.state.sleepReactionStartMs = NO_PENDING;
         ctx.transition(this.tr.sleepOnEnemy);
         return;
       }
@@ -62,8 +61,6 @@ export class SleepState implements IOnlineStateHandler {
     // --- Sound / nearby threat (non-visual perception) → queue delayed ALERT ---
     // Note: visual enemies are intentionally NOT checked here (NPC eyes closed).
     if (ctx.perception !== null) {
-      const allies = ctx.perception.getVisibleAllies(); // unused, but good guard
-      void allies;
       const enemies = ctx.perception.getVisibleEnemies();
       // We DO check getVisibleEnemies because the perception system may only
       // include sound-detected entities in this list when used properly by the
@@ -74,7 +71,7 @@ export class SleepState implements IOnlineStateHandler {
         const target = enemies[0];
         ctx.state.lastKnownEnemyX = target.x;
         ctx.state.lastKnownEnemyY = target.y;
-        ctx.state.woundedStartMs = now;
+        ctx.state.sleepReactionStartMs = now;
         return;
       }
     }
@@ -91,10 +88,10 @@ export class SleepState implements IOnlineStateHandler {
 
       const safe = ctx.restrictedZones.filterAccessible(candidates);
       if (safe.length > 0) {
-        const dest = safe[0];
-        ctx.state.lastKnownEnemyX = dest.x;
-        ctx.state.lastKnownEnemyY = dest.y;
-        moveToward(ctx, dest.x, dest.y, this.cfg.approachSpeed);
+        // Walk toward the safe exit without touching lastKnownEnemyX/Y —
+        // writing those fields would broadcast a false enemy position to pack
+        // members (same fix as IdleState).
+        moveToward(ctx, safe[0].x, safe[0].y, this.cfg.approachSpeed);
       }
 
       ctx.transition(this.tr.sleepOnEnemy);
@@ -106,6 +103,6 @@ export class SleepState implements IOnlineStateHandler {
     // Restore full alpha when waking up.
     ctx.setAlpha(1);
     // Clear any pending delayed reaction.
-    ctx.state.woundedStartMs = NO_PENDING;
+    ctx.state.sleepReactionStartMs = NO_PENDING;
   }
 }

@@ -93,13 +93,14 @@ export class GOAPPlanner {
     goal: WorldState,
     maxDepth: number = this.defaultMaxDepth,
   ): GOAPAction[] | null {
+    const rootH = currentState.distanceTo(goal);
     const root: PlanNode = {
       state: currentState.clone(),
       action: null,
       parent: null,
       g: 0,
-      h: currentState.distanceTo(goal),
-      f: currentState.distanceTo(goal),
+      h: rootH,
+      f: rootH,
       depth: 0,
     };
 
@@ -310,7 +311,7 @@ export class GOAPPlanner {
       const val = state.get(key);
       const str = `${key}:${val}`;
       for (let i = 0; i < str.length; i++) {
-        h = ((h << 5) + h) + str.charCodeAt(i);
+        h = (((h << 5) + h) + str.charCodeAt(i)) | 0;
       }
     }
     // Tag with high bit: result is always negative (int32), disjoint from bitmask.

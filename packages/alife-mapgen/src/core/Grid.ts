@@ -127,9 +127,10 @@ export class Grid<T> {
     const queue: GridPoint[] = [{ x: sx, y: sy }];
     visited.add(this.index(sx, sy));
     const result: GridPoint[] = [];
+    let head = 0;
 
-    while (queue.length > 0) {
-      const { x, y } = queue.shift()!;
+    while (head < queue.length) {
+      const { x, y } = queue[head++];
       result.push({ x, y });
 
       for (const n of this.neighbours4(x, y)) {
@@ -164,9 +165,10 @@ export class Grid<T> {
         const region: GridPoint[] = [];
         const queue: GridPoint[] = [{ x, y }];
         visited[i] = 1;
+        let head = 0;
 
-        while (queue.length > 0) {
-          const cur = queue.shift()!;
+        while (head < queue.length) {
+          const cur = queue[head++];
           region.push(cur);
           for (const n of this.neighbours4(cur.x, cur.y)) {
             const ni = n.y * this.width + n.x;
@@ -190,8 +192,8 @@ export class Grid<T> {
    */
   rasterizeLine(x0: number, y0: number, x1: number, y1: number): GridPoint[] {
     const points: GridPoint[] = [];
-    let dx = Math.abs(x1 - x0);
-    let dy = Math.abs(y1 - y0);
+    const dx = Math.abs(x1 - x0);
+    const dy = Math.abs(y1 - y0);
     const sx = x0 < x1 ? 1 : -1;
     const sy = y0 < y1 ? 1 : -1;
     let err = dx - dy;

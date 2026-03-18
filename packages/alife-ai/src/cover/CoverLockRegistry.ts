@@ -124,6 +124,8 @@ export class CoverLockRegistry implements ICoverLockRegistry {
   }
 
   unlock(pointId: string, npcId: string): void {
+    this._maybeAutoPurge();
+
     const entry = this._points.get(pointId);
     if (entry === undefined) return;
 

@@ -270,6 +270,63 @@ describe('NPCRelationRegistry', () => {
   });
 
   // -----------------------------------------------------------------------
+  // Safe split: indexOf + slice (survives arrow character in IDs)
+  // -----------------------------------------------------------------------
+
+  describe('serialize / restore round-trip with special IDs', () => {
+    it('normal IDs serialize and restore correctly', () => {
+      const reg = create();
+      reg.adjustGoodwill('npc_alpha', 'npc_beta', 25);
+
+      const snapshot = reg.serialize();
+      expect(snapshot).toHaveLength(1);
+      expect(snapshot[0]).toMatchObject({ fromId: 'npc_alpha', toId: 'npc_beta', goodwill: 25 });
+
+      const reg2 = create();
+      reg2.restore(snapshot);
+      expect(reg2.getPersonalGoodwill('npc_alpha', 'npc_beta')).toBe(25);
+    });
+
+    it('arrow character in toId survives a full round-trip (indexOf+slice fix)', () => {
+      // The key separator is the Unicode arrow '\u2192' (→).
+      // Using indexOf+slice (instead of split) means only the FIRST arrow is
+      // treated as the separator, so the remainder — including any further
+      // arrows — is preserved intact as the toId.
+      // Composite key: 'npc_a→npc_→_target'  indexOf finds pos 5 → correct split.
+      const arrowId = 'npc_\u2192_target'; // toId contains the separator char
+      const reg = create();
+      reg.adjustGoodwill('npc_a', arrowId, 42);
+
+      const snapshot = reg.serialize();
+      expect(snapshot).toHaveLength(1);
+      expect(snapshot[0].fromId).toBe('npc_a');
+      expect(snapshot[0].toId).toBe(arrowId);
+      expect(snapshot[0].goodwill).toBe(42);
+
+      const reg2 = create();
+      reg2.restore(snapshot);
+      expect(reg2.getPersonalGoodwill('npc_a', arrowId)).toBe(42);
+      // The reverse pair must remain at 0.
+      expect(reg2.getPersonalGoodwill(arrowId, 'npc_a')).toBe(0);
+    });
+
+    it('multiple arrow characters in toId all survive round-trip', () => {
+      // Verifies that slice(sep + ARROW.length) captures ALL remaining content,
+      // even when toId contains more than one arrow character.
+      const multiArrowId = 'zone_\u2192_a_\u2192_b'; // two arrows in toId
+      const reg = create();
+      reg.adjustGoodwill('npc_x', multiArrowId, -15);
+
+      const snapshot = reg.serialize();
+      expect(snapshot[0]).toMatchObject({ fromId: 'npc_x', toId: multiArrowId, goodwill: -15 });
+
+      const reg2 = create();
+      reg2.restore(snapshot);
+      expect(reg2.getPersonalGoodwill('npc_x', multiArrowId)).toBe(-15);
+    });
+  });
+
+  // -----------------------------------------------------------------------
   // Reset
   // -----------------------------------------------------------------------
 

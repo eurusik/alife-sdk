@@ -180,6 +180,66 @@ describe('DangerManager', () => {
       const mag = Math.sqrt(dir.x * dir.x + dir.y * dir.y);
       expect(mag).toBeCloseTo(1.0, 5);
     });
+
+    // -----------------------------------------------------------------------
+    // Per-NPC escape angle when directly on top of a danger (dist < 1)
+    // -----------------------------------------------------------------------
+
+    it('two NPCs at different positions on the same danger get different escape angles', () => {
+      // Both NPCs are placed at the exact danger position so dist < 1,
+      // triggering the hash-based angle path.  The fix mixes the NPC's own
+      // position into the hash, so each NPC must receive a distinct direction.
+      const dm = new DangerManager();
+      dm.addDanger(
+        makeDanger({ position: { x: 100, y: 100 }, radius: 200, threatScore: 1.0 }),
+      );
+
+      // NPC A sits exactly on the danger centre.
+      const dirA = dm.getSafeDirection({ x: 100, y: 100 });
+      // NPC B sits at a different but equally-overlapping position (also dist < 1).
+      const dirB = dm.getSafeDirection({ x: 100.3, y: 100.3 });
+
+      // The two directions must not be identical (pre-fix they would be the same).
+      const sameAngle = Math.abs(dirA.x - dirB.x) < 1e-9 && Math.abs(dirA.y - dirB.y) < 1e-9;
+      expect(sameAngle).toBe(false);
+    });
+
+    it('same NPC position always produces the same escape angle (deterministic)', () => {
+      // The hash formula is pure arithmetic with no external state, so
+      // calling getSafeDirection twice with identical inputs must yield
+      // identical outputs.
+      const dm = new DangerManager();
+      dm.addDanger(
+        makeDanger({ position: { x: 50, y: 75 }, radius: 200, threatScore: 0.9 }),
+      );
+
+      const pos = { x: 50, y: 75 }; // exactly on danger centre → dist < 1
+      const dir1 = dm.getSafeDirection(pos);
+      const dir2 = dm.getSafeDirection(pos);
+
+      expect(dir1.x).toBe(dir2.x);
+      expect(dir1.y).toBe(dir2.y);
+    });
+
+    it('escape angle encodes both danger position and NPC position in the hash', () => {
+      // Verify that changing only the danger position (NPC held constant) also
+      // produces a different angle, confirming both coordinates feed the hash.
+      const pos = { x: 0, y: 0 };
+
+      const dm1 = new DangerManager();
+      dm1.addDanger(makeDanger({ position: { x: 0, y: 0 }, radius: 200, threatScore: 1.0 }));
+
+      const dm2 = new DangerManager();
+      dm2.addDanger(makeDanger({ position: { x: 1, y: 1 }, radius: 200, threatScore: 1.0 }));
+
+      // dm2's danger is > 1 unit away from pos so the regular repulsion path
+      // fires, not the hash path — use a position exactly on each danger.
+      const dir1 = dm1.getSafeDirection({ x: 0, y: 0 });   // on danger at (0,0)
+      const dir2 = dm2.getSafeDirection({ x: 1, y: 1 });   // on danger at (1,1)
+
+      const sameAngle = Math.abs(dir1.x - dir2.x) < 1e-9 && Math.abs(dir1.y - dir2.y) < 1e-9;
+      expect(sameAngle).toBe(false);
+    });
   });
 
   // -------------------------------------------------------------------------

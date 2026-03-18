@@ -55,12 +55,14 @@ export class WoundedState implements IOnlineStateHandler {
     // --- Medkit healing ---
     if (ctx.state.medkitCount > 0 && ctx.health !== null) {
       const hpPercent = ctx.health.hpPercent;
+      const medkitReady = now - ctx.state.lastMedkitMs >= this.cfg.medkitUseDurationMs;
 
-      if (hpPercent < this.cfg.woundedHpThreshold) {
-        // Apply heal.
+      if (hpPercent < this.cfg.woundedHpThreshold && medkitReady) {
+        // Apply heal and start cooldown.
         const healAmount = ctx.health.maxHp * this.cfg.medkitHealRatio;
         ctx.health.heal(healAmount);
-        ctx.state.medkitCount -= 1;
+        ctx.state.medkitCount  -= 1;
+        ctx.state.lastMedkitMs  = now;
 
         // Re-check HP after heal.
         if (ctx.health.hpPercent >= this.cfg.woundedHpThreshold) {

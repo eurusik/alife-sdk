@@ -245,9 +245,9 @@ describe('Trade failure scenarios (integration)', () => {
   // -------------------------------------------------------------------------
   it('PricingEngine: sell price is flat regardless of faction relation', () => {
     const config = makeConfig().trade;
-    const sellPriceAlly = calculateSellPrice(1000, config);
-    const sellPriceNeutral = calculateSellPrice(1000, config);
-    const sellPriceHostile = calculateSellPrice(1000, config);
+    const sellPriceAlly = calculateSellPrice(1000, 100, config);
+    const sellPriceNeutral = calculateSellPrice(1000, 0, config);
+    const sellPriceHostile = calculateSellPrice(1000, -100, config);
 
     // All sell prices should be identical: round(1000 × 0.5) = 500
     expect(sellPriceAlly).toBe(500);
