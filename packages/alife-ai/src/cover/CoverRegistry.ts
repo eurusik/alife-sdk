@@ -67,13 +67,14 @@ export class CoverRegistry {
   /**
    * Add a single cover point. Returns the created point with a generated ID.
    */
-  addPoint(x: number, y: number, radius?: number): ICoverPoint {
+  addPoint(x: number, y: number, radius?: number, facingAngle?: number): ICoverPoint {
     const id = `cover_${String(this.idCounter++).padStart(4, '0')}`;
     const point: ICoverPoint = {
       id,
       x,
       y,
       radius: radius ?? this.config.pointRadius,
+      facingAngle,
       occupiedBy: null,
       loopholes: [],
     };
@@ -85,9 +86,9 @@ export class CoverRegistry {
   /**
    * Bulk-register cover points from coordinate data.
    */
-  addPoints(data: readonly { x: number; y: number; radius?: number }[]): void {
+  addPoints(data: readonly { x: number; y: number; radius?: number; facingAngle?: number }[]): void {
     for (const p of data) {
-      this.addPoint(p.x, p.y, p.radius);
+      this.addPoint(p.x, p.y, p.radius, p.facingAngle);
     }
   }
 

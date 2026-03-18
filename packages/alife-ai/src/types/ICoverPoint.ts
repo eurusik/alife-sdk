@@ -39,6 +39,12 @@ export interface ICoverPoint {
   readonly y: number;
   /** Protection radius in pixels. */
   readonly radius: number;
+  /**
+   * Direction from cover point toward the shielding obstacle (radians).
+   * Used by evaluators to check that the obstacle is between the NPC and the threat.
+   * If undefined, directional scoring is skipped.
+   */
+  readonly facingAngle?: number;
   /** NPC ID currently sheltering here, or null if free. */
   occupiedBy: string | null;
   /** Auto-generated firing positions. Populated lazily. */

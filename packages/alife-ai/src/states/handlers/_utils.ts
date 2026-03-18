@@ -23,9 +23,14 @@ export function angleToward(ax: number, ay: number, bx: number, by: number): num
   return Math.atan2(by - ay, bx - ax);
 }
 
+/** Default steering config for moveToward separation. */
+const MOVE_STEERING = createDefaultSteeringConfig({ separationRadius: 48, separationWeight: 1.8 });
+
 /**
  * Set the NPC's velocity so it moves toward (targetX, targetY) at the given
  * speed (px/s). Also updates the NPC's rotation to face the target.
+ *
+ * Applies separation from nearby allies (via perception) to prevent NPC stacking.
  *
  * If the NPC is already within 0.5 px of the target, velocity is zeroed to
  * avoid jitter; no rotation change is applied.
@@ -45,8 +50,17 @@ export function moveToward(
     return;
   }
 
-  ctx.setVelocity((dx / dist) * speed, (dy / dist) * speed);
-  ctx.setRotation(Math.atan2(dy, dx));
+  const ndx = dx / dist;
+  const ndy = dy / dist;
+
+  // Apply separation from nearby allies to prevent NPC stacking
+  const allies = ctx.perception?.getVisibleAllies() ?? [];
+  if (allies.length > 0) {
+    applyPackSteering(ctx, allies, MOVE_STEERING, ndx, ndy, speed, 0.3);
+  } else {
+    ctx.setVelocity(ndx * speed, ndy * speed);
+    ctx.setRotation(Math.atan2(dy, dx));
+  }
 }
 
 /**

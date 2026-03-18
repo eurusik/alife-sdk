@@ -87,18 +87,30 @@ export interface INPCWorldSnapshot {
   readonly hasDangerGrenade: boolean;
   readonly enemyWounded: boolean;
   readonly nearAnomalyZone: boolean;
+  /**
+   * True when the NPC's morale has collapsed to a panicked state (morale <= -0.7).
+   * When set, the goal selector promotes the DANGER/flee goal above ENEMY_PRESENT
+   * so the NPC runs away rather than continuing to fight.
+   * Optional for backward-compatibility with callers that do not supply morale data.
+   */
+  readonly isPanicked?: boolean;
 }
 
 /**
  * Priority band for goal selection.
  * Lower band number = higher priority.
+ *
+ * PANIC_FLEE sits between CRITICALLY_WOUNDED and ENEMY_PRESENT so that a
+ * panicked NPC still heals if critically wounded, but flees before trying to
+ * engage an enemy it cannot handle psychologically.
  */
 export const GoalPriority = {
   CRITICALLY_WOUNDED: 0,
-  ENEMY_PRESENT: 1,
-  DANGER: 2,
-  ANOMALY_AVOID: 3,
-  DEFAULT: 4,
+  PANIC_FLEE:         1,  // morale collapsed — flee beats combat goals
+  ENEMY_PRESENT:      2,
+  DANGER:             3,
+  ANOMALY_AVOID:      4,
+  DEFAULT:            5,
 } as const;
 
 export type GoalPriorityLevel = (typeof GoalPriority)[keyof typeof GoalPriority];

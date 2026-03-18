@@ -46,6 +46,14 @@ const _enemyResult: IGoalResult = /* @__PURE__ */ (() => {
   return { goal: ws, priority: GoalPriority.ENEMY_PRESENT, reason: 'Enemy detected' };
 })();
 
+// Pre-allocated panic-flee goal: same world target as DANGER (DANGER=false)
+// but at a higher priority band so it fires before ENEMY_PRESENT.
+const _panicFleeResult: IGoalResult = /* @__PURE__ */ (() => {
+  const ws = new WorldState();
+  ws.set(WorldProperty.DANGER, false);
+  return { goal: ws, priority: GoalPriority.PANIC_FLEE, reason: 'Morale collapsed — flee immediately' };
+})();
+
 const _dangerResult: IGoalResult = /* @__PURE__ */ (() => {
   const ws = new WorldState();
   ws.set(WorldProperty.DANGER, false);
@@ -83,6 +91,18 @@ export const DEFAULT_GOAL_RULES: readonly IGoalRule[] = [
           reason: `HP critical (${(snapshot.hpRatio * 100).toFixed(0)}%)`,
         };
       }
+      return null;
+    },
+  },
+  {
+    priority: GoalPriority.PANIC_FLEE,
+    name: 'panic_flee',
+    evaluate(snapshot) {
+      // A panicked NPC (morale collapsed) with an active danger signal must
+      // flee before any combat goal is considered.  hasDanger is set to true
+      // by buildNPCWorldSnapshot when moralePanic is true, so FleeAction will
+      // have a valid precondition (DANGER=true) to plan against.
+      if (snapshot.isPanicked && snapshot.hasDanger) return _panicFleeResult;
       return null;
     },
   },

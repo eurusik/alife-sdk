@@ -89,9 +89,16 @@ export class GOAPController {
 
     // Check if replan is needed — only build WorldState when replanning
     if (this.needsReplan()) {
-      this.finalizeCurrent(entity);
+      const prevAction = this.currentPlan[this.currentIndex] ?? null;
       const worldState = buildWorldState(snapshot);
       replanned = this.replan(worldState, snapshot);
+      // Abort the previous action only if the replan switched to a different one.
+      // This preserves internal state (timers, phases) of long-running actions
+      // like AttackFromCover when periodic replans produce the same plan.
+      const newAction = this.currentPlan[this.currentIndex] ?? null;
+      if (prevAction && prevAction !== newAction) {
+        prevAction.abort(entity);
+      }
     }
 
     // Execute current action
@@ -226,6 +233,18 @@ export class GOAPController {
     const plan = this.planner.plan(worldState, goalResult.goal, this.config.maxPlanDepth);
 
     if (plan && plan.length > 0) {
+      // If the new plan's current action is the same object as the running
+      // action, keep executing it without resetting its internal state
+      // (timers, phase, etc.).  This prevents periodic replans from
+      // interrupting long-running actions like AttackFromCover's peek-fire cycle.
+      const currentAction = this.currentPlan[this.currentIndex];
+      if (currentAction && plan.length > 0 && plan[0] === currentAction) {
+        // Same action continues — just update the rest of the plan
+        this.currentPlan = plan;
+        // currentIndex stays the same (0, since plan[0] === currentAction)
+        this.currentIndex = 0;
+        return true;
+      }
       this.currentPlan = plan;
       this.currentIndex = 0;
       return true;

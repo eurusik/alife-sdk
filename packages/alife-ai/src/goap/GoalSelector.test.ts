@@ -102,8 +102,8 @@ describe('selectGoal with custom rules', () => {
     const customRules: readonly IGoalRule[] = [
       DEFAULT_GOAL_RULES[0], // critically_wounded
       lowAmmoRule,           // low_ammo (overrides enemy_present)
-      DEFAULT_GOAL_RULES[2], // danger
-      DEFAULT_GOAL_RULES[4], // default
+      DEFAULT_GOAL_RULES[3], // danger
+      DEFAULT_GOAL_RULES[5], // default
     ];
 
     const result = selectGoal(makeSnapshot({ hpRatio: 0.8, enemyPresent: true }), config, customRules);
@@ -153,11 +153,55 @@ describe('selectGoal with custom rules', () => {
     expect(result.priority).toBe(GoalPriority.DEFAULT);
   });
 
-  it('DEFAULT_GOAL_RULES has exactly 5 entries sorted by priority', () => {
-    expect(DEFAULT_GOAL_RULES).toHaveLength(5);
+  it('DEFAULT_GOAL_RULES has exactly 6 entries sorted by priority', () => {
+    expect(DEFAULT_GOAL_RULES).toHaveLength(6);
     for (let i = 1; i < DEFAULT_GOAL_RULES.length; i++) {
       expect(DEFAULT_GOAL_RULES[i].priority).toBeGreaterThan(DEFAULT_GOAL_RULES[i - 1].priority);
     }
+  });
+});
+
+describe('panic_flee rule', () => {
+  it('isPanicked=true + hasDanger=true → PANIC_FLEE goal fires before ENEMY_PRESENT', () => {
+    const result = selectGoal(
+      makeSnapshot({ isPanicked: true, hasDanger: true, enemyPresent: true, seeEnemy: true }),
+      config,
+    );
+    expect(result.priority).toBe(GoalPriority.PANIC_FLEE);
+    expect(result.reason).toContain('Morale collapsed');
+    expect(result.goal.get(WorldProperty.DANGER)).toBe(false);
+  });
+
+  it('isPanicked=true but hasDanger=false → ENEMY_PRESENT fires (no danger signal to flee from)', () => {
+    const result = selectGoal(
+      makeSnapshot({ isPanicked: true, hasDanger: false, enemyPresent: true }),
+      config,
+    );
+    expect(result.priority).toBe(GoalPriority.ENEMY_PRESENT);
+  });
+
+  it('isPanicked=false + hasDanger=true + enemyPresent=true → ENEMY_PRESENT wins (not panicked)', () => {
+    const result = selectGoal(
+      makeSnapshot({ isPanicked: false, hasDanger: true, enemyPresent: true }),
+      config,
+    );
+    expect(result.priority).toBe(GoalPriority.ENEMY_PRESENT);
+  });
+
+  it('isPanicked=true + hpRatio=0.2 → CRITICALLY_WOUNDED still wins (heal takes highest priority)', () => {
+    const result = selectGoal(
+      makeSnapshot({ isPanicked: true, hasDanger: true, enemyPresent: true, hpRatio: 0.2 }),
+      config,
+    );
+    expect(result.priority).toBe(GoalPriority.CRITICALLY_WOUNDED);
+  });
+
+  it('isPanicked=undefined (absent) → panic_flee rule does not fire', () => {
+    const result = selectGoal(
+      makeSnapshot({ hasDanger: true, enemyPresent: true }),
+      config,
+    );
+    expect(result.priority).toBe(GoalPriority.ENEMY_PRESENT);
   });
 });
 
@@ -271,7 +315,7 @@ describe('selectGoal with full INPCWorldSnapshot', () => {
     const customRules: readonly IGoalRule[] = [
       DEFAULT_GOAL_RULES[0], // critically_wounded
       seekCoverRule,          // seek_cover (uses inCover from snapshot)
-      DEFAULT_GOAL_RULES[4], // default
+      DEFAULT_GOAL_RULES[5], // default
     ];
 
     // NPC is exposed (inCover=false) with enemy present → seekCoverRule should fire
@@ -298,7 +342,7 @@ describe('selectGoal with full INPCWorldSnapshot', () => {
     const customRules: readonly IGoalRule[] = [
       DEFAULT_GOAL_RULES[0], // critically_wounded
       seekCoverRule,
-      DEFAULT_GOAL_RULES[4], // default
+      DEFAULT_GOAL_RULES[5], // default
     ];
 
     // NPC is in cover — rule should NOT fire, default is selected instead
@@ -324,8 +368,8 @@ describe('selectGoal with full INPCWorldSnapshot', () => {
     const customRules: readonly IGoalRule[] = [
       DEFAULT_GOAL_RULES[0], // critically_wounded (highest)
       finishWoundedRule,      // uses enemyWounded field
-      DEFAULT_GOAL_RULES[2], // danger
-      DEFAULT_GOAL_RULES[4], // default
+      DEFAULT_GOAL_RULES[3], // danger
+      DEFAULT_GOAL_RULES[5], // default
     ];
 
     const woundedEnemySnapshot = makeSnapshot({ hpRatio: 0.8, enemyPresent: true, enemyWounded: true });

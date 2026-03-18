@@ -105,22 +105,29 @@ export class BalancedCoverEvaluator implements ICoverEvaluator {
     const coverDist = Math.sqrt(distanceSq(context.npcPosition, point));
     const enemyDist = Math.sqrt(distanceSq(point, centroid));
 
-    // Factor 1: proximity to NPC (closer = better, max 30 points).
-    const proximityScore = clamp01(1.0 - coverDist / 400) * 30;
+    // Factor 1: proximity to NPC (closer = better, max 25 points).
+    const proximityScore = clamp01(1.0 - coverDist / 400) * 25;
 
-    // Factor 2: distance from enemies (farther = safer, max 30 points).
-    const safetyScore = clamp01(enemyDist / 600) * 30;
+    // Factor 2: distance from enemies (farther = safer, max 25 points).
+    const safetyScore = clamp01(enemyDist / 600) * 25;
 
-    // Factor 3: angle quality — cover between NPC and enemy is ideal (max 30 points).
-    const npcToEnemy = angleBetween(context.npcPosition, centroid);
-    const npcToCover = angleBetween(context.npcPosition, point);
-    let angleDelta = Math.abs(npcToEnemy - npcToCover);
-    if (angleDelta > Math.PI) angleDelta = 2 * Math.PI - angleDelta;
-    // Small angle difference means cover is roughly toward/away from enemy.
-    const angleScore = clamp01(1.0 - angleDelta / Math.PI) * 30;
+    // Factor 3: shielding quality (max 40 points).
+    // If facingAngle is available, check that the obstacle (building) is
+    // between the cover point and the enemy. facingAngle points from the
+    // cover point toward the building center. The enemy should be roughly
+    // in the same direction as the building (so the building blocks fire).
+    let shieldingScore = 15; // neutral default when facingAngle is missing
+    if (point.facingAngle !== undefined) {
+      const coverToEnemy = angleBetween(point, centroid);
+      let angleDiff = Math.abs(coverToEnemy - point.facingAngle);
+      if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+      // angleDiff ≈ 0 means enemy is behind the building (ideal cover)
+      // angleDiff ≈ π means enemy is on the NPC's side (no protection)
+      shieldingScore = clamp01(1.0 - angleDiff / (Math.PI * 0.75)) * 40;
+    }
 
     // Normalize to [0, 1] (max raw = 90).
-    return (proximityScore + safetyScore + angleScore) / 90;
+    return (proximityScore + safetyScore + shieldingScore) / 90;
   }
 }
 
