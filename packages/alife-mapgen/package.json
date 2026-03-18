@@ -1,6 +1,6 @@
 {
   "name": "@alife-sdk/mapgen",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Procedural top-down map generator for the A-Life SDK — framework-agnostic, outputs MapDefinition consumed by Phaser or any renderer adapter",
   "type": "module",
   "sideEffects": false,
