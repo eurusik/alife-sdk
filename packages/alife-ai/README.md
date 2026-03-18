@@ -417,10 +417,11 @@ number wins):
 | Priority | Goal | Trigger |
 |---|---|---|
 | 0 `CRITICALLY_WOUNDED` | Heal + disengage | `hpRatio <= healHpThreshold` |
-| 1 `ENEMY_PRESENT` | Eliminate enemy | `snapshot.enemyPresent` |
-| 2 `DANGER` | Evade danger | `snapshot.hasDanger` |
-| 3 `ANOMALY_AVOID` | Exit anomaly zone | `snapshot.nearAnomalyZone` |
-| 4 `DEFAULT` | Patrol / idle | always (fallback) |
+| 1 `PANIC_FLEE` | Flee (morale collapsed) | `isPanicked && hasDanger` |
+| 2 `ENEMY_PRESENT` | Eliminate enemy | `snapshot.enemyPresent` |
+| 3 `DANGER` | Evade danger | `snapshot.hasDanger` |
+| 4 `ANOMALY_AVOID` | Exit anomaly zone | `snapshot.nearAnomalyZone` |
+| 5 `DEFAULT` | Patrol / idle | always (fallback) |
 
 #### Integration example
 

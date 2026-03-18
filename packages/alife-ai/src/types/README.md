@@ -66,7 +66,7 @@ Root configuration tree passed to `AIPlugin`. Every numeric literal in the AI pa
 | `INPCWorldSnapshot` | interface | Pure read-only snapshot of NPC state used to build the GOAP world-state map (HP ratio, flags for cover, enemies, ammo, etc.). |
 | `WorldProperty` | const enum | String keys for world-state properties (`ALIVE`, `SEE_ENEMY`, `IN_COVER`, `DANGER`, etc.). |
 | `WorldPropertyKey` | type alias | Union of all `WorldProperty` string values. |
-| `GoalPriority` | const enum | Priority bands for goal selection (lower = higher priority): `CRITICALLY_WOUNDED=0` … `DEFAULT=4`. |
+| `GoalPriority` | const enum | Priority bands for goal selection (lower = higher priority): `CRITICALLY_WOUNDED=0` … `DEFAULT=5`. |
 | `GoalPriorityLevel` | type alias | Union of all `GoalPriority` numeric values. |
 
 ---
