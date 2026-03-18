@@ -68,7 +68,15 @@ Run these in order:
 3. [06-economy.ts](06-economy.ts)
 4. [08-social.ts](08-social.ts)
 
-### 5. I want Phaser integration
+### 5. I want tactical combat AI
+
+Run these in order:
+
+1. [19-simple-duel.ts](19-simple-duel.ts)
+2. [20-tactical-firefight.ts](20-tactical-firefight.ts)
+3. [21-squad-assault.ts](21-squad-assault.ts)
+
+### 6. I want Phaser integration
 
 Open in this order:
 
@@ -143,6 +151,7 @@ npm install @alife-sdk/persistence # save / load
 | Give your NPC memory and threat awareness | [15](#15-memory-bankts--memory-bank) → [16](#16-danger-managerts--danger-manager) |
 | Integrate with Phaser 3 | [09](#09-phaserts--phaser-3-integration-reference-%EF%B8%8F-browser-only) → [phaser/](#phaser--browser-demo-with-phaser-3) |
 | Add save/load to your game | [04](#04-persistencets--save--load-game-state) |
+| Build tactical NPC combat | [19](#19-simple-duelts--simple-duel) → [20](#20-tactical-firefightts--tactical-firefight-with-grenades) → [21](#21-squad-assaultts--squad-assault-with-goap-and-flanking) |
 
 ---
 
@@ -433,6 +442,54 @@ systems at once:
 
 ```bash
 npx tsx --tsconfig examples/tsconfig.json examples/18-full-npc.ts
+```
+
+---
+
+### 19-simple-duel.ts — Simple duel
+
+**What it shows:**
+
+- Two NPCs (stalker vs bandit) in a firefight with the online AI system
+- Full FSM lifecycle: `IDLE → ALERT → COMBAT → TAKE_COVER` (peek-fire cycle)
+- Cover system with `AIPlugin.coverRegistry` and `createCoverAccess()`
+- Morale-driven transitions: `COMBAT → RETREAT → FLEE`
+- Damage processing, HP tracking, and death handling
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/19-simple-duel.ts
+```
+
+---
+
+### 20-tactical-firefight.ts — Tactical firefight with grenades
+
+**What it shows:**
+
+- Grenade throwing (`GrenadeState`) and evasion (`EvadeGrenadeState`)
+- `DangerManager` integration via `IDangerAccess` adapter
+- `TacticalCombatHandler` — composite pattern wrapping `CombatState` + `CombatTransitionHandler`
+- Medkit healing in `WoundedState` (crawl + heal + return to combat)
+- Full morale lifecycle: `STABLE → SHAKEN → PANICKED` → `RETREAT` / `FLEE`
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/20-tactical-firefight.ts
+```
+
+---
+
+### 21-squad-assault.ts — Squad assault with GOAP and flanking
+
+**What it shows:**
+
+- 2v2 squad battle with `SquadSharedTargetTable` for target coordination
+- `GOAPPlanner` — strategic planning (TakeCover → Suppress → Flank → Attack)
+- `AMBUSH` cover evaluator for flanking positions (60–120° off enemy line)
+- `evaluateSituation()` — squad-level tactical commands (ATTACK / HOLD / RETREAT)
+- All systems from examples 19–20 combined in a multi-NPC scenario
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/21-squad-assault.ts
 ```
 
 ---

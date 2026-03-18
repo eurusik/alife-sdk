@@ -7,6 +7,13 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@types/pathfinding':
+        specifier: ^0.1.0
+        version: 0.1.0
+      pathfinding:
+        specifier: ^0.4.18
+        version: 0.4.18
     devDependencies:
       '@changesets/cli':
         specifier: ^2.29.4
@@ -1874,6 +1881,9 @@ packages:
   '@types/node@22.19.15':
     resolution: {integrity: sha512-F0R/h2+dsy5wJAUe3tAU6oqa2qbWY5TpNfL/RGmo1y38hiyO1w3x2jPtt76wmuaJI4DQnOBu21cNXQ2STIUUWg==}
 
+  '@types/pathfinding@0.1.0':
+    resolution: {integrity: sha512-QkKZqdAPhfkHIoiCWa/4yVolcCDin10qScbdiyqtDsY9cxlcslVgoU1g9yVdFytsHqJQevkYNcNBgD/P7OZbQg==}
+
   '@types/prismjs@1.26.6':
     resolution: {integrity: sha512-vqlvI7qlMvcCBbVe0AKAb4f97//Hy0EBTaiW8AalRnG/xAN5zOiWWyrNqNXeq8+KAuvRewjCVY1+IPxk4RdNYw==}
 
@@ -2715,6 +2725,9 @@ packages:
   hastscript@9.0.1:
     resolution: {integrity: sha512-g7df9rMFX/SPi34tyGCyUBREQoKkapwdY/T04Qn9TDWfHhAYt4/I0gMVirzK5wEzeUqIjEB+LXC/ypb7Aqno5w==}
 
+  heap@0.2.5:
+    resolution: {integrity: sha512-G7HLD+WKcrOyJP5VQwYZNC3Z6FcQ7YYjEFiFoIj8PfEr73mu421o8B1N5DKUcc8K37EsJ2XXWA8DtrDz/2dReg==}
+
   highlight.js@10.7.3:
     resolution: {integrity: sha512-tzcUFauisWKNHaRkN4Wjl/ZA07gENAjFl3J/c480dprkGTg5EQstgaNFqBfUqCq54kZRIEcreTsAgF/m2quD7A==}
 
@@ -3207,6 +3220,9 @@ packages:
 
   pathe@2.0.3:
     resolution: {integrity: sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w==}
+
+  pathfinding@0.4.18:
+    resolution: {integrity: sha512-R0TGEQ9GRcFCDvAWlJAWC+KGJ9SLbW4c0nuZRcioVlXVTlw+F5RvXQ8SQgSqI9KXWC1ew95vgmIiyaWTlCe9Ag==}
 
   pathval@2.0.1:
     resolution: {integrity: sha512-//nshmD55c46FuFw26xV/xFAaB5HF9Xdap7HJBBnrKdAd6/GxDBaNA1870O79+9ueg61cZLSVc+OaFlfmObYVQ==}
@@ -5404,6 +5420,8 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  '@types/pathfinding@0.1.0': {}
+
   '@types/prismjs@1.26.6': {}
 
   '@types/prop-types@15.7.15': {}
@@ -6443,6 +6461,8 @@ snapshots:
       property-information: 7.1.0
       space-separated-tokens: 2.0.2
 
+  heap@0.2.5: {}
+
   highlight.js@10.7.3: {}
 
   highlightjs-vue@1.0.0: {}
@@ -7126,6 +7146,10 @@ snapshots:
   path-type@4.0.0: {}
 
   pathe@2.0.3: {}
+
+  pathfinding@0.4.18:
+    dependencies:
+      heap: 0.2.5
 
   pathval@2.0.1: {}
 
