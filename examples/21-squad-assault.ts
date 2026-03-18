@@ -271,7 +271,15 @@ interface SquadComm {
 const squadComms: SquadComm[] = [];
 const MAX_COMM_AGE = 120;
 
+/** Broadcast with dedup — skip if same NPC sent same type within 60 ticks. */
 function broadcast(from: string, type: SquadComm['type'], tick: number): void {
+  for (let i = squadComms.length - 1; i >= 0; i--) {
+    const c = squadComms[i];
+    if (c.from === from && c.type === type) {
+      if (tick - c.tick < 60) return; // throttle duplicate
+      break;
+    }
+  }
   squadComms.push({ from, type, tick });
   console.log(`  [COMMS ${from}] "${type}"`);
 }
@@ -1123,9 +1131,9 @@ function createGoapDirector(host: PathfindingNPCHost): GOAPDirector {
 
   return new GOAPDirector(dynamicPlanner, {
     buildWorldState: (ctx: INPCContext) => {
-      // Log memory influence only when no direct visual and memory drives plan
+      // Log memory influence (throttled — only every 60 ticks)
       const enemies = ctx.perception?.getVisibleEnemies() ?? [];
-      if (enemies.length === 0) {
+      if (enemies.length === 0 && currentTick % 60 === 0) {
         const bestMem = host.memory.getMostConfident();
         if (bestMem && bestMem.confidence > 0.2) {
           console.log(
