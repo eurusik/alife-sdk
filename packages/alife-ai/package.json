@@ -1,6 +1,6 @@
 {
   "name": "@alife-sdk/ai",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Online frame-based NPC behavior system",
   "type": "module",
   "sideEffects": false,
