@@ -72,9 +72,10 @@ Run these in order:
 
 Run these in order:
 
-1. [19-simple-duel.ts](19-simple-duel.ts)
-2. [20-tactical-firefight.ts](20-tactical-firefight.ts)
-3. [21-squad-assault.ts](21-squad-assault.ts)
+1. [22-goap-director.ts](22-goap-director.ts)
+2. [19-simple-duel.ts](19-simple-duel.ts)
+3. [20-tactical-firefight.ts](20-tactical-firefight.ts)
+4. [21-squad-assault.ts](21-squad-assault.ts)
 
 ### 6. I want Phaser integration
 
@@ -151,6 +152,7 @@ npm install @alife-sdk/persistence # save / load
 | Give your NPC memory and threat awareness | [15](#15-memory-bankts--memory-bank) → [16](#16-danger-managerts--danger-manager) |
 | Integrate with Phaser 3 | [09](#09-phaserts--phaser-3-integration-reference-%EF%B8%8F-browser-only) → [phaser/](#phaser--browser-demo-with-phaser-3) |
 | Add save/load to your game | [04](#04-persistencets--save--load-game-state) |
+| Learn GOAPDirector (GOAP + FSM bridge) | [22](#22-goap-directorts--goapdirector-teaching-example) |
 | Build tactical NPC combat | [19](#19-simple-duelts--simple-duel) → [20](#20-tactical-firefightts--tactical-firefight-with-grenades) → [21](#21-squad-assaultts--squad-assault-with-goap-and-flanking) |
 
 ---
@@ -490,6 +492,24 @@ npx tsx --tsconfig examples/tsconfig.json examples/20-tactical-firefight.ts
 
 ```bash
 npx tsx --tsconfig examples/tsconfig.json examples/21-squad-assault.ts
+```
+
+---
+
+### 22-goap-director.ts — GOAPDirector teaching example
+
+**Start here if you want to learn how GOAPDirector works.**
+
+5 progressive phases, each self-contained:
+
+- **Phase 1:** Minimal GOAPDirector — 4 lines to register, plan, and execute
+- **Phase 2:** Action handler return values — `'running'` / `'success'` / `'failure'` lifecycle
+- **Phase 3:** Interrupts — morale panic preempts action execution
+- **Phase 4:** Dynamic replanning — different WorldState → different plan
+- **Phase 5:** `state.custom` — sharing data between handlers, `__goap` namespace
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/22-goap-director.ts
 ```
 
 ---
