@@ -14,18 +14,36 @@ If you only run one example first, run the capstone:
 ```bash
 pnpm install
 pnpm build:sdk
-npx tsx --tsconfig examples/tsconfig.json examples/18-full-npc.ts
+npx tsx --tsconfig examples/tsconfig.json examples/17-full-npc.ts
 ```
 
-Then open [18-full-npc.ts](18-full-npc.ts) alongside the console output.
+Then open [17-full-npc.ts](17-full-npc.ts) alongside the console output.
 It shows how the major systems fit together in one NPC lifecycle.
+
+Then work through the tiers below.
+
+---
+
+## Tiers
+
+### Tier 1: Core Primitives (one package, one concept)
+01 → 02 → 03 → 04 → 05 → 06 → 07 → 08 → 09
+
+### Tier 2: System Integration (2-3 packages)
+10 → 11 → 12 → 13 → 14 → 15 → 16
+
+### Tier 3: Advanced AI
+17 → 18 → 19
+
+### Tier 4: Tactical Combat (progressive showcase)
+20 → 21 → 22
 
 ---
 
 ## What Runs Where
 
 - Most top-level `examples/*.ts` files are **Node.js-only teaching examples**.
-- [`09-phaser.ts`](09-phaser.ts) is a **browser integration reference**, not a runnable Node script.
+- [`19-phaser.ts`](19-phaser.ts) is a **browser integration reference**, not a runnable Node script.
 - [`phaser/`](phaser/) is the **real browser demo** if you want sprites, a game loop, and movement on screen.
 
 ---
@@ -36,10 +54,10 @@ It shows how the major systems fit together in one NPC lifecycle.
 
 Run these in order:
 
-1. [18-full-npc.ts](18-full-npc.ts)
+1. [17-full-npc.ts](17-full-npc.ts)
 2. [01-hello-npc.ts](01-hello-npc.ts)
 3. [02-online-offline.ts](02-online-offline.ts)
-4. [07-ai.ts](07-ai.ts)
+4. [15-ai.ts](15-ai.ts)
 
 ### 2. I want a living world with off-screen NPCs
 
@@ -47,32 +65,41 @@ Run these in order:
 
 1. [01-hello-npc.ts](01-hello-npc.ts)
 2. [02-online-offline.ts](02-online-offline.ts)
-3. [03-combat-bridge.ts](03-combat-bridge.ts)
-4. [10-custom-pathfinder.ts](10-custom-pathfinder.ts)
+3. [10-combat-bridge.ts](10-combat-bridge.ts)
+4. [14-custom-pathfinder.ts](14-custom-pathfinder.ts)
 
 ### 3. I want on-screen combat AI
 
 Run these in order:
 
-1. [07-ai.ts](07-ai.ts)
-2. [11-fsm-tags.ts](11-fsm-tags.ts)
-3. [12-behavior-tree.ts](12-behavior-tree.ts)
-4. [17-goap-planner.ts](17-goap-planner.ts)
+1. [15-ai.ts](15-ai.ts)
+2. [05-fsm-tags.ts](05-fsm-tags.ts)
+3. [06-behavior-tree.ts](06-behavior-tree.ts)
+4. [09-goap-planner.ts](09-goap-planner.ts)
 
 ### 4. I want the gameplay systems
 
 Run these in order:
 
-1. [04-persistence.ts](04-persistence.ts)
-2. [05-hazards.ts](05-hazards.ts)
-3. [06-economy.ts](06-economy.ts)
-4. [08-social.ts](08-social.ts)
+1. [11-persistence.ts](11-persistence.ts)
+2. [12-hazards.ts](12-hazards.ts)
+3. [13-economy.ts](13-economy.ts)
+4. [16-social.ts](16-social.ts)
 
-### 5. I want Phaser integration
+### 5. I want tactical combat AI
+
+Run these in order:
+
+1. [18-goap-director.ts](18-goap-director.ts)
+2. [20-simple-duel.ts](20-simple-duel.ts)
+3. [21-tactical-firefight.ts](21-tactical-firefight.ts)
+4. [22-squad-assault.ts](22-squad-assault.ts)
+
+### 6. I want Phaser integration
 
 Open in this order:
 
-1. [09-phaser.ts](09-phaser.ts)
+1. [19-phaser.ts](19-phaser.ts)
 2. [phaser/README.md](phaser/README.md)
 3. [phaser/src/minimal/MinimalIntegrationScene.ts](phaser/src/minimal/MinimalIntegrationScene.ts)
 4. [phaser/src/GameScene.ts](phaser/src/GameScene.ts)
@@ -137,12 +164,14 @@ npm install @alife-sdk/persistence # save / load
 
 | Goal | Start with |
 |------|-----------|
-| See the big picture — all systems in one NPC | [18-full-npc.ts](#18-full-npcts--capstone-all-ai-systems-in-one-npc) |
-| Build a world with NPCs and factions | [01](#01-hello-npcts--minimal-simulation-loop) → [02](#02-online-offlinets--onlineoffline-switching) → [03](#03-combat-bridgets--realistic-offline-combat) |
-| Add AI behavior to your NPC | [11](#11-fsm-tagsts--extended-fsm-tags-events-guards-history) → [12](#12-behavior-treets--behavior-tree) → [17](#17-goap-plannerts--goap-planner) |
-| Give your NPC memory and threat awareness | [15](#15-memory-bankts--memory-bank) → [16](#16-danger-managerts--danger-manager) |
-| Integrate with Phaser 3 | [09](#09-phaserts--phaser-3-integration-reference-%EF%B8%8F-browser-only) → [phaser/](#phaser--browser-demo-with-phaser-3) |
-| Add save/load to your game | [04](#04-persistencets--save--load-game-state) |
+| See the big picture — all systems in one NPC | [17-full-npc.ts](#17-full-npcts--capstone-all-ai-systems-in-one-npc) |
+| Build a world with NPCs and factions | [01](#01-hello-npcts--minimal-simulation-loop) → [02](#02-online-offlinets--onlineoffline-switching) → [10](#10-combat-bridgets--realistic-offline-combat) |
+| Add AI behavior to your NPC | [05](#05-fsm-tagsts--extended-fsm-tags-events-guards-history) → [06](#06-behavior-treets--behavior-tree) → [09](#09-goap-plannerts--goap-planner) |
+| Give your NPC memory and threat awareness | [07](#07-memory-bankts--memorybank) → [08](#08-danger-managerts--dangermanager) |
+| Integrate with Phaser 3 | [19](#19-phaserts--phaser-3-integration-reference-%EF%B8%8F-browser-only) → [phaser/](#phaser--browser-demo-with-phaser-3) |
+| Add save/load to your game | [11](#11-persistencets--save--load-game-state) |
+| Learn GOAPDirector (GOAP + FSM bridge) | [18](#18-goap-directorts--goapdirector-teaching-example) |
+| Build tactical NPC combat | [20](#20-simple-duelts--simple-duel) → [21](#21-tactical-firefightts--tactical-firefight-with-grenades) → [22](#22-squad-assaultts--squad-assault-with-goap-and-flanking) |
 
 ---
 
@@ -183,7 +212,112 @@ npx tsx --tsconfig examples/tsconfig.json examples/02-online-offline.ts
 
 ---
 
-### 03-combat-bridge.ts — Realistic offline combat
+### 03-entity-handles.ts — EntityHandleManager
+
+**What it shows:**
+
+- Versioned handles that prevent silent "wrong entity" bugs when slots are reused
+- `resolve()` returns `null` for stale or freed handles instead of the new occupant
+- `NULL_HANDLE` sentinel for optional handle fields
+- A `Squad` class that tracks members safely through death and replacement
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/03-entity-handles.ts
+```
+
+---
+
+### 04-reactive-query.ts — ReactiveQuery
+
+**What it shows:**
+
+- Entity set that calls `onChange` only when membership changes — not every tick
+- `track()` / `untrack()` for special-case membership that bypasses the predicate
+- `dispose()` for cleanup when the query is no longer needed
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/04-reactive-query.ts
+```
+
+---
+
+### 05-fsm-tags.ts — Extended FSM: tags, events, guards, history
+
+**What it shows:**
+
+- State tags (`'passive'`, `'active'`, `'hostile'`) and `fsm.hasTag()` for group queries
+- `onEnter` / `onExit` / `onChange` event subscriptions
+- Guards: `canEnter` / `canExit` that veto transitions
+- `fsm.previous`, `fsm.currentStateDuration`, `fsm.getHistory()`
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/05-fsm-tags.ts
+```
+
+---
+
+### 06-behavior-tree.ts — Behavior Tree
+
+**What it shows:**
+
+- `Blackboard<T>` typed shared state passed to every node each tick
+- Composites: `Sequence` (AND gate), `Selector` (OR gate), `Parallel`
+- Decorators: `Inverter`, `Cooldown`, `Repeater`
+- Leaves: `Task`, `Condition`
+- How BT fits with FSM: FSM picks the goal, BT executes it step by step
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/06-behavior-tree.ts
+```
+
+---
+
+### 07-memory-bank.ts — MemoryBank
+
+**What it shows:**
+
+- Per-NPC episodic memory: what the NPC has seen, heard, and been hit by
+- Three channels with different decay rates: `VISUAL`, `SOUND`, `HIT`
+- `getMostConfident()` — who should the NPC focus fire on?
+- `serialize()` / `restore()` — memory survives a save/load cycle
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/07-memory-bank.ts
+```
+
+---
+
+### 08-danger-manager.ts — DangerManager
+
+**What it shows:**
+
+- Spatial threat zones: grenades, anomalies, gunfire — each with TTL
+- `isDangerous(position)` — should the NPC flee?
+- `getSafeDirection(position)` — normalized flee vector away from all threats
+- Custom threshold: `new DangerManager(0.5)` for braver NPCs
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/08-danger-manager.ts
+```
+
+---
+
+### 09-goap-planner.ts — GOAP Planner
+
+**What it shows:**
+
+- `WorldState` — key-value facts: `isHealthy`, `isLoaded`, `inPosition`, etc.
+- `GOAPAction` — define actions with preconditions, effects, and cost
+- `planner.plan(state, goal)` — A\* search finds the cheapest action sequence
+- Replanning: world changes mid-mission → call `plan()` again → new plan automatically
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/09-goap-planner.ts
+```
+
+---
+
+### 10-combat-bridge.ts — Realistic offline combat
 
 **What it shows:**
 
@@ -193,12 +327,12 @@ npx tsx --tsconfig examples/tsconfig.json examples/02-online-offline.ts
 - `adjustMorale` tracking (hit penalty, kill bonus, ally death cascade)
 
 ```bash
-npx tsx --tsconfig examples/tsconfig.json examples/03-combat-bridge.ts
+npx tsx --tsconfig examples/tsconfig.json examples/10-combat-bridge.ts
 ```
 
 ---
 
-### 04-persistence.ts — Save / load game state
+### 11-persistence.ts — Save / load game state
 
 **What it shows:**
 
@@ -208,12 +342,12 @@ npx tsx --tsconfig examples/tsconfig.json examples/03-combat-bridge.ts
 - How to swap `MemoryStorageProvider` for `localStorage` in the browser
 
 ```bash
-npx tsx --tsconfig examples/tsconfig.json examples/04-persistence.ts
+npx tsx --tsconfig examples/tsconfig.json examples/11-persistence.ts
 ```
 
 ---
 
-### 05-hazards.ts — Anomaly zones, radiation, artefacts
+### 12-hazards.ts — Anomaly zones, radiation, artefacts
 
 **What it shows:**
 
@@ -222,12 +356,12 @@ npx tsx --tsconfig examples/tsconfig.json examples/04-persistence.ts
 - Damage ticks, artefact spawning and collection
 
 ```bash
-npx tsx --tsconfig examples/tsconfig.json examples/05-hazards.ts
+npx tsx --tsconfig examples/tsconfig.json examples/12-hazards.ts
 ```
 
 ---
 
-### 06-economy.ts — Trade, inventory, quests
+### 13-economy.ts — Trade, inventory, quests
 
 **What it shows:**
 
@@ -236,12 +370,26 @@ npx tsx --tsconfig examples/tsconfig.json examples/05-hazards.ts
 - `QuestEngine` — register → start → progress → complete lifecycle, quest chains
 
 ```bash
-npx tsx --tsconfig examples/tsconfig.json examples/06-economy.ts
+npx tsx --tsconfig examples/tsconfig.json examples/13-economy.ts
 ```
 
 ---
 
-### 07-ai.ts — Online frame-based NPC AI
+### 14-custom-pathfinder.ts — Custom IMovementSimulator
+
+**What it shows:**
+
+- How to replace the built-in movement simulator with any custom pathfinder
+- A minimal grid-based pathfinder written from scratch as a reference
+- Where to plug in PathfinderJS, EasyStar, or a navmesh adapter
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/14-custom-pathfinder.ts
+```
+
+---
+
+### 15-ai.ts — Online frame-based NPC AI
 
 **What it shows:**
 
@@ -251,12 +399,12 @@ npx tsx --tsconfig examples/tsconfig.json examples/06-economy.ts
 - How `SimpleNPCHost` is replaced by `PhaserNPCContext` in production
 
 ```bash
-npx tsx --tsconfig examples/tsconfig.json examples/07-ai.ts
+npx tsx --tsconfig examples/tsconfig.json examples/15-ai.ts
 ```
 
 ---
 
-### 08-social.ts — NPC social interaction system
+### 16-social.ts — NPC social interaction system
 
 **What it shows:**
 
@@ -266,12 +414,49 @@ npx tsx --tsconfig examples/tsconfig.json examples/07-ai.ts
 - Serialize / restore — cooldowns survive save/load
 
 ```bash
-npx tsx --tsconfig examples/tsconfig.json examples/08-social.ts
+npx tsx --tsconfig examples/tsconfig.json examples/16-social.ts
 ```
 
 ---
 
-### 09-phaser.ts — Phaser 3 integration reference ⚠️ browser-only
+### 17-full-npc.ts — Capstone: all AI systems in one NPC
+
+**Start here if you want to understand how the pieces fit together.**
+
+A 10-tick simulation of "Kozak the Veteran Stalker" — one NPC using all five AI
+systems at once:
+
+- **FSM** — top-level states: `PATROL → ALERT → COMBAT → PATROL`
+- **MemoryBank** — stores enemy sightings; FSM reads confidence to decide when to engage
+- **DangerManager** — detects a grenade mid-combat; Kozak repositions automatically
+- **GOAPPlanner** — decides the combat strategy each tick
+- **BehaviorTree** — executes moment-to-moment decisions inside COMBAT state
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/17-full-npc.ts
+```
+
+---
+
+### 18-goap-director.ts — GOAPDirector teaching example
+
+**Start here if you want to learn how GOAPDirector works.**
+
+5 progressive phases, each self-contained:
+
+- **Phase 1:** Minimal GOAPDirector — 4 lines to register, plan, and execute
+- **Phase 2:** Action handler return values — `'running'` / `'success'` / `'failure'` lifecycle
+- **Phase 3:** Interrupts — morale panic preempts action execution
+- **Phase 4:** Dynamic replanning — different WorldState → different plan
+- **Phase 5:** `state.custom` — sharing data between handlers, `__goap` namespace
+
+```bash
+npx tsx --tsconfig examples/tsconfig.json examples/18-goap-director.ts
+```
+
+---
+
+### 19-phaser.ts — Phaser 3 integration reference ⚠️ browser-only
 
 > **NOT runnable in Node.js.** Open as a copy-paste template when integrating
 > the SDK into your Phaser game. Do not run with `tsx`.
@@ -281,20 +466,6 @@ npx tsx --tsconfig examples/tsconfig.json examples/08-social.ts
 - `createPhaserKernel()` — one-call setup that wires all Phaser adapters
 - `OnlineOfflineManager.evaluate()` — per-frame proximity streaming
 - Full update loop order for a Phaser scene
-
----
-
-### 10-custom-pathfinder.ts — Custom IMovementSimulator
-
-**What it shows:**
-
-- How to replace the built-in movement simulator with any custom pathfinder
-- A minimal grid-based pathfinder written from scratch as a reference
-- Where to plug in PathfinderJS, EasyStar, or a navmesh adapter
-
-```bash
-npx tsx --tsconfig examples/tsconfig.json examples/10-custom-pathfinder.ts
-```
 
 ---
 
@@ -313,126 +484,50 @@ Controls: **WASD** or arrow keys. Walk toward NPCs (cyan circle = proximity radi
 
 ---
 
-### 11-fsm-tags.ts — Extended FSM: tags, events, guards, history
+### 20-simple-duel.ts — Simple duel
 
 **What it shows:**
 
-- State tags (`'passive'`, `'active'`, `'hostile'`) and `fsm.hasTag()` for group queries
-- `onEnter` / `onExit` / `onChange` event subscriptions
-- Guards: `canEnter` / `canExit` that veto transitions
-- `fsm.previous`, `fsm.currentStateDuration`, `fsm.getHistory()`
+- Two NPCs (stalker vs bandit) in a firefight with the online AI system
+- Full FSM lifecycle: `IDLE → ALERT → COMBAT → TAKE_COVER` (peek-fire cycle)
+- Cover system with `AIPlugin.coverRegistry` and `createCoverAccess()`
+- Morale-driven transitions: `COMBAT → RETREAT → FLEE`
+- Damage processing, HP tracking, and death handling
 
 ```bash
-npx tsx --tsconfig examples/tsconfig.json examples/11-fsm-tags.ts
+npx tsx --tsconfig examples/tsconfig.json examples/20-simple-duel.ts
 ```
 
 ---
 
-### 12-behavior-tree.ts — Behavior Tree
+### 21-tactical-firefight.ts — Tactical firefight with grenades
 
 **What it shows:**
 
-- `Blackboard<T>` typed shared state passed to every node each tick
-- Composites: `Sequence` (AND gate), `Selector` (OR gate), `Parallel`
-- Decorators: `Inverter`, `Cooldown`, `Repeater`
-- Leaves: `Task`, `Condition`
-- How BT fits with FSM: FSM picks the goal, BT executes it step by step
+- Grenade throwing (`GrenadeState`) and evasion (`EvadeGrenadeState`)
+- `DangerManager` integration via `IDangerAccess` adapter
+- `TacticalCombatHandler` — composite pattern wrapping `CombatState` + `CombatTransitionHandler`
+- Medkit healing in `WoundedState` (crawl + heal + return to combat)
+- Full morale lifecycle: `STABLE → SHAKEN → PANICKED` → `RETREAT` / `FLEE`
 
 ```bash
-npx tsx --tsconfig examples/tsconfig.json examples/12-behavior-tree.ts
+npx tsx --tsconfig examples/tsconfig.json examples/21-tactical-firefight.ts
 ```
 
 ---
 
-### 13-entity-handles.ts — EntityHandleManager
+### 22-squad-assault.ts — Squad assault with GOAP and flanking
 
 **What it shows:**
 
-- Versioned handles that prevent silent "wrong entity" bugs when slots are reused
-- `resolve()` returns `null` for stale or freed handles instead of the new occupant
-- `NULL_HANDLE` sentinel for optional handle fields
-- A `Squad` class that tracks members safely through death and replacement
+- 2v2 squad battle with `SquadSharedTargetTable` for target coordination
+- `GOAPPlanner` — strategic planning (TakeCover → Suppress → Flank → Attack)
+- `AMBUSH` cover evaluator for flanking positions (60–120° off enemy line)
+- `evaluateSituation()` — squad-level tactical commands (ATTACK / HOLD / RETREAT)
+- All systems from examples 20–21 combined in a multi-NPC scenario
 
 ```bash
-npx tsx --tsconfig examples/tsconfig.json examples/13-entity-handles.ts
-```
-
----
-
-### 14-reactive-query.ts — ReactiveQuery
-
-**What it shows:**
-
-- Entity set that calls `onChange` only when membership changes — not every tick
-- `track()` / `untrack()` for special-case membership that bypasses the predicate
-- `dispose()` for cleanup when the query is no longer needed
-
-```bash
-npx tsx --tsconfig examples/tsconfig.json examples/14-reactive-query.ts
-```
-
----
-
-### 15-memory-bank.ts — MemoryBank
-
-**What it shows:**
-
-- Per-NPC episodic memory: what the NPC has seen, heard, and been hit by
-- Three channels with different decay rates: `VISUAL`, `SOUND`, `HIT`
-- `getMostConfident()` — who should the NPC focus fire on?
-- `serialize()` / `restore()` — memory survives a save/load cycle
-
-```bash
-npx tsx --tsconfig examples/tsconfig.json examples/15-memory-bank.ts
-```
-
----
-
-### 16-danger-manager.ts — DangerManager
-
-**What it shows:**
-
-- Spatial threat zones: grenades, anomalies, gunfire — each with TTL
-- `isDangerous(position)` — should the NPC flee?
-- `getSafeDirection(position)` — normalized flee vector away from all threats
-- Custom threshold: `new DangerManager(0.5)` for braver NPCs
-
-```bash
-npx tsx --tsconfig examples/tsconfig.json examples/16-danger-manager.ts
-```
-
----
-
-### 17-goap-planner.ts — GOAP Planner
-
-**What it shows:**
-
-- `WorldState` — key-value facts: `isHealthy`, `isLoaded`, `inPosition`, etc.
-- `GOAPAction` — define actions with preconditions, effects, and cost
-- `planner.plan(state, goal)` — A\* search finds the cheapest action sequence
-- Replanning: world changes mid-mission → call `plan()` again → new plan automatically
-
-```bash
-npx tsx --tsconfig examples/tsconfig.json examples/17-goap-planner.ts
-```
-
----
-
-### 18-full-npc.ts — Capstone: all AI systems in one NPC
-
-**Start here if you want to understand how the pieces fit together.**
-
-A 10-tick simulation of "Kozak the Veteran Stalker" — one NPC using all five AI
-systems at once:
-
-- **FSM** — top-level states: `PATROL → ALERT → COMBAT → PATROL`
-- **MemoryBank** — stores enemy sightings; FSM reads confidence to decide when to engage
-- **DangerManager** — detects a grenade mid-combat; Kozak repositions automatically
-- **GOAPPlanner** — decides the combat strategy each tick
-- **BehaviorTree** — executes moment-to-moment decisions inside COMBAT state
-
-```bash
-npx tsx --tsconfig examples/tsconfig.json examples/18-full-npc.ts
+npx tsx --tsconfig examples/tsconfig.json examples/22-squad-assault.ts
 ```
 
 ---

@@ -1,9 +1,9 @@
 /**
- * 05-hazards.ts
+ * 12-hazards.ts
  *
  * Anomaly zones, radiation damage, and artefact spawning with @alife-sdk/hazards.
  * Runs in Node.js with:
- *   npx tsx --tsconfig examples/tsconfig.json examples/05-hazards.ts
+ *   npx tsx --tsconfig examples/tsconfig.json examples/12-hazards.ts
  *
  * What we build here:
  *   - Two hazard zones: a radiation field and a fire pit

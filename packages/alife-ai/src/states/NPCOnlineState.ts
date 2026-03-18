@@ -81,5 +81,8 @@ export function createDefaultNPCOnlineState(): INPCOnlineState {
     // Morale
     morale: 0,
     moraleState: 'STABLE',
+
+    // Extensible game-specific state
+    custom: {},
   };
 }

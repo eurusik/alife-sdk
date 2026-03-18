@@ -64,6 +64,9 @@ export class OnlineAIDriver {
   /** True while a transition is in progress (guards against re-entrant transitions). */
   private _transitioning = false;
 
+  /** Transition event listeners. */
+  private _transitionListeners: Array<(from: string, to: string) => void> = [];
+
   /** True after destroy() has been called. Guards against use-after-destroy. */
   private _destroyed = false;
 
@@ -118,6 +121,48 @@ export class OnlineAIDriver {
     this.getHandler(this._currentStateId).exit(this.ctx);
   }
 
+  /**
+   * Force an FSM state transition from outside the handler.
+   *
+   * Calls exit() on the current state and enter() on the new one,
+   * exactly like an internal ctx.transition() call. Useful for
+   * GOAP directors, scripted events, or any external system that
+   * needs to steer the FSM.
+   *
+   * No-op if the driver has been destroyed.
+   * Re-entrant calls are silently ignored (same as internal transitions).
+   *
+   * @param newStateId - Target state identifier.
+   */
+  forceTransition(newStateId: string): void {
+    if (this._destroyed) return;
+    this._doTransition(newStateId);
+  }
+
+  /**
+   * Register a callback that fires after every state transition.
+   *
+   * Returns an unsubscribe function. Listeners fire synchronously
+   * after enter() completes on the new state, in registration order.
+   *
+   * @param cb - Callback receiving the previous and new state IDs.
+   * @returns Unsubscribe function.
+   *
+   * @example
+   * ```ts
+   * const unsub = driver.onTransition((from, to) => {
+   *   console.log(`${npcId}: ${from} → ${to}`);
+   * });
+   * // Later: unsub();
+   * ```
+   */
+  onTransition(cb: (from: string, to: string) => void): () => void {
+    this._transitionListeners.push(cb);
+    return () => {
+      this._transitionListeners = this._transitionListeners.filter(l => l !== cb);
+    };
+  }
+
   // -------------------------------------------------------------------------
   // Internal — called by DriverContext
   // -------------------------------------------------------------------------
@@ -131,10 +176,14 @@ export class OnlineAIDriver {
     }
 
     this._transitioning = true;
+    const previousStateId = this._currentStateId;
     try {
       this.getHandler(this._currentStateId).exit(this.ctx);
       this._currentStateId = newStateId;
       this.getHandler(newStateId).enter(this.ctx);
+      // Copy to avoid issues if a listener unsubscribes during iteration.
+      const listeners = [...this._transitionListeners];
+      for (const cb of listeners) cb(previousStateId, newStateId);
     } finally {
       this._transitioning = false;
     }
@@ -194,6 +243,7 @@ class DriverContext implements INPCContext {
   get pack() { return this.host.pack; }
   get conditions() { return this.host.conditions; }
   get suspicion() { return this.host.suspicion; }
+  get pathfinding() { return this.host.pathfinding; }
 
   // Movement & rendering — delegate to host
   setVelocity(vx: number, vy: number): void { this.host.setVelocity(vx, vy); }

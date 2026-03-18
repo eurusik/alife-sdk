@@ -22,7 +22,8 @@ view and must behave in real-time.
 - **Cover system** — 6 evaluators, loophole peek/fire cycles, TTL-based cover locking
 - **Perception** — FOV queries, hearing radius, intel freshness filters
 - **GOAP** — elite NPC goal-oriented planning over a 16-property world state bitmask
-- **Navigation** — Catmull-Rom + Dubins arc path smoothing, restricted zones, pack steering
+- **GOAPDirector** — built-in bridge between GOAP planner and FSM; replans on entry, dispatches actions as sub-states, handles interrupts and plan lifecycle
+- **Navigation** — Catmull-Rom + Dubins arc path smoothing, restricted zones, pack steering, pluggable `IPathfindingAccess` for grid/navmesh A*
 - **Squad tactics** — situational assessment, 6 commands, shared target table
 - **Animation** — 8-direction state→key mapping, layered debounced controller
 - **Suspicion** — stimulus accumulation → alert threshold crossing
@@ -81,10 +82,19 @@ function update(deltaMs: number): void {
 // 6. Read current state
 const state = driver.currentStateId; // e.g. 'COMBAT'
 
-// 7. Force a state transition from within a state handler (e.g. on NPC death)
-// Transitions happen via ctx.transition(), called from inside a state handler:
-//   ctx.transition(ONLINE_STATE.DEAD);
-// To force a transition externally, call driver.update() after mutating ctx.state.
+// 7. Force a state transition from OUTSIDE a handler (new!)
+driver.forceTransition(ONLINE_STATE.DEAD);
+
+// 8. Listen to state transitions (new!)
+const unsub = driver.onTransition((from, to) => {
+  console.log(`NPC ${npcId}: ${from} → ${to}`);
+});
+// unsub() to remove the listener
+
+// 9. Store game-specific data in the extensible state bag (new!)
+ctx.state.custom ??= {};
+ctx.state.custom.ammo = 30;
+ctx.state.custom.goapPlan = planner.plan(worldState, goal);
 ```
 
 ---
@@ -100,7 +110,7 @@ Each module has its own import path for optimal tree-shaking:
 | `@alife-sdk/ai/states` | `OnlineAIDriver`, `StateHandlerMap`, `ONLINE_STATE`, all handlers, builder functions | [states/](src/states/) |
 | `@alife-sdk/ai/cover` | `CoverRegistry`, `CoverLockRegistry`, 6 evaluators, `LoopholeGenerator` | [cover/](src/cover/) |
 | `@alife-sdk/ai/perception` | `NPCSensors`, `isInFOV`, `filterVisibleEntities`, `filterHearingEntities`, `filterHostileEntities`, `filterFriendlyEntities`, `filterFreshIntel`, `distanceSq`, `findClosest`, `scanForEnemies` | [perception/](src/perception/) |
-| `@alife-sdk/ai/goap` | `GOAPController`, `buildWorldState`, `selectGoal`, `EvadeHazardAction` | [goap/](src/goap/) |
+| `@alife-sdk/ai/goap` | `GOAPController`, `GOAPDirector`, `buildWorldState`, `selectGoal`, `EvadeHazardAction` | [goap/](src/goap/) |
 | `@alife-sdk/ai/navigation` | `smoothPath`, `smoothPathWithTurning`, `SmoothPathFollower`, `RestrictedZoneManager`, `SteeringBehaviors` | [navigation/](src/navigation/) |
 | `@alife-sdk/ai/squad` | `evaluateSituation`, `SquadCommand`, `SquadSharedTargetTable` | [squad/](src/squad/) |
 | `@alife-sdk/ai/animation` | `getDirection`, `getAnimationKey`, `getAnimationRequest`, `AnimationController`, `DirectionCache`, `CompassIndex`, `AnimLayer`, `DEFAULT_STATE_ANIM_MAP`, `DEFAULT_WEAPON_SUFFIXES` | [animation/](src/animation/) |
@@ -117,43 +127,47 @@ Each module has its own import path for optimal tree-shaking:
 ## Architecture
 
 ```
-                ┌────────────────────────────────────────┐
-                │              ALifeKernel               │
-                │   (from @alife-sdk/core)               │
-                └──────────────┬─────────────────────────┘
-                               │ kernel.use(aiPlugin)
-                ┌──────────────▼─────────────────────────┐
-                │              AIPlugin                  │
-                │  CoverRegistry · CoverLockRegistry     │
-                │  RestrictedZoneManager                 │
-                │  createCoverAccess(npcId) ─────────────┼──► ICoverAccess (per NPC)
-                └────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│                       ALifeKernel                         │
+│                  (from @alife-sdk/core)                    │
+└──────────────────────────┬────────────────────────────────┘
+                           │ kernel.use(aiPlugin)
+┌──────────────────────────▼────────────────────────────────┐
+│                       AIPlugin                            │
+│  CoverRegistry · CoverLockRegistry                        │
+│  RestrictedZoneManager                                    │
+│  createCoverAccess(npcId) ──► ICoverAccess (per NPC)      │
+└───────────────────────────────────────────────────────────┘
 
 Per-NPC (created on online transition):
-                ┌──────────────────────────────────────────────────────┐
-                │  OnlineAIDriver                                      │
-                │                                                      │
-                │  StateHandlerMap ──► IOnlineStateHandler             │
-                │   DEAD · IDLE · PATROL · ALERT · FLEE · SEARCH      │
-                │   CAMP · SLEEP · COMBAT · TAKE_COVER · GRENADE      │
-                │   EVADE_GRENADE · WOUNDED · RETREAT                  │
-                │   CHARGE · STALK · LEAP · PSI_ATTACK                 │
-                │                                                      │
-                │  INPCContext ─┬─ INPCPerception (FOV / hearing)     │
-                │               ├─ INPCHealth    (hp / morale)        │
-                │               ├─ ICoverAccess  (find / lock cover)  │
-                │               ├─ IDangerAccess (DangerManager port) │
-                │               ├─ ISquadAccess  (commands / target)  │
-                │               ├─ ISuspicionAccess                   │
-                │               └─ IConditionAccess                   │
-                └──────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│  OnlineAIDriver                                           │
+│                                                           │
+│  StateHandlerMap ──► IOnlineStateHandler                  │
+│    DEAD · IDLE · PATROL · ALERT · FLEE · SEARCH           │
+│    CAMP · SLEEP · COMBAT · TAKE_COVER · GRENADE           │
+│    EVADE_GRENADE · WOUNDED · RETREAT                       │
+│    CHARGE · STALK · LEAP · PSI_ATTACK                     │
+│                                                           │
+│  INPCContext ─┬─ INPCPerception     (FOV / hearing)       │
+│               ├─ INPCHealth         (hp / morale)         │
+│               ├─ ICoverAccess       (find / lock cover)   │
+│               ├─ IDangerAccess      (DangerManager port)  │
+│               ├─ IPathfindingAccess (A* / NavMesh port)   │
+│               ├─ ISquadAccess       (commands / target)   │
+│               ├─ ISuspicionAccess                         │
+│               └─ IConditionAccess                         │
+│                                                           │
+│  state.custom ── extensible Record<string, unknown> bag   │
+└───────────────────────────────────────────────────────────┘
 
 Shared systems (optional, compose as needed):
   NPCSensors            filterVisibleEntities / filterHearingEntities
-  GOAPController        elite NPC A* planning (rank ≥ 5)
+  GOAPController        elite NPC A* planning (rank >= 5)
+  GOAPDirector          GOAP -> FSM bridge (register as COMBAT handler)
   SmoothPathFollower    Catmull-Rom + Dubins arc path cursor
   AnimationController   layered, debounced animation dispatch
-  SuspicionAccumulator  stimulus → alert threshold crossing
+  SuspicionAccumulator  stimulus -> alert threshold crossing
   ConditionBank         multi-channel boolean state
 ```
 
@@ -172,13 +186,21 @@ const driver = new OnlineAIDriver(ctx, handlers, ONLINE_STATE.IDLE);
 
 driver.update(deltaMs);             // call every frame
 driver.currentStateId;              // current state ID string
-// Transitions happen via ctx.transition() from inside a state handler:
-//   ctx.transition('PATROL');
+
+// Transitions from inside a handler:
+ctx.transition('PATROL');
+
+// Transitions from OUTSIDE a handler (e.g. GOAP director, scripted events):
+driver.forceTransition('DEAD');
+
+// Listen to transitions:
+driver.onTransition((from, to) => console.log(`${from} → ${to}`));
 ```
 
 Each state handler is a stateless object — all per-NPC runtime data lives in
 `INPCOnlineState` (position, target, phase flags, timer, etc.), not in the handler.
 The handler map can be shared across all NPCs of the same type.
+Game-specific data (GOAP plans, ammo, personality) goes in `ctx.state.custom`.
 
 ### StateHandlerMap — three built-in presets
 
@@ -241,11 +263,12 @@ const ctx: INPCContext = {
   faction:    npc.faction,
   perception: new MyPerception(npc),  // INPCPerception  | null
   health:     new MyHealth(npc),      // INPCHealth      | null
-  cover:      coverAccess,            // ICoverAccess    | null  (from AIPlugin)
-  danger:     dangerAdapter,          // IDangerAccess   | null
-  squad:      squadAccess,            // ISquadAccess    | null
-  suspicion:  suspicionAccess,        // ISuspicionAccess | null
-  conditions: conditionAccess,        // IConditionAccess | null
+  cover:        coverAccess,            // ICoverAccess        | null  (from AIPlugin)
+  danger:       dangerAdapter,          // IDangerAccess       | null
+  pathfinding:  gridPathfinding,        // IPathfindingAccess  | null  (A* / NavMesh)
+  squad:        squadAccess,            // ISquadAccess        | null
+  suspicion:    suspicionAccess,        // ISuspicionAccess    | null
+  conditions:   conditionAccess,        // IConditionAccess    | null
   // pack, restrictedZones also nullable — omit if not used
   emitShoot:   (payload) => fireWeapon(npc, payload),
   emitMeleeHit:(payload) => applyMelee(npc, payload),
@@ -257,6 +280,85 @@ const ctx: INPCContext = {
 > chaining: `ctx.cover?.findCover(...)`, `ctx.health?.hp`, `ctx.perception?.hasVisibleEnemy()`.
 > Omitting a subsystem (setting it to `null`) silently disables the
 > features that depend on it, with no code changes required in the handlers.
+
+### GOAPDirector — GOAP-to-FSM bridge
+
+`GOAPDirector` bridges `GOAPPlanner` with the FSM. Register it as the `COMBAT`
+handler — when NPCs enter combat, the director replans and dispatches each
+action as a sub-state with full lifecycle management.
+
+```ts
+import { GOAPDirector } from '@alife-sdk/ai/goap';
+import type { IGOAPActionHandler } from '@alife-sdk/ai/goap';
+
+const director = new GOAPDirector(planner, {
+  buildWorldState: (ctx) => WorldState.from({
+    isHealthy: ctx.health!.hpPercent >= 0.5,
+    inCover:   ctx.state.hasTakenCover,
+    seeEnemy:  ctx.perception?.hasVisibleEnemy() ?? false,
+  }),
+  goal: WorldState.from({ targetEliminated: true }),
+  actionHandlers: {
+    TakeCover: {
+      enter(ctx) { ctx.pathfinding?.findPath(coverX, coverY); },
+      update(ctx, dt) { return ctx.pathfinding?.isNavigating() ? 'running' : 'success'; },
+      exit(ctx) {},
+    },
+    Suppress: {
+      enter(ctx) { /* start firing */ },
+      update(ctx, dt) { return shotsFired >= 4 ? 'success' : 'running'; },
+      exit(ctx) {},
+    },
+    Attack: {
+      enter(ctx) { /* engage */ },
+      update(ctx, dt) { return 'running'; }, // terminal — stays until interrupted
+      exit(ctx) {},
+    },
+  },
+  interrupts: [
+    { condition: ctx => ctx.state.moraleState === 'PANICKED', targetState: 'FLEE' },
+    { condition: ctx => ctx.health!.hpPercent < 0.2, targetState: 'WOUNDED' },
+  ],
+  onNoPlan: (ctx, dt) => { /* fallback when plan is empty */ },
+});
+
+handlers.register(ONLINE_STATE.COMBAT, director);
+```
+
+The director:
+- **Replans** on every entry (including after interrupts like WOUNDED → COMBAT)
+- **Dispatches** actions: calls `enter()` → `update()` each tick → `exit()` on success/failure
+- **Advances** to the next action on `'success'`, replans on `'failure'`
+- **Checks interrupts** every tick before the action handler runs
+- **Prevents infinite replans** — stops after 3 consecutive empty plans
+- Stores plan state in `ctx.state.custom` (keys prefixed with `__goap`)
+
+### IPathfindingAccess — pluggable pathfinding
+
+State handlers can use obstacle-aware navigation via the optional `IPathfindingAccess`
+subsystem. When provided, `moveAlongPath()` follows waypoints from the pathfinder
+instead of moving in a straight line.
+
+```ts
+// Host implements IPathfindingAccess (e.g. wrapping PathFinding.js, EasyStar, or NavMesh)
+class GridPathfinding implements IPathfindingAccess {
+  findPath(targetX, targetY) { /* A* search on grid */ }
+  getNextWaypoint()          { /* return next waypoint, advance cursor */ }
+  setPath(waypoints)         { /* replace current path */ }
+  isNavigating()             { /* true if cursor < path.length */ }
+  clearPath()                { /* stop following path */ }
+}
+
+// Wire to NPC context:
+const ctx = { ..., pathfinding: new GridPathfinding(npc) };
+
+// In action handlers:
+ctx.pathfinding?.findPath(target.x, target.y);  // compute path
+ctx.pathfinding?.isNavigating();                 // check if walking
+ctx.pathfinding?.clearPath();                    // stop
+```
+
+When `ctx.pathfinding` is null, all handlers fall back to direct straight-line movement.
 
 ### Cover system
 

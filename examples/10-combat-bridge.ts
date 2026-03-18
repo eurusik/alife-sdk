@@ -1,9 +1,9 @@
 /**
- * 03-combat-bridge.ts
+ * 10-combat-bridge.ts
  *
  * Realistic offline combat — implementing ISimulationBridge.
  * Runs in Node.js with:
- *   npx tsx --tsconfig examples/tsconfig.json examples/03-combat-bridge.ts
+ *   npx tsx --tsconfig examples/tsconfig.json examples/10-combat-bridge.ts
  *
  * The problem with examples 01 and 02:
  *   They use createNoOpBridge() which returns 0 effective damage — NPCs

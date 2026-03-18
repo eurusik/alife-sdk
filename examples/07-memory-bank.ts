@@ -1,9 +1,9 @@
 /**
- * 15-memory-bank.ts
+ * 07-memory-bank.ts
  *
  * MemoryBank — per-NPC episodic memory with confidence decay.
  * Runs in Node.js with:
- *   npx tsx --tsconfig examples/tsconfig.json examples/15-memory-bank.ts
+ *   npx tsx --tsconfig examples/tsconfig.json examples/07-memory-bank.ts
  *
  * In most games, NPCs either know about a threat forever or forget it instantly.
  * MemoryBank gives you the middle ground: memories fade over time, different

@@ -1,9 +1,9 @@
 /**
- * 14-reactive-query.ts
+ * 04-reactive-query.ts
  *
  * ReactiveQuery — observe entity set changes without polling every frame.
  * Runs in Node.js with:
- *   npx tsx --tsconfig examples/tsconfig.json examples/14-reactive-query.ts
+ *   npx tsx --tsconfig examples/tsconfig.json examples/04-reactive-query.ts
  *
  * The problem:
  *   In a large simulation you often need to know "which NPCs are currently

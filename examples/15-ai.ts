@@ -1,9 +1,9 @@
 /**
- * 07-ai.ts
+ * 15-ai.ts
  *
  * Online frame-based NPC AI with @alife-sdk/ai.
  * Runs in Node.js with:
- *   npx tsx --tsconfig examples/tsconfig.json examples/07-ai.ts
+ *   npx tsx --tsconfig examples/tsconfig.json examples/15-ai.ts
  *
  * What we build here:
  *   - SimpleNPCHost — the minimal host contract every NPC must satisfy

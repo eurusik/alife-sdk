@@ -1,9 +1,9 @@
 /**
- * 08-social.ts
+ * 16-social.ts
  *
  * NPC social interaction system with @alife-sdk/social.
  * Runs in Node.js with:
- *   npx tsx --tsconfig examples/tsconfig.json examples/08-social.ts
+ *   npx tsx --tsconfig examples/tsconfig.json examples/16-social.ts
  *
  * What we build here:
  *   - ContentPool — text pool by category; addLines / loadSocialData

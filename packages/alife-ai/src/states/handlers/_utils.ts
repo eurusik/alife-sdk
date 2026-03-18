@@ -64,6 +64,50 @@ export function moveToward(
 }
 
 /**
+ * Move an NPC along a pathfinding-computed route, falling back to direct
+ * movement if no pathfinding system is available.
+ *
+ * When `ctx.pathfinding` is present:
+ *   1. If not currently navigating, computes a new path to (targetX, targetY).
+ *   2. Reads the next waypoint from the path cursor.
+ *   3. Moves toward that waypoint using `moveToward()` (which applies steering).
+ *
+ * When `ctx.pathfinding` is null:
+ *   Falls back to `moveToward(ctx, targetX, targetY, speed)` — direct movement.
+ *
+ * **Path lifecycle:** `findPath()` is called only when `isNavigating()` returns
+ * false (path complete or not started). The host's `IPathfindingAccess` implementation
+ * is responsible for detecting when the target has moved significantly and invalidating
+ * the current path by returning `isNavigating() === false`.
+ *
+ * Handlers can use this as a drop-in replacement for `moveToward()` to gain
+ * obstacle avoidance without changing their logic.
+ */
+export function moveAlongPath(
+  ctx: INPCContext,
+  targetX: number,
+  targetY: number,
+  speed: number,
+): void {
+  if (ctx.pathfinding) {
+    // Start a new path if not currently navigating.
+    if (!ctx.pathfinding.isNavigating()) {
+      ctx.pathfinding.findPath(targetX, targetY);
+    }
+
+    // Follow the next waypoint.
+    const wp = ctx.pathfinding.getNextWaypoint();
+    if (wp) {
+      moveToward(ctx, wp.x, wp.y, speed);
+      return;
+    }
+  }
+
+  // Fallback: direct straight-line movement (existing behavior).
+  moveToward(ctx, targetX, targetY, speed);
+}
+
+/**
  * Set the NPC's velocity so it moves directly away from (fromX, fromY) at the
  * given speed (px/s). Also updates the NPC's rotation to face away.
  *

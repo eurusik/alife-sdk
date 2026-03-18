@@ -1,5 +1,5 @@
 /**
- * 10-custom-pathfinder.ts
+ * 14-custom-pathfinder.ts
  *
  * Demonstrates how to replace the built-in movement simulator with a
  * custom IMovementSimulator implementation — for example a grid-based
@@ -7,7 +7,7 @@
  * straight-line or waypoint-graph movement.
  *
  * Run with:
- *   npx tsx --tsconfig examples/tsconfig.json examples/10-custom-pathfinder.ts
+ *   npx tsx --tsconfig examples/tsconfig.json examples/14-custom-pathfinder.ts
  *
  * What we build here:
  *   - A minimal grid-based GridMovementSimulator (no external deps)

@@ -1,9 +1,9 @@
 /**
- * 18-full-npc.ts
+ * 17-full-npc.ts
  *
  * Capstone example — all core AI primitives working together in one NPC.
  * Runs in Node.js with:
- *   npx tsx --tsconfig examples/tsconfig.json examples/18-full-npc.ts
+ *   npx tsx --tsconfig examples/tsconfig.json examples/17-full-npc.ts
  *
  * What we build here:
  *   - A S.T.A.L.K.E.R.-style "Veteran Stalker" named Kozak

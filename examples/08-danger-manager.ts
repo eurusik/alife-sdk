@@ -1,9 +1,9 @@
 /**
- * 16-danger-manager.ts
+ * 08-danger-manager.ts
  *
  * DangerManager — spatial danger zones with TTL and safe-direction vector.
  * Runs in Node.js with:
- *   npx tsx --tsconfig examples/tsconfig.json examples/16-danger-manager.ts
+ *   npx tsx --tsconfig examples/tsconfig.json examples/08-danger-manager.ts
  *
  * Games need NPCs that react to hazards: grenades, anomalies, gunfire.
  * DangerManager tracks active threat zones in 2D space, each with a

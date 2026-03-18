@@ -321,6 +321,58 @@ export interface ISuspicionAccess {
 }
 
 /**
+ * Pathfinding query interface.
+ *
+ * Wraps the engine-specific pathfinding system (A*, NavMesh, etc.) so
+ * state handlers can request paths without importing game-layer classes.
+ *
+ * The host implements this interface by delegating to its pathfinding
+ * engine (e.g. PathFinding.js, EasyStar, or a NavMesh adapter).
+ *
+ * If not provided (`ctx.pathfinding === null`), state handlers fall back
+ * to direct straight-line movement via `moveToward()`.
+ */
+export interface IPathfindingAccess {
+  /**
+   * Compute a path from the NPC's current position to the target.
+   * The implementation should cache the result until `setPath()` or
+   * a new `findPath()` call replaces it.
+   *
+   * @param targetX - Destination world X (px).
+   * @param targetY - Destination world Y (px).
+   * @returns Array of world-space waypoints, or null if no path exists.
+   */
+  findPath(targetX: number, targetY: number): ReadonlyArray<{ x: number; y: number }> | null;
+
+  /**
+   * Get the next waypoint the NPC should move toward.
+   * Manages an internal cursor — advances when the NPC reaches each waypoint.
+   *
+   * @returns Next waypoint, or null if path is complete or no path is set.
+   */
+  getNextWaypoint(): { x: number; y: number } | null;
+
+  /**
+   * Replace the current path with new waypoints.
+   * Resets the internal cursor to the first waypoint.
+   *
+   * @param waypoints - World-space path waypoints.
+   */
+  setPath(waypoints: ReadonlyArray<{ x: number; y: number }>): void;
+
+  /**
+   * True if the NPC is actively following a path (cursor not at end).
+   */
+  isNavigating(): boolean;
+
+  /**
+   * Stop following the current path and clear waypoints.
+   * After this call, `isNavigating()` returns false.
+   */
+  clearPath(): void;
+}
+
+/**
  * Squad communication interface.
  *
  * Wraps the engine-specific SquadManager so state handlers can issue
@@ -619,6 +671,15 @@ export interface INPCContext {
    * PatrolState and IdleState use this to detect accumulated threat and trigger ALERT.
    */
   readonly suspicion: ISuspicionAccess | null;
+
+  /**
+   * Pathfinding system accessor, or null if no pathfinding is registered.
+   *
+   * When provided, state handlers can use `moveAlongPath()` instead of
+   * `moveToward()` for obstacle-aware navigation. When null, handlers
+   * fall back to direct straight-line movement.
+   */
+  readonly pathfinding: IPathfindingAccess | null;
 
   // -------------------------------------------------------------------------
   // Utilities

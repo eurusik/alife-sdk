@@ -1,9 +1,9 @@
 /**
- * 13-entity-handles.ts
+ * 03-entity-handles.ts
  *
  * Entity Handles — versioned references that protect against use-after-free.
  * Runs in Node.js with:
- *   npx tsx --tsconfig examples/tsconfig.json examples/13-entity-handles.ts
+ *   npx tsx --tsconfig examples/tsconfig.json examples/03-entity-handles.ts
  *
  * The problem:
  *   In a long-running simulation, entities die and their IDs or slots get
