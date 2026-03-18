@@ -108,10 +108,10 @@ Each module has its own import path for optimal tree-shaking:
 ## Architecture
 
 ```
-                        ┌─────────────────────────────────┐
-                        │         ALifeKernel              │
+                        ┌──────────────────────────────────┐
+                        │           ALifeKernel            │
                         │  clock · events · logger · ports │
-                        └──────────────┬──────────────────┘
+                        └───────────────┬──────────────────┘
                                        │ kernel.use(plugin)
               ┌────────────────────────┼────────────────────────┐
               │                        │                        │

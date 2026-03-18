@@ -168,10 +168,10 @@ kernel.update(5_001); // advance one tick
        │
        │  implements Ports (IEntityAdapter, IEntityFactory, IPlayerPositionProvider)
        ▼
-  ┌─────────────────────────────────┐
-  │          ALifeKernel            │  ← central coordinator
-  │  clock · events · logger · ports│
-  └──────────────┬──────────────────┘
+  ┌──────────────────────────────────┐
+  │           ALifeKernel            │  ← central coordinator
+  │  clock · events · logger · ports │
+  └───────────────┬──────────────────┘
                  │  kernel.use(plugin)
      ┌───────────┼───────────┐
      ▼           ▼           ▼
