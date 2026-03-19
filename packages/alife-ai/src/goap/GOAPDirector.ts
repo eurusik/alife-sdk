@@ -60,6 +60,13 @@ export interface IGOAPDirectorConfig {
   interrupts?: IGOAPInterrupt[];
   /** Called when the plan is empty or exhausted (optional fallback). */
   onNoPlan?: (ctx: INPCContext, deltaMs: number) => void;
+  /**
+   * Optional: if provided, called every tick with the current WorldState.
+   * Return true to force an immediate replan (aborts current action).
+   * Use this to react to significant state changes mid-plan (e.g., HP drop,
+   * new enemy spotted, ally died).
+   */
+  shouldReplan?: (ctx: INPCContext, currentWorldState: WorldState) => boolean;
 }
 
 // Custom state keys used by the director (stored in ctx.state.custom).
@@ -114,7 +121,16 @@ export class GOAPDirector implements IOnlineStateHandler {
       }
     }
 
-    // 2. Get current plan and action.
+    // 2. Check if world state changed enough to warrant replanning.
+    if (this.config.shouldReplan) {
+      const ws = this.config.buildWorldState(ctx);
+      if (this.config.shouldReplan(ctx, ws)) {
+        this._exitCurrentAction(ctx);
+        this._replan(ctx);
+      }
+    }
+
+    // 3. Get current plan and action.
     const plan = this._read(ctx, GOAP_PLAN_KEY) as Array<{ id: string }> | undefined;
     const index = (this._read(ctx, GOAP_INDEX_KEY) as number | undefined) ?? 0;
 
@@ -125,7 +141,7 @@ export class GOAPDirector implements IOnlineStateHandler {
       return;
     }
 
-    // 3. Get or enter the action handler.
+    // 4. Get or enter the action handler.
     const action = plan[index];
     const handler = this.config.actionHandlers[action.id];
     if (!handler) {
@@ -143,7 +159,7 @@ export class GOAPDirector implements IOnlineStateHandler {
       this._write(ctx, GOAP_HANDLER_KEY, action.id);
     }
 
-    // 4. Tick the action handler.
+    // 5. Tick the action handler.
     const result = handler.update(ctx, deltaMs);
 
     if (result === 'success') {
