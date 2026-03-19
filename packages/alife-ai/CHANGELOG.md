@@ -1,5 +1,11 @@
 # @alife-sdk/ai
 
+## 0.5.1
+
+### Patch Changes
+
+- feat(ai): `GOAPDirector.shouldReplan()` — reactive replanning triggered by world state changes (ally death, ammo depletion, ally flanking)
+
 ## 0.5.0
 
 ### Minor Changes

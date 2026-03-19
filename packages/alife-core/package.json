@@ -1,6 +1,6 @@
 {
   "name": "@alife-sdk/core",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Framework-agnostic A-Life simulation and AI decision-making system",
   "type": "module",
   "sideEffects": false,

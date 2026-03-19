@@ -1,5 +1,11 @@
 # @alife-sdk/core
 
+## 0.4.2
+
+### Patch Changes
+
+- fix(core): GOAPPlanner heap siftDown compared against stale child instead of node — fixes priority queue corruption that could produce suboptimal plans
+
 ## 0.4.1
 
 ### Patch Changes

@@ -230,14 +230,17 @@ export class GOAPPlanner {
     const len = heap.length;
     const node = heap[i];
     while (true) {
-      let smallest = i;
       const left = 2 * i + 1;
-      const right = 2 * i + 2;
-      if (left < len && heap[left].f < heap[smallest].f) smallest = left;
-      if (right < len && heap[right].f < heap[smallest].f) smallest = right;
-      if (smallest === i) break;
-      heap[i] = heap[smallest];
-      i = smallest;
+      if (left >= len) break;
+      // Find the smaller child
+      const right = left + 1;
+      let minChild = left;
+      if (right < len && heap[right].f < heap[left].f) minChild = right;
+      // If smallest child >= node being sifted, heap property restored
+      if (heap[minChild].f >= node.f) break;
+      // Move child up, continue sifting down
+      heap[i] = heap[minChild];
+      i = minChild;
     }
     heap[i] = node;
   }
